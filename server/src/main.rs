@@ -13,7 +13,7 @@ enum ServerEvent {
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("localhost:8080").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
 
     let (client_tx, mut server_rx) = mpsc::channel::<ClientEvent>(32);
 
@@ -25,9 +25,11 @@ async fn main() {
             let msg = server_rx.recv().await.unwrap();
             match msg {
                 ClientEvent::OnConnect(addr, server_tx) => {
+                    println!("client connected from {addr}");
                     clients.insert(addr, server_tx);
                 },
                 ClientEvent::OnMessage(addr, line) => {
+                    println!("Received message from {addr}: \"{line}\"");
                     for (client_addr, tx) in &clients {
                         if *client_addr != addr {
                             tx.send(ServerEvent::OnMessage(line.clone())).await.unwrap();
