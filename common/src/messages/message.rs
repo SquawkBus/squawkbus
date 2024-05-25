@@ -1,0 +1,305 @@
+use std::io;
+use std::io::prelude::*;
+
+use crate::common::serialization::Serializable;
+
+use super::message_type::MessageType;
+
+use super::authorization_request::AuthorizationRequest;
+use super::authorization_response::AuthorizationResponse;
+use super::forwarded_multicast_data::ForwardedMulticastData;
+use super::forwarded_subscription_request::ForwardedSubscriptionRequest;
+use super::forwarded_unicast_data::ForwardedUnicastData;
+use super::multicast_data::MulticastData;
+use super::notification_request::NotificationRequest;
+use super::subscription_request::SubscriptionRequest;
+use super::unicast_data::UnicastData;
+
+#[derive(PartialEq, Debug)]
+pub enum Message {
+    AuthorizationRequest(AuthorizationRequest),
+    AuthorizationResponse(AuthorizationResponse),
+    ForwardedMulticastData(ForwardedMulticastData),
+    ForwardedSubscriptionRequest(ForwardedSubscriptionRequest),
+    ForwardedUnicastData(ForwardedUnicastData),
+    MulticastData(MulticastData),
+    NotificationRequest(NotificationRequest),
+    SubscriptionRequest(SubscriptionRequest),
+    UnicastData(UnicastData),
+}
+
+impl Message {
+    pub fn message_type(&self) -> MessageType {
+        match self {
+            Message::AuthorizationRequest(message) => message.message_type(),
+            Message::AuthorizationResponse(message) => message.message_type(),
+            Message::ForwardedMulticastData(message) => message.message_type(),
+            Message::ForwardedSubscriptionRequest(message) => message.message_type(),
+            Message::ForwardedUnicastData(message) => message.message_type(),
+            Message::MulticastData(message) => message.message_type(),
+            Message::NotificationRequest(message) => message.message_type(),
+            Message::SubscriptionRequest(message) => message.message_type(),
+            Message::UnicastData(message) => message.message_type(),
+        }
+    }
+
+    pub fn read<R: Read>(mut reader: R) -> io::Result<Message> {
+        match MessageType::read(&mut reader) {
+            Ok(MessageType::AuthorizationRequest) => {
+                match AuthorizationRequest::read(&mut reader) {
+                    Ok(message) => Ok(Message::AuthorizationRequest(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::AuthorizationResponse) => {
+                match AuthorizationResponse::read(&mut reader) {
+                    Ok(message) => Ok(Message::AuthorizationResponse(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::ForwardedMulticastData) => {
+                match ForwardedMulticastData::read(&mut reader) {
+                    Ok(message) => Ok(Message::ForwardedMulticastData(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::ForwardedSubscriptionRequest) => {
+                match ForwardedSubscriptionRequest::read(&mut reader) {
+                    Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::ForwardedUnicastData) => {
+                match ForwardedUnicastData::read(&mut reader) {
+                    Ok(message) => Ok(Message::ForwardedUnicastData(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader) {
+                Ok(message) => Ok(Message::MulticastData(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader) {
+                Ok(message) => Ok(Message::NotificationRequest(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader) {
+                Ok(message) => Ok(Message::SubscriptionRequest(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader) {
+                Ok(message) => Ok(Message::UnicastData(message)),
+                Err(error) => Err(error),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        self.message_type().write(&mut writer)?;
+        match self {
+            Message::AuthorizationRequest(message) => message.write(&mut writer),
+            Message::AuthorizationResponse(message) => message.write(&mut writer),
+            Message::ForwardedMulticastData(message) => message.write(&mut writer),
+            Message::ForwardedSubscriptionRequest(message) => message.write(&mut writer),
+            Message::ForwardedUnicastData(message) => message.write(&mut writer),
+            Message::MulticastData(message) => message.write(&mut writer),
+            Message::NotificationRequest(message) => message.write(&mut writer),
+            Message::SubscriptionRequest(message) => message.write(&mut writer),
+            Message::UnicastData(message) => message.write(&mut writer),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_message {
+    use uuid::Uuid;
+
+    use super::super::data_packet::DataPacket;
+
+    use super::*;
+    use std::{
+        collections::HashSet,
+        io::{Cursor, Seek},
+    };
+
+    #[test]
+    fn should_round_trip_authorization_request() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::AuthorizationRequest(AuthorizationRequest {
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            host: String::from("host1"),
+            user: String::from("mary"),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_authorization_response() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::AuthorizationResponse(AuthorizationResponse {
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            is_authorization_required: true,
+            entitlements: HashSet::from([1, 2, 3]),
+        });
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_forwarded_multicast_data() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::ForwardedMulticastData(ForwardedMulticastData {
+            host: String::from("host1"),
+            user: String::from("mary"),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            content_type: String::from("application/json"),
+            data_packets: vec![DataPacket {
+                entitlements: HashSet::from([-5i32, 1, 17]),
+                data: vec![1u8, 2, 3, 4],
+            }],
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_forwarded_subscription_request() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::ForwardedSubscriptionRequest(ForwardedSubscriptionRequest {
+            host: String::from("host1"),
+            user: String::from("mary"),
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            is_add: true,
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_forwarded_unicast_data() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::ForwardedUnicastData(ForwardedUnicastData {
+            host: String::from("host1"),
+            user: String::from("mary"),
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            content_type: String::from("application/json"),
+            data_packets: vec![DataPacket {
+                entitlements: HashSet::from([-5i32, 1, 17]),
+                data: vec![1u8, 2, 3, 4],
+            }],
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_multicast_data() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::MulticastData(MulticastData {
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            content_type: String::from("application/json"),
+            data_packets: vec![DataPacket {
+                entitlements: HashSet::from([-5i32, 1, 17]),
+                data: vec![1u8, 2, 3, 4],
+            }],
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_notification_request() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::NotificationRequest(NotificationRequest {
+            feed: String::from("LSE"),
+            is_add: true,
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_subscription_request() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::SubscriptionRequest(SubscriptionRequest {
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            is_add: true,
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_unicast_data() {
+        let mut cursor = Cursor::new(Vec::new());
+
+        let initial = Message::UnicastData(UnicastData {
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            feed: String::from("LSE"),
+            topic: String::from("VOD"),
+            content_type: String::from("application/json"),
+            data_packets: vec![DataPacket {
+                entitlements: HashSet::from([-5i32, 1, 17]),
+                data: vec![1u8, 2, 3, 4],
+            }],
+        });
+
+        initial.write(&mut cursor).expect("should serialize");
+
+        cursor.rewind().unwrap();
+        let round_trip = Message::read(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+}
