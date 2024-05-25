@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::io::prelude::*;
 use std::io;
 
-use crate::common::serialization::Serializable;
+use crate::io::Serializable;
 
 #[derive(PartialEq, Debug)]
 pub struct DataPacket {

@@ -3,7 +3,7 @@ use std::io;
 
 use uuid::Uuid;
 
-use crate::common::serialization::Serializable;
+use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
 use super::message_type::MessageType;

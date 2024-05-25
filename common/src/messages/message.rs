@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::common::serialization::Serializable;
+use crate::io::Serializable;
 
 use super::message_type::MessageType;
 

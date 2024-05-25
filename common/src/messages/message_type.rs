@@ -1,7 +1,7 @@
 use std::io::{prelude::*, ErrorKind};
 use std::io;
 
-use crate::common::serialization::Serializable;
+use crate::io::Serializable;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]

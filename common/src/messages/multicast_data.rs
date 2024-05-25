@@ -1,7 +1,7 @@
 use std::io::prelude::*;
 use std::io;
 
-use crate::common::serialization::Serializable;
+use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
 use super::message_type::MessageType;
