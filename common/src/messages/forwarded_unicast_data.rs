@@ -1,5 +1,4 @@
-use std::io::prelude::*;
-use std::io;
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use uuid::Uuid;
 
@@ -24,26 +23,26 @@ impl ForwardedUnicastData {
         MessageType::ForwardedUnicastData
     }
 
-    pub fn read<R: Read>(mut reader: R) -> io::Result<ForwardedUnicastData> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<ForwardedUnicastData> {
         Ok(ForwardedUnicastData {
-            host: String::read(&mut reader)?,
-            user: String::read(&mut reader)?,
-            client_id: Uuid::read(&mut reader)?,
-            feed: String::read(&mut reader)?,
-            topic: String::read(&mut reader)?,
-            content_type: String::read(&mut reader)?,
-            data_packets: Vec::<DataPacket>::read(&mut reader)?,
+            host: String::read(&mut reader).await?,
+            user: String::read(&mut reader).await?,
+            client_id: Uuid::read(&mut reader).await?,
+            feed: String::read(&mut reader).await?,
+            topic: String::read(&mut reader).await?,
+            content_type: String::read(&mut reader).await?,
+            data_packets: Vec::<DataPacket>::read(&mut reader).await?,
         })
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        (&self.host).write(&mut writer)?;
-        (&self.user).write(&mut writer)?;
-        (&self.client_id).write(&mut writer)?;
-        (&self.feed).write(&mut writer)?;
-        (&self.topic).write(&mut writer)?;
-        (&self.content_type).write(&mut writer)?;
-        (&self.data_packets).write(&mut writer)?;
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+        (&self.host).write(&mut writer).await?;
+        (&self.user).write(&mut writer).await?;
+        (&self.client_id).write(&mut writer).await?;
+        (&self.feed).write(&mut writer).await?;
+        (&self.topic).write(&mut writer).await?;
+        (&self.content_type).write(&mut writer).await?;
+        (&self.data_packets).write(&mut writer).await?;
         Ok(())
     }
 }

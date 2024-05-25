@@ -1,5 +1,4 @@
-use std::io::{prelude::*, ErrorKind};
-use std::io;
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt,ErrorKind};
 
 use crate::io::Serializable;
 
@@ -36,13 +35,13 @@ impl MessageType {
 }
 
 impl Serializable for MessageType {
-    fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        (*self as u8).write(&mut writer)?;
+    async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+        (*self as u8).write(&mut writer).await?;
         Ok(())            
     }
 
-    fn read<R: Read>(mut reader: R) -> io::Result<MessageType> {
-        match u8::read(&mut reader) {
+    async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<MessageType> {
+        match u8::read(&mut reader).await {
             Ok(1) => Ok(MessageType::MulticastData),
             Ok(2) => Ok(MessageType::UnicastData),
             Ok(3) => Ok(MessageType::ForwardedSubscriptionRequest),

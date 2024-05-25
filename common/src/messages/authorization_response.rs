@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use std::io::prelude::*;
-use std::io;
+
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use uuid::Uuid;
 
@@ -22,22 +22,22 @@ impl AuthorizationResponse {
         MessageType::AuthorizationResponse
     }
 
-    pub fn read<R: Read>(mut reader: R) -> io::Result<AuthorizationResponse> {
+    pub async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<AuthorizationResponse> {
         Ok(AuthorizationResponse {
-            client_id: Uuid::read(&mut reader)?,
-            feed: String::read(&mut reader)?,
-            topic: String::read(&mut reader)?,
-            is_authorization_required: bool::read(&mut reader)?,
-            entitlements: HashSet::<i32>::read(&mut reader)?,
+            client_id: Uuid::read(&mut reader).await?,
+            feed: String::read(&mut reader).await?,
+            topic: String::read(&mut reader).await?,
+            is_authorization_required: bool::read(&mut reader).await?,
+            entitlements: HashSet::<i32>::read(&mut reader).await?,
         })
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        (&self.client_id).write(&mut writer)?;
-        (&self.feed).write(&mut writer)?;
-        (&self.topic).write(&mut writer)?;
-        (&self.is_authorization_required).write(&mut writer)?;
-        (&self.entitlements).write(&mut writer)?;
+    pub async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+        (&self.client_id).write(&mut writer).await?;
+        (&self.feed).write(&mut writer).await?;
+        (&self.topic).write(&mut writer).await?;
+        (&self.is_authorization_required).write(&mut writer).await?;
+        (&self.entitlements).write(&mut writer).await?;
         Ok(())
     }
 }

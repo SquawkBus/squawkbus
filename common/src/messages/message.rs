@@ -1,5 +1,4 @@
-use std::io;
-use std::io::prelude::*;
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use crate::io::Serializable;
 
@@ -43,51 +42,51 @@ impl Message {
         }
     }
 
-    pub fn read<R: Read>(mut reader: R) -> io::Result<Message> {
-        match MessageType::read(&mut reader) {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<Message> {
+        match MessageType::read(&mut reader).await {
             Ok(MessageType::AuthorizationRequest) => {
-                match AuthorizationRequest::read(&mut reader) {
+                match AuthorizationRequest::read(&mut reader).await {
                     Ok(message) => Ok(Message::AuthorizationRequest(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::AuthorizationResponse) => {
-                match AuthorizationResponse::read(&mut reader) {
+                match AuthorizationResponse::read(&mut reader).await {
                     Ok(message) => Ok(Message::AuthorizationResponse(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedMulticastData) => {
-                match ForwardedMulticastData::read(&mut reader) {
+                match ForwardedMulticastData::read(&mut reader).await {
                     Ok(message) => Ok(Message::ForwardedMulticastData(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedSubscriptionRequest) => {
-                match ForwardedSubscriptionRequest::read(&mut reader) {
+                match ForwardedSubscriptionRequest::read(&mut reader).await {
                     Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedUnicastData) => {
-                match ForwardedUnicastData::read(&mut reader) {
+                match ForwardedUnicastData::read(&mut reader).await {
                     Ok(message) => Ok(Message::ForwardedUnicastData(message)),
                     Err(error) => Err(error),
                 }
             }
-            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader) {
+            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader).await {
                 Ok(message) => Ok(Message::MulticastData(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader) {
+            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader).await {
                 Ok(message) => Ok(Message::NotificationRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader) {
+            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader).await {
                 Ok(message) => Ok(Message::SubscriptionRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader) {
+            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader).await {
                 Ok(message) => Ok(Message::UnicastData(message)),
                 Err(error) => Err(error),
             },
@@ -95,18 +94,18 @@ impl Message {
         }
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        self.message_type().write(&mut writer)?;
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+        self.message_type().write(&mut writer).await?;
         match self {
-            Message::AuthorizationRequest(message) => message.write(&mut writer),
-            Message::AuthorizationResponse(message) => message.write(&mut writer),
-            Message::ForwardedMulticastData(message) => message.write(&mut writer),
-            Message::ForwardedSubscriptionRequest(message) => message.write(&mut writer),
-            Message::ForwardedUnicastData(message) => message.write(&mut writer),
-            Message::MulticastData(message) => message.write(&mut writer),
-            Message::NotificationRequest(message) => message.write(&mut writer),
-            Message::SubscriptionRequest(message) => message.write(&mut writer),
-            Message::UnicastData(message) => message.write(&mut writer),
+            Message::AuthorizationRequest(message) => message.write(&mut writer).await,
+            Message::AuthorizationResponse(message) => message.write(&mut writer).await,
+            Message::ForwardedMulticastData(message) => message.write(&mut writer).await,
+            Message::ForwardedSubscriptionRequest(message) => message.write(&mut writer).await,
+            Message::ForwardedUnicastData(message) => message.write(&mut writer).await,
+            Message::MulticastData(message) => message.write(&mut writer).await,
+            Message::NotificationRequest(message) => message.write(&mut writer).await,
+            Message::SubscriptionRequest(message) => message.write(&mut writer).await,
+            Message::UnicastData(message) => message.write(&mut writer).await,
         }
     }
 }
@@ -123,8 +122,8 @@ mod test_message {
         io::{Cursor, Seek},
     };
 
-    #[test]
-    fn should_round_trip_authorization_request() {
+    #[tokio::test]
+    async fn should_round_trip_authorization_request() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::AuthorizationRequest(AuthorizationRequest {
@@ -135,15 +134,15 @@ mod test_message {
             topic: String::from("VOD"),
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_authorization_response() {
+    #[tokio::test]
+    async fn should_roundtrip_authorization_response() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::AuthorizationResponse(AuthorizationResponse {
@@ -153,15 +152,15 @@ mod test_message {
             is_authorization_required: true,
             entitlements: HashSet::from([1, 2, 3]),
         });
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_forwarded_multicast_data() {
+    #[tokio::test]
+    async fn should_roundtrip_forwarded_multicast_data() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::ForwardedMulticastData(ForwardedMulticastData {
@@ -176,15 +175,15 @@ mod test_message {
             }],
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_forwarded_subscription_request() {
+    #[tokio::test]
+    async fn should_roundtrip_forwarded_subscription_request() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::ForwardedSubscriptionRequest(ForwardedSubscriptionRequest {
@@ -196,15 +195,15 @@ mod test_message {
             is_add: true,
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_forwarded_unicast_data() {
+    #[tokio::test]
+    async fn should_roundtrip_forwarded_unicast_data() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::ForwardedUnicastData(ForwardedUnicastData {
@@ -220,15 +219,15 @@ mod test_message {
             }],
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_multicast_data() {
+    #[tokio::test]
+    async fn should_roundtrip_multicast_data() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::MulticastData(MulticastData {
@@ -241,15 +240,15 @@ mod test_message {
             }],
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_notification_request() {
+    #[tokio::test]
+    async fn should_roundtrip_notification_request() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::NotificationRequest(NotificationRequest {
@@ -257,15 +256,15 @@ mod test_message {
             is_add: true,
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_subscription_request() {
+    #[tokio::test]
+    async fn should_roundtrip_subscription_request() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::SubscriptionRequest(SubscriptionRequest {
@@ -274,15 +273,15 @@ mod test_message {
             is_add: true,
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[test]
-    fn should_roundtrip_unicast_data() {
+    #[tokio::test]
+    async fn should_roundtrip_unicast_data() {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::UnicastData(UnicastData {
@@ -296,10 +295,10 @@ mod test_message {
             }],
         });
 
-        initial.write(&mut cursor).expect("should serialize");
+        initial.write(&mut cursor).await.expect("should serialize");
 
         cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).unwrap();
+        let round_trip = Message::read(&mut cursor).await.unwrap();
         assert_eq!(initial, round_trip);
     }
 }

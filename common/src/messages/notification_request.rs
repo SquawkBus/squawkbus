@@ -1,5 +1,4 @@
-use std::io::prelude::*;
-use std::io;
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use crate::io::Serializable;
 
@@ -16,16 +15,16 @@ impl NotificationRequest {
         MessageType::NotificationRequest
     }
 
-    pub fn read<R: Read>(mut reader: R) -> io::Result<NotificationRequest> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<NotificationRequest> {
         Ok(NotificationRequest {
-            feed: String::read(&mut reader)?,
-            is_add: bool::read(&mut reader)?
+            feed: String::read(&mut reader).await?,
+            is_add: bool::read(&mut reader).await?
         })
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        (&self.feed).write(&mut writer)?;
-        self.is_add.write(&mut writer)?;
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+        (&self.feed).write(&mut writer).await?;
+        self.is_add.write(&mut writer).await?;
         Ok(())
     }
 }

@@ -1,13 +1,10 @@
-use std::io::prelude::*;
-use std::io;
+use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use uuid::Uuid;
 
 use crate::io::Serializable;
 
 use super::message_type::MessageType;
-
-// use crate::message_type::MessageType;
 
 #[derive(PartialEq, Debug)]
 pub struct AuthorizationRequest {
@@ -23,22 +20,22 @@ impl AuthorizationRequest {
         MessageType::AuthorizationRequest
     }
 
-    pub fn read<R: Read>(mut reader: R) -> io::Result<AuthorizationRequest> {
+    pub async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<AuthorizationRequest> {
         Ok(AuthorizationRequest {
-            client_id: Uuid::read(&mut reader)?,
-            host: String::read(&mut reader)?,
-            user: String::read(&mut reader)?,
-            feed: String::read(&mut reader)?,
-            topic: String::read(&mut reader)?,
+            client_id: Uuid::read(&mut reader).await?,
+            host: String::read(&mut reader).await?,
+            user: String::read(&mut reader).await?,
+            feed: String::read(&mut reader).await?,
+            topic: String::read(&mut reader).await?,
         })
     }
 
-    pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        (&self.client_id).write(&mut writer)?;
-        (&self.host).write(&mut writer)?;
-        (&self.user).write(&mut writer)?;
-        (&self.feed).write(&mut writer)?;
-        (&self.topic).write(&mut writer)?;
+    pub async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+        (&self.client_id).write(&mut writer).await?;
+        (&self.host).write(&mut writer).await?;
+        (&self.user).write(&mut writer).await?;
+        (&self.feed).write(&mut writer).await?;
+        (&self.topic).write(&mut writer).await?;
         Ok(())
     }
 }
