@@ -127,11 +127,10 @@ mod test_message {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::AuthorizationRequest(AuthorizationRequest {
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
             host: String::from("host1"),
             user: String::from("mary"),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            topic: String::from("VOD LSE"),
         });
 
         initial.write(&mut cursor).await.expect("should serialize");
@@ -147,8 +146,7 @@ mod test_message {
 
         let initial = Message::AuthorizationResponse(AuthorizationResponse {
             client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             is_authorization_required: true,
             entitlements: HashSet::from([1, 2, 3]),
         });
@@ -166,8 +164,7 @@ mod test_message {
         let initial = Message::ForwardedMulticastData(ForwardedMulticastData {
             host: String::from("host1"),
             user: String::from("mary"),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             content_type: String::from("application/json"),
             data_packets: vec![DataPacket {
                 entitlements: HashSet::from([-5i32, 1, 17]),
@@ -190,8 +187,7 @@ mod test_message {
             host: String::from("host1"),
             user: String::from("mary"),
             client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             is_add: true,
         });
 
@@ -210,8 +206,7 @@ mod test_message {
             host: String::from("host1"),
             user: String::from("mary"),
             client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             content_type: String::from("application/json"),
             data_packets: vec![DataPacket {
                 entitlements: HashSet::from([-5i32, 1, 17]),
@@ -231,8 +226,7 @@ mod test_message {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::MulticastData(MulticastData {
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             content_type: String::from("application/json"),
             data_packets: vec![DataPacket {
                 entitlements: HashSet::from([-5i32, 1, 17]),
@@ -252,7 +246,7 @@ mod test_message {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::NotificationRequest(NotificationRequest {
-            feed: String::from("LSE"),
+            pattern: String::from(".* LSE"),
             is_add: true,
         });
 
@@ -268,8 +262,7 @@ mod test_message {
         let mut cursor = Cursor::new(Vec::new());
 
         let initial = Message::SubscriptionRequest(SubscriptionRequest {
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             is_add: true,
         });
 
@@ -286,8 +279,7 @@ mod test_message {
 
         let initial = Message::UnicastData(UnicastData {
             client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            feed: String::from("LSE"),
-            topic: String::from("VOD"),
+            topic: String::from("VOD LSE"),
             content_type: String::from("application/json"),
             data_packets: vec![DataPacket {
                 entitlements: HashSet::from([-5i32, 1, 17]),

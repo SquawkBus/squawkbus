@@ -11,7 +11,6 @@ pub struct ForwardedSubscriptionRequest {
     pub host: String,
     pub user: String,
     pub client_id: Uuid,
-    pub feed: String,
     pub topic: String,
     pub is_add: bool,
 }
@@ -26,7 +25,6 @@ impl ForwardedSubscriptionRequest {
             host: String::read(&mut reader).await?,
             user: String::read(&mut reader).await?,
             client_id: Uuid::read(&mut reader).await?,
-            feed: String::read(&mut reader).await?,
             topic: String::read(&mut reader).await?,
             is_add: bool::read(&mut reader).await?
         })
@@ -36,7 +34,6 @@ impl ForwardedSubscriptionRequest {
         (&self.host).write(&mut writer).await?;
         (&self.user).write(&mut writer).await?;
         (&self.client_id).write(&mut writer).await?;
-        (&self.feed).write(&mut writer).await?;
         (&self.topic).write(&mut writer).await?;
         self.is_add.write(&mut writer).await?;
         Ok(())
