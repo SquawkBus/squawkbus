@@ -5,6 +5,7 @@ use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use uuid::Uuid;
 
+#[allow(async_fn_in_trait)]
 //#[trait_variant::make(HttpService: Send)]
 pub trait Serializable: Sized+Send {
     async fn write<W: AsyncWriteExt+Unpin>(&self, writer: W) -> io::Result<()>;
