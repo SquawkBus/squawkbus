@@ -6,7 +6,7 @@ use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ForwardedSubscriptionRequest {
     pub host: String,
     pub user: String,
@@ -20,7 +20,7 @@ impl ForwardedSubscriptionRequest {
         MessageType::ForwardedSubscriptionRequest
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<ForwardedSubscriptionRequest> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<ForwardedSubscriptionRequest> {
         Ok(ForwardedSubscriptionRequest {
             host: String::read(&mut reader).await?,
             user: String::read(&mut reader).await?,
@@ -30,7 +30,7 @@ impl ForwardedSubscriptionRequest {
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (&self.host).write(&mut writer).await?;
         (&self.user).write(&mut writer).await?;
         (&self.client_id).write(&mut writer).await?;

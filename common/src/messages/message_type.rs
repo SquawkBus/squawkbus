@@ -2,7 +2,7 @@ use tokio::io::{self,AsyncReadExt,AsyncWriteExt,ErrorKind};
 
 use crate::io::Serializable;
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub enum MessageType
 {
@@ -35,12 +35,12 @@ impl MessageType {
 }
 
 impl Serializable for MessageType {
-    async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (*self as u8).write(&mut writer).await?;
         Ok(())            
     }
 
-    async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<MessageType> {
+    async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<MessageType> {
         match u8::read(&mut reader).await {
             Ok(1) => Ok(MessageType::MulticastData),
             Ok(2) => Ok(MessageType::UnicastData),

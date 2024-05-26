@@ -1,7 +1,9 @@
 {
     "cSpell.words": [
+        "datapacket",
         "hashset",
         "interactor",
+        "repr",
         "roundtrip"
     ]
 }

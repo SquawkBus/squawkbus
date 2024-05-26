@@ -15,11 +15,11 @@ pub async fn hub_run(mut server_rx: Receiver<ClientEvent>) {
                 println!("client connected from {addr}");
                 clients.insert(addr, server_tx);
             },
-            ClientEvent::OnMessage(addr, line) => {
-                println!("Received message from {addr}: \"{line}\"");
+            ClientEvent::OnMessage(addr, msg) => {
+                // println!("Received message from {addr}: \"{msg:?}\"");
                 for (client_addr, tx) in &clients {
                     if *client_addr != addr {
-                        tx.send(ServerEvent::OnMessage(line.clone())).await.unwrap();
+                        tx.send(ServerEvent::OnMessage(msg.clone())).await.unwrap();
                     }
                 };
             },

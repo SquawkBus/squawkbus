@@ -7,7 +7,7 @@ use crate::io::Serializable;
 use super::data_packet::DataPacket;
 use super::message_type::MessageType;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct UnicastData {
     pub client_id: Uuid,
     pub topic: String,
@@ -20,7 +20,7 @@ impl UnicastData {
         MessageType::UnicastData
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<UnicastData> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<UnicastData> {
         Ok(UnicastData {
             client_id: Uuid::read(&mut reader).await?,
             topic: String::read(&mut reader).await?,
@@ -29,7 +29,7 @@ impl UnicastData {
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (&self.client_id).write(&mut writer).await?;
         (&self.topic).write(&mut writer).await?;
         (&self.content_type).write(&mut writer).await?;

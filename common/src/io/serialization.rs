@@ -8,17 +8,17 @@ use uuid::Uuid;
 #[allow(async_fn_in_trait)]
 //#[trait_variant::make(HttpService: Send)]
 pub trait Serializable: Sized+Send {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, writer: W) -> io::Result<()>;
-    async fn read<R: AsyncReadExt+Unpin>(reader: R) -> io::Result<Self>;
+    async fn write<W: AsyncWriteExt+Unpin>(&self, writer: &mut W) -> io::Result<()>;
+    async fn read<R: AsyncReadExt+Unpin>(reader: &mut R) -> io::Result<Self>;
 }
 
 impl Serializable for u8 {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, writer: &mut W) -> io::Result<()> {
         let buf = [*self];
         writer.write_all(&buf).await
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<u8> {
+    async fn read<R: AsyncReadExt+Unpin>(reader: &mut R) -> io::Result<u8> {
         let mut buf: [u8; 1] = [0];
         reader.read_exact(&mut buf).await?;
         Ok(buf[0])
@@ -26,7 +26,7 @@ impl Serializable for u8 {
 }
 
 impl Serializable for bool {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         if *self {
             1u8.write(&mut writer).await?;
         } else {
@@ -36,7 +36,7 @@ impl Serializable for bool {
         Ok(())            
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<bool> {
+    async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<bool> {
         match u8::read(&mut reader).await {
             Ok(value) => if value == 1 { Ok(true) } else { Ok(false) },
             Err(error) => Err(error)
@@ -46,7 +46,7 @@ impl Serializable for bool {
 }
 
 impl Serializable for u32 {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, writer: &mut W) -> io::Result<()> {
         let buf: [u8; 4] = [
             *self as u8,
             (*self >> 8) as u8,
@@ -58,7 +58,7 @@ impl Serializable for u32 {
         Ok(())            
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<u32> {
+    async fn read<R: AsyncReadExt+Unpin>(reader: &mut R) -> io::Result<u32> {
         let mut buf: [u8; 4] = [0, 0, 0, 0];
         reader.read_exact(&mut buf).await?;
         let value: u32 = buf[0] as u32 |
@@ -70,11 +70,11 @@ impl Serializable for u32 {
 }
 
 impl Serializable for i32 {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (*self as u32).write(&mut writer).await
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<i32> {
+    async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<i32> {
         match u32::read(&mut reader).await {
             Ok(num) => Ok(num as i32),
             Err(error) => Err(error)
@@ -83,13 +83,13 @@ impl Serializable for i32 {
 }
 
 impl Serializable for String {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (self.len() as u32).write(&mut writer).await?;
         writer.write(self.as_bytes()).await?;
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<String> {
+    async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<String> {
         let len = u32::read(&mut reader).await?;
         let mut buf = vec![0u8; len as usize];
         reader.read(&mut buf).await?;
@@ -101,7 +101,7 @@ impl Serializable for String {
 }
 
 impl<T> Serializable for Vec<T> where T: Serializable {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (self.len() as u32).write(&mut writer).await?;
         for value in self {
             value.write(&mut writer).await?;
@@ -109,7 +109,7 @@ impl<T> Serializable for Vec<T> where T: Serializable {
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<Self> {
+    async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<Self> {
         let mut len = u32::read(&mut reader).await?;
         let mut values: Self = Vec::new();
         values.reserve_exact(len as usize);
@@ -123,7 +123,7 @@ impl<T> Serializable for Vec<T> where T: Serializable {
 }
 
 impl<T> Serializable for HashSet<T> where T: Serializable + Eq + Hash {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (self.len() as u32).write(&mut writer).await?;
         for value in self {
             value.write(&mut writer).await?;
@@ -131,7 +131,7 @@ impl<T> Serializable for HashSet<T> where T: Serializable + Eq + Hash {
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<Self> {
+    async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<Self> {
         let mut len = u32::read(&mut reader).await?;
         let mut values: Self = HashSet::new();
         while len > 0 {
@@ -144,14 +144,14 @@ impl<T> Serializable for HashSet<T> where T: Serializable + Eq + Hash {
 }
 
 impl Serializable for Uuid {
-    async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<Self> {
+    async fn read<R: AsyncReadExt+Unpin>(reader: &mut R) -> io::Result<Self> {
         let mut buf = [0u8; 16];
         reader.read_exact(&mut buf).await?;
         let value = Uuid::from_bytes(buf);
         Ok(value)
     }
 
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, writer: &mut W) -> io::Result<()> {
         writer.write(self.as_bytes()).await?;
         Ok(())
     }

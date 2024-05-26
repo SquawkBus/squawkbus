@@ -4,7 +4,7 @@ use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct NotificationRequest {
     pub pattern: String,
     pub is_add: bool,
@@ -15,14 +15,14 @@ impl NotificationRequest {
         MessageType::NotificationRequest
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<NotificationRequest> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<NotificationRequest> {
         Ok(NotificationRequest {
             pattern: String::read(&mut reader).await?,
             is_add: bool::read(&mut reader).await?
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (&self.pattern).write(&mut writer).await?;
         self.is_add.write(&mut writer).await?;
         Ok(())

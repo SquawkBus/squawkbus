@@ -4,7 +4,7 @@ use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
 
 use crate::io::Serializable;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
     pub entitlements: HashSet<i32>,
     pub data: Vec<u8>
@@ -24,13 +24,13 @@ impl DataPacket {
 }
 
 impl Serializable for DataPacket {
-    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         self.entitlements.write(&mut writer).await?;
         self.data.write(&mut writer).await?;
         Ok(())
     }    
 
-    async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<DataPacket> {
+    async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<DataPacket> {
         let entitlements = HashSet::<i32>::read(&mut reader).await?;
         let data = Vec::<u8>::read(&mut reader).await?;
         let data_packet = DataPacket::new(entitlements, data);

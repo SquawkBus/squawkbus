@@ -14,7 +14,7 @@ use super::notification_request::NotificationRequest;
 use super::subscription_request::SubscriptionRequest;
 use super::unicast_data::UnicastData;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Message {
     AuthorizationRequest(AuthorizationRequest),
     AuthorizationResponse(AuthorizationResponse),
@@ -42,7 +42,7 @@ impl Message {
         }
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<Message> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<Message> {
         match MessageType::read(&mut reader).await {
             Ok(MessageType::AuthorizationRequest) => {
                 match AuthorizationRequest::read(&mut reader).await {
@@ -94,7 +94,7 @@ impl Message {
         }
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         self.message_type().write(&mut writer).await?;
         match self {
             Message::AuthorizationRequest(message) => message.write(&mut writer).await,

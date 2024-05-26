@@ -8,7 +8,7 @@ use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AuthorizationResponse {
     pub client_id: Uuid,
     pub topic: String,
@@ -21,7 +21,7 @@ impl AuthorizationResponse {
         MessageType::AuthorizationResponse
     }
 
-    pub async fn read<R: AsyncReadExt+Unpin>(mut reader: R) -> io::Result<AuthorizationResponse> {
+    pub async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<AuthorizationResponse> {
         Ok(AuthorizationResponse {
             client_id: Uuid::read(&mut reader).await?,
             topic: String::read(&mut reader).await?,
@@ -30,7 +30,7 @@ impl AuthorizationResponse {
         })
     }
 
-    pub async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (&self.client_id).write(&mut writer).await?;
         (&self.topic).write(&mut writer).await?;
         (&self.is_authorization_required).write(&mut writer).await?;

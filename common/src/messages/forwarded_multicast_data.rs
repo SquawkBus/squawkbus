@@ -5,7 +5,7 @@ use crate::io::Serializable;
 use super::data_packet::DataPacket;
 use super::message_type::MessageType;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ForwardedMulticastData {
     pub host: String,
     pub user: String,
@@ -19,7 +19,7 @@ impl ForwardedMulticastData {
         MessageType::ForwardedMulticastData
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: R) -> io::Result<ForwardedMulticastData> {
+    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<ForwardedMulticastData> {
         Ok(ForwardedMulticastData {
             host: String::read(&mut reader).await?,
             user: String::read(&mut reader).await?,
@@ -29,7 +29,7 @@ impl ForwardedMulticastData {
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> io::Result<()> {
+    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (&self.host).write(&mut writer).await?;
         (&self.user).write(&mut writer).await?;
         (&self.topic).write(&mut writer).await?;
