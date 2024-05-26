@@ -1,6 +1,6 @@
 use tokio::{io::{AsyncWriteExt, AsyncBufReadExt, BufReader}, net::TcpSocket};
 
-use std::io;
+//use std::io;
 
 #[tokio::main]
 async fn main() {
@@ -13,24 +13,28 @@ async fn main() {
 
     println!("connected");
 
-    let (read_half, mut write_half) = stream.split();
-    let mut reader = BufReader::new(read_half);
+    let (skt_read_half, mut skt_write_half) = stream.split();
+    let mut skt_reader = BufReader::new(skt_read_half);
+
+    let stdin = tokio::io::stdin();
+    let mut stdin_reader = BufReader::new(stdin);
 
     loop {
-        let mut line = String::new();
+        let mut line1 = String::new();
+        let mut line2 = String::new();
 
         println!("enter request...");
-        io::stdin()
-            .read_line(&mut line)
-            .expect("Failed to read line");
 
-        write_half.write_all(line.as_bytes()).await.unwrap();
-        line.clear();
-
-        println!("reading response...");
-        reader.read_line(&mut line).await.unwrap();
-        println!("{line}");
-        line.clear();
+        tokio::select! {
+            result = stdin_reader.read_line(&mut line1) => {
+                result.unwrap();
+                skt_write_half.write_all(line1.as_bytes()).await.unwrap();
+            }
+            result = skt_reader.read_line(&mut line2) => {
+                result.unwrap();
+                println!("{line2}");
+            }
+        }
     }
     
 }
