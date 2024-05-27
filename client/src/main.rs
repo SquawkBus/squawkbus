@@ -26,7 +26,6 @@ async fn main() {
 
     loop {
         let mut request_line = String::new();
-        let mut response_line = String::new();
 
         println!("Enter request:");
         println!("\tpublish <topic> <message>");
@@ -47,13 +46,12 @@ async fn main() {
                 }
             }
             // response
-            result = skt_reader.read_line(&mut response_line) => {
-                result.unwrap();
-                println!("{response_line}");
+            result = Message::read(&mut skt_reader) => {
+                let message = result.unwrap();
+                println!("Received message {message:?}");
             }
         }
-    }
-    
+    }    
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
