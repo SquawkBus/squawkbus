@@ -1,14 +1,16 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common::messages::{ForwardedSubscriptionRequest, Message, MulticastData, SubscriptionRequest};
 use tokio::sync::mpsc::{Receiver, Sender};
+
+use uuid::Uuid;
+
+use common::messages::{ForwardedSubscriptionRequest, Message, MulticastData, SubscriptionRequest};
 
 use crate::events::{ClientEvent, ServerEvent};
 
 pub struct Hub {
-    clients: HashMap<SocketAddr, Sender<Arc<ServerEvent>>>
+    clients: HashMap<Uuid, Sender<Arc<ServerEvent>>>
 }
 
 impl Hub {
@@ -22,19 +24,19 @@ impl Hub {
         loop {
             let msg = server_rx.recv().await.unwrap();
             match msg {
-                ClientEvent::OnConnect(addr, server_tx) => self.handle_connect(addr, server_tx),
-                ClientEvent::OnMessage(addr, msg) => self.handle_message(addr, msg).await,
+                ClientEvent::OnConnect(id, server_tx) => self.handle_connect(id, server_tx),
+                ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await,
             }
         }    
     }
 
-    fn handle_connect(&mut self, addr: SocketAddr, server_tx: Sender<Arc<ServerEvent>>) {
-        println!("client connected from {addr}");
-        self.clients.insert(addr, server_tx);
+    fn handle_connect(&mut self, id: Uuid, server_tx: Sender<Arc<ServerEvent>>) {
+        println!("client connected from {id}");
+        self.clients.insert(id, server_tx);
     }
 
-    async fn handle_message(&mut self, addr: SocketAddr, msg: Message) {
-        println!("Received message from {addr}: \"{msg:?}\"");
+    async fn handle_message(&mut self, id: Uuid, msg: Message) {
+        println!("Received message from {id}: \"{msg:?}\"");
 
         match msg {
             Message::AuthorizationRequest(_) => todo!(),

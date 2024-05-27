@@ -11,6 +11,7 @@ use common::messages::Message;
 
 use crate::events::{ClientEvent, ServerEvent};
 
+#[derive(Debug)]
 pub struct Interactor {
     pub id: Uuid
 }
@@ -25,7 +26,7 @@ impl Interactor {
     pub async fn run(&self, mut socket: TcpStream, addr: SocketAddr, hub: Sender<ClientEvent>) {
         let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
     
-        hub.send(ClientEvent::OnConnect(addr.clone(), tx)).await.unwrap();
+        hub.send(ClientEvent::OnConnect(self.id.clone(), tx)).await.unwrap();
     
         let (read_half, mut write_half) = socket.split();
     
@@ -36,7 +37,7 @@ impl Interactor {
                 // forward client to hub
                 result = Message::read(&mut reader) => {
                     let msg = result.unwrap();
-                    hub.send(ClientEvent::OnMessage(addr, msg)).await.unwrap();
+                    hub.send(ClientEvent::OnMessage(self.id, msg)).await.unwrap();
                 }
                 // forward hub to client
                 result = rx.recv() => {

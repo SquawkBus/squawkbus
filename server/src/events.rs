@@ -1,12 +1,14 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common::messages::Message;
 use tokio::sync::mpsc::Sender;
 
+use uuid::Uuid;
+
+use common::messages::Message;
+
 pub enum ClientEvent {
-    OnConnect(SocketAddr, Sender<Arc<ServerEvent>>),
-    OnMessage(SocketAddr, Message)
+    OnConnect(Uuid, Sender<Arc<ServerEvent>>),
+    OnMessage(Uuid, Message)
 }
 
 pub enum ServerEvent {
