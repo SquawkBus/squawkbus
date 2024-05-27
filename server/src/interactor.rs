@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
@@ -9,7 +10,7 @@ use common::messages::Message;
 use crate::events::{ClientEvent, ServerEvent};
 
 pub async fn interactor_run(mut socket: TcpStream, addr: SocketAddr, hub: Sender<ClientEvent>) {
-    let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
+    let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
 
     hub.send(ClientEvent::OnConnect(addr.clone(), tx)).await.unwrap();
 
@@ -28,9 +29,9 @@ pub async fn interactor_run(mut socket: TcpStream, addr: SocketAddr, hub: Sender
             result = rx.recv() => {
                 match result {
                     Some(event) => {
-                        match event {
-                            ServerEvent::OnMessage(line) => {
-                                line.write(&mut write_half).await.unwrap();
+                        match event.as_ref() {
+                            ServerEvent::OnMessage(message) => {
+                                message.write(&mut write_half).await.unwrap();
                                 // write_half.write_all(line.as_bytes()).await.unwrap();
                             }
                         }
