@@ -57,7 +57,7 @@ async fn main() {
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
-    let parts: Vec<&str> = line.split(' ').collect();
+    let parts: Vec<&str> = line.trim().split(' ').collect();
     match parts[0] {
         "publish" => {
             if parts.len() != 3 {

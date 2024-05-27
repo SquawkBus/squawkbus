@@ -58,17 +58,19 @@ impl Hub {
             Message::ForwardedUnicastData(_) => todo!(),
             Message::MulticastData(msg) => self.handle_multicast_data(&id, msg.topic, msg.content_type, msg.data_packets).await,
             Message::NotificationRequest(msg) => self.handle_notification_request(&id, msg).await,
-            Message::SubscriptionRequest(msg) => self.handle_subscription_request(&id, msg).await,
+            Message::SubscriptionRequest(msg) => self.handle_subscription_request(id, msg).await,
             Message::UnicastData(msg) => self.handle_unicast_data(id, msg.client_id, msg.topic, msg.content_type, msg.data_packets).await,
         }
     }
 
     async fn handle_unicast_data(&self, publisher_id: Uuid, client_id: Uuid, topic: String, content_type: String, data_packets: Vec<DataPacket>) {
         let Some(publisher) = self.clients.get(&publisher_id) else {
+            println!("handle_unicast_data: no publisher {publisher_id}");
             return;
         };
 
         let Some(client) = self.clients.get(&client_id) else {
+            println!("handle_unicast_data: no client {client_id}");
             return;
         };
 
@@ -80,16 +82,24 @@ impl Hub {
             content_type,
             data_packets
         };
+
+        println!("handle_unicast_data: sending to client {client_id} message {message:?}");
+
         let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedUnicastData(message)));
+
         client.tx.send(event.clone()).await.unwrap();
+
+        println!("handle_unicast_data: ...sent");
     }
 
     async fn handle_multicast_data(&self, publisher_id: &Uuid, topic: String, content_type: String, data_packets: Vec<DataPacket>) {
         let Some(subscribers) = self.subscriptions.get(topic.as_str()) else {
+            println!("handle_multicast_data: no topic {topic}");
             return
         };
 
         let Some(publisher) = self.clients.get(publisher_id) else {
+            println!("handle_multicast_data: not publisher {publisher_id}");
             return;
         };
 
@@ -100,12 +110,19 @@ impl Hub {
             content_type,
             data_packets
         };
+
+        println!("handle_multicast_data: sending message {message:?} to clients ...");
+
         let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(message)));
+
         for subscriber_id  in subscribers.keys() {
             if let Some(subscriber) = self.clients.get(subscriber_id) {
+                println!("handle_multicast_data: ... {subscriber_id}");
                 subscriber.tx.send(event.clone()).await.unwrap();
             }
         }
+
+        println!("handle_multicast_data: ...sent");
     }
 
     async fn handle_notification_request(&mut self, id: &Uuid, msg: NotificationRequest) {
@@ -163,7 +180,7 @@ impl Hub {
         }
     }
 
-    async fn handle_subscription_request(&mut self, id: &Uuid, msg: SubscriptionRequest) {
+    async fn handle_subscription_request(&mut self, id: Uuid, msg: SubscriptionRequest) {
         if msg.is_add {
             self.add_subscription(id, msg.topic.as_str()).await;
         } else {
@@ -171,23 +188,25 @@ impl Hub {
         }
     }
 
-    async fn add_subscription(&mut self, subscriber_id: &Uuid, topic: &str) {
+    async fn add_subscription(&mut self, subscriber_id: Uuid, topic: &str) {
         let subscribers = self.subscriptions.entry(topic.to_string()).or_default();
 
         if let Some(count) = subscribers.get_mut(&subscriber_id) {
+            println!("add_subscription: incrementing count for {topic}");
             *count += 1;
         } else {
+            println!("add_subscription: creating new {topic}");
             subscribers.insert(subscriber_id.clone(), 1);
             self.notify_listeners(subscriber_id, topic, true).await;
         }
     }
 
-    async fn remove_subscription(&mut self, subscriber_id: &Uuid, topic: &str) {
+    async fn remove_subscription(&mut self, subscriber_id: Uuid, topic: &str) {
         let Some(subscribers) = self.subscriptions.get_mut(topic) else {
             return
         };
 
-        let Some(count) = subscribers.get_mut(subscriber_id) else {
+        let Some(count) = subscribers.get_mut(&subscriber_id) else {
             return
         };
 
@@ -204,10 +223,12 @@ impl Hub {
         self.notify_listeners(subscriber_id, topic, false).await;
     }
 
-    async fn notify_listeners(&self, subscriber_id: &Uuid, topic: &str, is_add: bool) {
+    async fn notify_listeners(&self, subscriber_id: Uuid, topic: &str, is_add: bool) {
+        println!("notify_listeners: subscriber_id={subscriber_id}, topic={topic}, is_add={is_add}");
+
         for (_pattern, (regex, listeners)) in &self.notifications {
             if regex.is_match(topic) {
-                let subscriber = self.clients.get(subscriber_id).unwrap();
+                let subscriber = self.clients.get(&subscriber_id).unwrap();
 
                 let message = ForwardedSubscriptionRequest {
                     client_id: subscriber_id.clone(),
