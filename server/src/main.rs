@@ -5,7 +5,7 @@ mod events;
 use events::ClientEvent;
 
 mod hub;
-use hub::hub_run;
+use hub::Hub;
 
 mod interactor;
 use interactor::interactor_run;
@@ -15,10 +15,11 @@ async fn main() {
     let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
+    let mut hub = Hub::new();
 
     // Create a hub that listens to clients
     tokio::spawn(async move {
-            hub_run(server_rx).await;
+            hub.run(server_rx).await;
         }
     );
 
