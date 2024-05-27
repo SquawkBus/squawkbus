@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use common::messages::{DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest};
-use tokio::{io::{AsyncBufReadExt, BufReader}, net::TcpSocket};
+use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, net::TcpSocket};
 
 #[tokio::main]
 async fn main() {
@@ -19,6 +19,10 @@ async fn main() {
 
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);
+
+    // Handshake
+    skt_write_half.write_all("nobody\n".as_bytes()).await.unwrap();
+    skt_write_half.write_all("trustno1\n".as_bytes()).await.unwrap();
 
     loop {
         let mut request_line = String::new();

@@ -10,3 +10,4 @@ bitflags = "2.5.0"
 tokio = { version = "1", features = [ "full" ] }
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
 common = { path = "../common" }
+regex = "1.10.4"

@@ -7,7 +7,7 @@ use uuid::Uuid;
 use common::messages::Message;
 
 pub enum ClientEvent {
-    OnConnect(Uuid, Sender<Arc<ServerEvent>>),
+    OnConnect(Uuid, String, String, Sender<Arc<ServerEvent>>),
     OnMessage(Uuid, Message)
 }
 

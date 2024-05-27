@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::BufReader;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Sender};
 
@@ -26,11 +26,23 @@ impl Interactor {
     pub async fn run(&self, mut socket: TcpStream, addr: SocketAddr, hub: Sender<ClientEvent>) {
         let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
     
-        hub.send(ClientEvent::OnConnect(self.id.clone(), tx)).await.unwrap();
-    
         let (read_half, mut write_half) = socket.split();
     
         let mut reader = BufReader::new(read_half);
+
+        // Handshake
+        let mut user = String::new();
+        reader.read_line(&mut user).await.unwrap();
+        let mut password = String::new();
+        reader.read_line(&mut password).await.unwrap();
+
+        let host = match addr {
+            SocketAddr::V4(v4) => v4.ip().to_string(),
+            SocketAddr::V6(v6) => v6.ip().to_string(),
+        };
+
+        // Inform the client
+        hub.send(ClientEvent::OnConnect(self.id.clone(), host, user, tx)).await.unwrap();
     
         loop {
             tokio::select! {
