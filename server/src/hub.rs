@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common::messages::Message;
+use common::messages::{ForwardedSubscriptionRequest, Message, MulticastData, SubscriptionRequest};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::events::{ClientEvent, ServerEvent};
@@ -35,11 +35,37 @@ impl Hub {
 
     async fn handle_message(&mut self, addr: SocketAddr, msg: Message) {
         println!("Received message from {addr}: \"{msg:?}\"");
-        let event = Arc::new(ServerEvent::OnMessage(msg));
-        for (client_addr, tx) in &self.clients {
-            if *client_addr != addr {
-                tx.send(event.clone()).await.unwrap();
-            }
-        };
+
+        match msg {
+            Message::AuthorizationRequest(_) => todo!(),
+            Message::AuthorizationResponse(_) => todo!(),
+            Message::ForwardedMulticastData(_) => todo!(),
+            Message::ForwardedSubscriptionRequest(msg) => self.handle_forwarded_subscription_request(msg).await,
+            Message::ForwardedUnicastData(_) => todo!(),
+            Message::MulticastData(msg) => self.handle_multicast_data(msg).await,
+            Message::NotificationRequest(_) => todo!(),
+            Message::SubscriptionRequest(msg) => self.handle_subscription_request(msg).await,
+            Message::UnicastData(_) => todo!(),
+        }
+
+
+        // let event = Arc::new(ServerEvent::OnMessage(msg));
+        // for (client_addr, tx) in &self.clients {
+        //     if *client_addr != addr {
+        //         tx.send(event.clone()).await.unwrap();
+        //     }
+        // };
+    }
+
+    async fn handle_subscription_request(&mut self, msg: SubscriptionRequest) {
+
+    }
+
+    async fn handle_multicast_data(&mut self, msg: MulticastData) {
+
+    }
+
+    async fn handle_forwarded_subscription_request(&mut self, msg: ForwardedSubscriptionRequest) {
+
     }
 }
