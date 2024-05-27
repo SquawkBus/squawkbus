@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use uuid::Uuid;
 
-use common::messages::{ForwardedSubscriptionRequest, Message, MulticastData, NotificationRequest, SubscriptionRequest};
+use common::messages::{DataPacket, ForwardedMulticastData, ForwardedSubscriptionRequest, ForwardedUnicastData, Message, NotificationRequest, SubscriptionRequest};
 
 use crate::events::{ClientEvent, ServerEvent};
 
@@ -54,12 +54,57 @@ impl Hub {
             Message::AuthorizationRequest(_) => todo!(),
             Message::AuthorizationResponse(_) => todo!(),
             Message::ForwardedMulticastData(_) => todo!(),
-            Message::ForwardedSubscriptionRequest(msg) => todo!(),
+            Message::ForwardedSubscriptionRequest(_) => todo!(),
             Message::ForwardedUnicastData(_) => todo!(),
-            Message::MulticastData(msg) => self.handle_multicast_data(msg).await,
+            Message::MulticastData(msg) => self.handle_multicast_data(&id, msg.topic, msg.content_type, msg.data_packets).await,
             Message::NotificationRequest(msg) => self.handle_notification_request(&id, msg).await,
             Message::SubscriptionRequest(msg) => self.handle_subscription_request(&id, msg).await,
-            Message::UnicastData(_) => todo!(),
+            Message::UnicastData(msg) => self.handle_unicast_data(id, msg.client_id, msg.topic, msg.content_type, msg.data_packets).await,
+        }
+    }
+
+    async fn handle_unicast_data(&self, publisher_id: Uuid, client_id: Uuid, topic: String, content_type: String, data_packets: Vec<DataPacket>) {
+        let Some(publisher) = self.clients.get(&publisher_id) else {
+            return;
+        };
+
+        let Some(client) = self.clients.get(&client_id) else {
+            return;
+        };
+
+        let message = ForwardedUnicastData {
+            client_id: publisher_id,
+            host: publisher.host.clone(),
+            user: publisher.user.clone(),
+            topic,
+            content_type,
+            data_packets
+        };
+        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedUnicastData(message)));
+        client.tx.send(event.clone()).await.unwrap();
+    }
+
+    async fn handle_multicast_data(&self, publisher_id: &Uuid, topic: String, content_type: String, data_packets: Vec<DataPacket>) {
+        let Some(subscribers) = self.subscriptions.get(topic.as_str()) else {
+            return
+        };
+
+        let Some(publisher) = self.clients.get(publisher_id) else {
+            return;
+        };
+
+        let message = ForwardedMulticastData {
+            host: publisher.host.clone(),
+            user: publisher.user.clone(),
+            topic,
+            content_type,
+            data_packets
+        };
+        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(message)));
+        for subscriber_id  in subscribers.keys() {
+            if let Some(subscriber) = self.clients.get(subscriber_id) {
+                subscriber.tx.send(event.clone()).await.unwrap();
+            }
         }
     }
 
@@ -157,10 +202,6 @@ impl Hub {
         }
 
         self.notify_listeners(subscriber_id, topic, false).await;
-    }
-
-    async fn handle_multicast_data(&mut self, msg: MulticastData) {
-
     }
 
     async fn notify_listeners(&self, subscriber_id: &Uuid, topic: &str, is_add: bool) {
