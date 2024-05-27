@@ -8,7 +8,7 @@ mod hub;
 use hub::Hub;
 
 mod interactor;
-use interactor::interactor_run;
+use interactor::Interactor;
 
 #[tokio::main]
 async fn main() {
@@ -27,9 +27,10 @@ async fn main() {
         let (socket, addr) = listener.accept().await.unwrap();
 
         let client_tx = client_tx.clone();
+        let interactor = Interactor::new();
 
         tokio::spawn(async move {
-            interactor_run(socket, addr, client_tx).await;
+            interactor.run(socket, addr, client_tx).await;
         });
     }
 }
