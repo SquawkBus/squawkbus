@@ -5,5 +5,9 @@
         "interactor",
         "repr",
         "roundtrip"
-    ]
+    ],
+    "editor.inlayHints.enabled": "offUnlessPressed",
+    "[rust]": {
+        "editor.formatOnSave": true
+    }
 }
