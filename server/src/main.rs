@@ -10,6 +10,10 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
+mod clients;
+mod notifications;
+mod subscriptions;
+
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
@@ -19,9 +23,8 @@ async fn main() {
 
     // Create a hub that listens to clients
     tokio::spawn(async move {
-            hub.run(server_rx).await;
-        }
-    );
+        hub.run(server_rx).await;
+    });
 
     loop {
         let (socket, addr) = listener.accept().await.unwrap();
