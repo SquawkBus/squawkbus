@@ -13,28 +13,28 @@ use crate::events::{ClientEvent, ServerEvent};
 
 #[derive(Debug)]
 pub struct Interactor {
-    pub id: Uuid
+    pub id: Uuid,
 }
 
 impl Interactor {
     pub fn new() -> Interactor {
-        Interactor {
-            id: Uuid::new_v4()
-        }
+        Interactor { id: Uuid::new_v4() }
     }
 
     pub async fn run(&self, mut socket: TcpStream, addr: SocketAddr, hub: Sender<ClientEvent>) {
         let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
-    
+
         let (read_half, mut write_half) = socket.split();
-    
+
         let mut reader = BufReader::new(read_half);
 
         // Handshake
         let mut user = String::new();
         reader.read_line(&mut user).await.unwrap();
+        user.truncate(user.len() - 1); // Must have at least a single '\n';
         let mut password = String::new();
         reader.read_line(&mut password).await.unwrap();
+        password.truncate(password.len() - 1); // Must have at least a single '\n';
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),
@@ -42,8 +42,10 @@ impl Interactor {
         };
 
         // Inform the client
-        hub.send(ClientEvent::OnConnect(self.id.clone(), host, user, tx)).await.unwrap();
-    
+        hub.send(ClientEvent::OnConnect(self.id.clone(), host, user, tx))
+            .await
+            .unwrap();
+
         loop {
             tokio::select! {
                 // forward client to hub
@@ -67,4 +69,5 @@ impl Interactor {
                 }
             }
         }
-    }}
+    }
+}

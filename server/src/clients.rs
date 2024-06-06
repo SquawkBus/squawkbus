@@ -31,7 +31,7 @@ impl ClientManager {
         user: String,
         tx: Sender<Arc<ServerEvent>>,
     ) {
-        println!("client connected from {id}");
+        println!("client {id} connected for {user}@{host} ");
         self.clients.insert(id, Client { host, user, tx });
     }
 
