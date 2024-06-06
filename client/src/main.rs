@@ -1,7 +1,12 @@
 use std::collections::HashSet;
 
-use common::messages::{DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest};
-use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, net::TcpSocket};
+use common::messages::{
+    DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest,
+};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpSocket,
+};
 
 #[tokio::main]
 async fn main() {
@@ -21,8 +26,14 @@ async fn main() {
     let mut stdin_reader = BufReader::new(stdin);
 
     // Handshake
-    skt_write_half.write_all("nobody\n".as_bytes()).await.unwrap();
-    skt_write_half.write_all("trustno1\n".as_bytes()).await.unwrap();
+    skt_write_half
+        .write_all("nobody\n".as_bytes())
+        .await
+        .unwrap();
+    skt_write_half
+        .write_all("trustno1\n".as_bytes())
+        .await
+        .unwrap();
 
     loop {
         let mut request_line = String::new();
@@ -51,7 +62,7 @@ async fn main() {
                 println!("Received message {message:?}");
             }
         }
-    }    
+    }
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
@@ -64,7 +75,7 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
                 let message = create_multicast_message(parts[1], parts[2]);
                 Ok(Message::MulticastData(message))
             }
-        },
+        }
         "subscribe" => {
             if parts.len() != 2 {
                 Err("usage: subscribe <topic>")
@@ -72,7 +83,7 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
                 let message = create_subscription_message(parts[1]);
                 Ok(Message::SubscriptionRequest(message))
             }
-        },
+        }
         "notify" => {
             if parts.len() != 2 {
                 Err("usage: subscribe <topic>")
@@ -80,8 +91,8 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
                 let message = create_notification_message(parts[1]);
                 Ok(Message::NotificationRequest(message))
             }
-        },
-        _ => Err("usage: publish/subscribe/notify")
+        }
+        _ => Err("usage: publish/subscribe/notify"),
     }
 }
 
@@ -89,12 +100,10 @@ fn create_multicast_message(topic: &str, message: &str) -> MulticastData {
     MulticastData {
         topic: topic.to_string(),
         content_type: String::from("text/plain"),
-        data_packets: vec![
-            DataPacket::new(
-                HashSet::new(),
-                Vec::from(message.as_bytes())
-            )
-        ],
+        data_packets: vec![DataPacket::new(
+            HashSet::new(),
+            Vec::from(message.as_bytes()),
+        )],
     }
 }
 
