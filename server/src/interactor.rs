@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Sender};
 
@@ -28,7 +28,7 @@ impl Interactor {
 
         let mut reader = BufReader::new(read_half);
 
-        let (user, _password) = handshake(&mut reader).await;
+        let (user, _password) = handshake(&mut reader).await.unwrap();
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),
@@ -66,12 +66,14 @@ impl Interactor {
     }
 }
 
-async fn handshake<R: AsyncRead + Unpin>(reader: &mut BufReader<R>) -> (String, String) {
+async fn handshake<R: AsyncRead + Unpin>(
+    reader: &mut BufReader<R>,
+) -> Result<(String, String), tokio::io::Error> {
     let mut user = String::new();
-    reader.read_line(&mut user).await.unwrap();
+    reader.read_line(&mut user).await?;
     user.truncate(user.len() - 1); // Must have at least a single '\n';
     let mut password = String::new();
-    reader.read_line(&mut password).await.unwrap();
+    reader.read_line(&mut password).await?;
     password.truncate(password.len() - 1); // Must have at least a single '\n';
-    (user, password)
+    Ok((user, password))
 }
