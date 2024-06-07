@@ -25,7 +25,7 @@ impl SubscriptionManager {
 
     pub async fn handle_subscription_request(
         &mut self,
-        id: Uuid,
+        id: &Uuid,
         msg: SubscriptionRequest,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
@@ -34,14 +34,20 @@ impl SubscriptionManager {
             self.add_subscription(id, msg.topic.as_str(), client_manager, notification_manager)
                 .await;
         } else {
-            self.remove_subscription(id, msg.topic.as_str(), client_manager, notification_manager)
-                .await;
+            self.remove_subscription(
+                id,
+                msg.topic.as_str(),
+                client_manager,
+                notification_manager,
+                false,
+            )
+            .await;
         }
     }
 
     async fn add_subscription(
         &mut self,
-        subscriber_id: Uuid,
+        subscriber_id: &Uuid,
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
@@ -62,10 +68,11 @@ impl SubscriptionManager {
 
     async fn remove_subscription(
         &mut self,
-        subscriber_id: Uuid,
+        subscriber_id: &Uuid,
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        is_subscriber_closed: bool,
     ) {
         let Some(subscribers) = self.subscriptions.get_mut(topic) else {
             return;
@@ -75,10 +82,17 @@ impl SubscriptionManager {
             return;
         };
 
-        *count -= 1;
+        if is_subscriber_closed {
+            *count = 0;
+        } else {
+            *count -= 1;
+        }
 
         if *count == 0 {
             subscribers.remove(&subscriber_id);
+            println!("removed all subscriptions for {subscriber_id} on {topic}")
+        } else {
+            println!("removed one subscription for {subscriber_id} on {topic}")
         }
 
         if subscribers.len() == 0 {
@@ -88,6 +102,35 @@ impl SubscriptionManager {
         notification_manager
             .notify_listeners(subscriber_id, topic, false, client_manager)
             .await;
+    }
+
+    pub async fn handle_close(
+        &mut self,
+        subscriber_id: &Uuid,
+        client_manager: &ClientManager,
+        notification_manager: &NotificationManager,
+    ) {
+        let topics = self.find_client_topics(subscriber_id);
+        for topic in topics {
+            self.remove_subscription(
+                subscriber_id,
+                &topic,
+                client_manager,
+                notification_manager,
+                true,
+            )
+            .await
+        }
+    }
+
+    fn find_client_topics(&self, subscriber_id: &Uuid) -> Vec<String> {
+        let mut topics: Vec<String> = Vec::new();
+        for (topic, subscribers) in &self.subscriptions {
+            if subscribers.contains_key(subscriber_id) {
+                topics.push(topic.clone());
+            }
+        }
+        topics
     }
 
     pub fn find_subscriptions(&self, regex: &Regex) -> Vec<(String, Vec<Uuid>)> {

@@ -66,11 +66,20 @@ impl Interactor {
         result: Result<Message, std::io::Error>,
         hub: &Sender<ClientEvent>,
     ) -> io::Result<()> {
-        // let msg = result?;
-        hub.send(ClientEvent::OnMessage(self.id, result?))
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(())
+        match result {
+            Ok(message) => {
+                hub.send(ClientEvent::OnMessage(self.id, message))
+                    .await
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                Ok(())
+            }
+            Err(forward_error) => {
+                hub.send(ClientEvent::OnClose(self.id))
+                    .await
+                    .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))?;
+                Err(forward_error)
+            }
+        }
     }
 }
 

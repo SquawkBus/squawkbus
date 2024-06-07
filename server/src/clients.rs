@@ -6,6 +6,8 @@ use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
 use crate::events::ServerEvent;
+use crate::notifications::NotificationManager;
+use crate::subscriptions::SubscriptionManager;
 
 pub struct Client {
     pub tx: Sender<Arc<ServerEvent>>,
@@ -31,8 +33,22 @@ impl ClientManager {
         user: String,
         tx: Sender<Arc<ServerEvent>>,
     ) {
-        println!("client {id} connected for {user}@{host} ");
+        println!("client {id} connected for {user}@{host}");
         self.clients.insert(id, Client { host, user, tx });
+    }
+
+    pub async fn handle_close(
+        &mut self,
+        id: &Uuid,
+        subscription_manager: &mut SubscriptionManager,
+        notification_manager: &mut NotificationManager,
+    ) {
+        println!("client {id} closed");
+        subscription_manager
+            .handle_close(id, self, notification_manager)
+            .await;
+        notification_manager.handle_close(id).await;
+        self.clients.remove(&id);
     }
 
     pub fn get(&self, id: &Uuid) -> Option<&Client> {

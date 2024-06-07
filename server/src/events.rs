@@ -8,7 +8,8 @@ use common::messages::Message;
 
 pub enum ClientEvent {
     OnConnect(Uuid, String, String, Sender<Arc<ServerEvent>>),
-    OnMessage(Uuid, Message)
+    OnClose(Uuid),
+    OnMessage(Uuid, Message),
 }
 
 pub enum ServerEvent {

@@ -35,6 +35,15 @@ impl Hub {
                 ClientEvent::OnConnect(id, host, user, server_tx) => self
                     .client_manager
                     .handle_connect(id, host, user, server_tx),
+                ClientEvent::OnClose(id) => {
+                    self.client_manager
+                        .handle_close(
+                            &id,
+                            &mut self.subscription_manager,
+                            &mut self.notification_manager,
+                        )
+                        .await
+                }
                 ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await,
             }
         }
@@ -66,7 +75,7 @@ impl Hub {
             Message::SubscriptionRequest(msg) => {
                 self.subscription_manager
                     .handle_subscription_request(
-                        id,
+                        &id,
                         msg,
                         &self.client_manager,
                         &self.notification_manager,

@@ -36,7 +36,8 @@ impl NotificationManager {
             )
             .await;
         } else {
-            self.remove_notification(id, msg.pattern.as_str()).await;
+            self.remove_notification(id, msg.pattern.as_str(), false)
+                .await;
         }
     }
 
@@ -78,7 +79,12 @@ impl NotificationManager {
         }
     }
 
-    pub async fn remove_notification(&mut self, listener_id: &Uuid, pattern: &str) {
+    pub async fn remove_notification(
+        &mut self,
+        listener_id: &Uuid,
+        pattern: &str,
+        is_listener_closed: bool,
+    ) {
         let Some((_, listeners)) = self.notifications.get_mut(pattern) else {
             return;
         };
@@ -87,10 +93,17 @@ impl NotificationManager {
             return;
         };
 
-        *count -= 1;
+        if is_listener_closed {
+            *count = 0;
+        } else {
+            *count -= 1;
+        }
 
         if *count == 0 {
             listeners.remove(&listener_id);
+            println!("removed all notifications for {listener_id} on {pattern}")
+        } else {
+            println!("removed one notification for {listener_id} on {pattern}")
         }
 
         if listeners.len() == 0 {
@@ -100,7 +113,7 @@ impl NotificationManager {
 
     pub async fn notify_listeners(
         &self,
-        subscriber_id: Uuid,
+        subscriber_id: &Uuid,
         topic: &str,
         is_add: bool,
         client_manager: &ClientManager,
@@ -128,5 +141,22 @@ impl NotificationManager {
                 }
             }
         }
+    }
+
+    pub async fn handle_close(&mut self, listener_id: &Uuid) {
+        let patterns = self.find_listener_patterns(listener_id);
+        for pattern in patterns {
+            self.remove_notification(listener_id, &pattern, true).await
+        }
+    }
+
+    fn find_listener_patterns(&self, listener_id: &Uuid) -> Vec<String> {
+        let mut patterns: Vec<String> = Vec::new();
+        for (pattern, (_regex, listeners)) in &self.notifications {
+            if listeners.contains_key(listener_id) {
+                patterns.push(pattern.clone());
+            }
+        }
+        patterns
     }
 }
