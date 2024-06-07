@@ -1,3 +1,5 @@
+use std::io;
+
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
@@ -35,7 +37,13 @@ async fn main() {
         tokio::spawn(async move {
             match interactor.run(socket, addr, client_tx).await {
                 Ok(()) => println!("Client exited normally"),
-                Err(e) => println!("Client exited with {e}"),
+                Err(e) => {
+                    if e.kind() == io::ErrorKind::UnexpectedEof {
+                        println!("Client closed connection")
+                    } else {
+                        println!("Client exited with {e}")
+                    }
+                }
             }
         });
     }

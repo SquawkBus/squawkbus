@@ -1,11 +1,10 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt,ErrorKind};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt, ErrorKind};
 
 use crate::io::Serializable;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
-pub enum MessageType
-{
+pub enum MessageType {
     MulticastData = 1,
     UnicastData = 2,
     ForwardedSubscriptionRequest = 3,
@@ -14,7 +13,7 @@ pub enum MessageType
     AuthorizationRequest = 6,
     AuthorizationResponse = 7,
     ForwardedMulticastData = 8,
-    ForwardedUnicastData = 9
+    ForwardedUnicastData = 9,
 }
 
 impl MessageType {
@@ -29,7 +28,7 @@ impl MessageType {
             7 => Some(MessageType::AuthorizationResponse),
             8 => Some(MessageType::ForwardedMulticastData),
             9 => Some(MessageType::ForwardedUnicastData),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -37,7 +36,7 @@ impl MessageType {
 impl Serializable for MessageType {
     async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
         (*self as u8).write(&mut writer).await?;
-        Ok(())            
+        Ok(())
     }
 
     async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<MessageType> {
@@ -51,7 +50,11 @@ impl Serializable for MessageType {
             Ok(7) => Ok(MessageType::AuthorizationResponse),
             Ok(8) => Ok(MessageType::ForwardedMulticastData),
             Ok(9) => Ok(MessageType::ForwardedUnicastData),
-            _ => Err(io::Error::new(ErrorKind::Other, "invalid message type")),
+            Ok(message_type) => Err(io::Error::new(
+                ErrorKind::Other,
+                format!("invalid message type {message_type}"),
+            )),
+            Err(e) => Err(e),
         }
     }
 }
