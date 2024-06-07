@@ -45,14 +45,18 @@ impl ClientManager {
         notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
     ) {
-        println!("client {id} closed");
+        println!("ClientManager::handle_close: closing {id}");
+
         subscription_manager
             .handle_close(id, self, notification_manager)
             .await;
+
         notification_manager.handle_close(id).await;
+
         publisher_manager
-            .handle_close(id, subscription_manager, self)
+            .handle_close(id, self, subscription_manager)
             .await;
+
         self.clients.remove(&id);
     }
 

@@ -134,8 +134,8 @@ impl PublisherManager {
     pub async fn handle_close(
         &mut self,
         closed_client_id: &Uuid,
-        subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
+        subscription_manager: &SubscriptionManager,
     ) {
         let topics_without_publishers = remove_publisher(
             closed_client_id,
