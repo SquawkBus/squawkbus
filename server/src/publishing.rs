@@ -41,10 +41,7 @@ impl PublisherManager {
             return Ok(());
         };
 
-        if data_packets.len() > 0 {
-            // We only consider a client a publisher if it has sent data packets.
-            self.add_as_topic_publisher(&publisher_id, topic.as_str());
-        }
+        self.add_as_topic_publisher(&publisher_id, topic.as_str());
 
         let message = ForwardedUnicastData {
             client_id: publisher_id,
@@ -91,10 +88,7 @@ impl PublisherManager {
             return Ok(());
         };
 
-        if data_packets.len() > 0 {
-            // We only consider a client a publisher if it has sent data packets.
-            self.add_as_topic_publisher(publisher_id, topic.as_str());
-        }
+        self.add_as_topic_publisher(publisher_id, topic.as_str());
 
         let message = ForwardedMulticastData {
             host: publisher.host.clone(),
