@@ -9,13 +9,15 @@ use uuid::Uuid;
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
 
 pub struct PublisherManager {
-    publisher_topics: HashMap<Uuid, HashSet<String>>,
+    topics_by_publisher: HashMap<Uuid, HashSet<String>>,
+    publishers_by_topic: HashMap<String, HashSet<Uuid>>,
 }
 
 impl PublisherManager {
     pub fn new() -> PublisherManager {
         PublisherManager {
-            publisher_topics: HashMap::new(),
+            topics_by_publisher: HashMap::new(),
+            publishers_by_topic: HashMap::new(),
         }
     }
 
@@ -38,7 +40,10 @@ impl PublisherManager {
             return;
         };
 
-        self.add_topic(&publisher_id, topic.as_str());
+        if data_packets.len() > 0 {
+            // We only consider a client a publisher if it has sent data packets.
+            self.add_as_topic_publisher(&publisher_id, topic.as_str());
+        }
 
         let message = ForwardedUnicastData {
             client_id: publisher_id,
@@ -79,7 +84,10 @@ impl PublisherManager {
             return;
         };
 
-        self.add_topic(publisher_id, topic.as_str());
+        if data_packets.len() > 0 {
+            // We only consider a client a publisher if it has sent data packets.
+            self.add_as_topic_publisher(publisher_id, topic.as_str());
+        }
 
         let message = ForwardedMulticastData {
             host: publisher.host.clone(),
@@ -105,13 +113,105 @@ impl PublisherManager {
         println!("handle_multicast_data: ...sent");
     }
 
-    fn add_topic(&mut self, publisher_id: &Uuid, topic: &str) {
+    fn add_as_topic_publisher(&mut self, publisher_id: &Uuid, topic: &str) {
         let topics = self
-            .publisher_topics
+            .topics_by_publisher
             .entry(publisher_id.clone())
             .or_default();
         if !topics.contains(topic) {
             topics.insert(topic.to_string());
+        }
+
+        let publishers = self
+            .publishers_by_topic
+            .entry(topic.to_string())
+            .or_default();
+        if !publishers.contains(publisher_id) {
+            publishers.insert(publisher_id.clone());
+        }
+    }
+
+    pub async fn handle_close(
+        &mut self,
+        closed_client_id: &Uuid,
+        subscription_manager: &SubscriptionManager,
+        client_manager: &ClientManager,
+    ) {
+        let topics_without_publishers = remove_publisher(
+            closed_client_id,
+            &mut self.topics_by_publisher,
+            &mut self.publishers_by_topic,
+        );
+
+        if topics_without_publishers.len() > 0 {
+            notify_subscribers_of_stale_topics(
+                closed_client_id,
+                topics_without_publishers,
+                client_manager,
+                subscription_manager,
+            )
+            .await;
+        }
+    }
+}
+
+fn remove_publisher(
+    closed_client_id: &Uuid,
+    topics_by_publisher: &mut HashMap<Uuid, HashSet<String>>,
+    publishers_by_topic: &mut HashMap<String, HashSet<Uuid>>,
+) -> Vec<String> {
+    let mut topics_without_publishers: Vec<String> = Vec::new();
+
+    // Find all the topics for which this client has published.
+    if let Some(publisher_topics) = topics_by_publisher.remove(closed_client_id) {
+        for topic in publisher_topics {
+            if let Some(topic_publishers) = publishers_by_topic.get_mut(topic.as_str()) {
+                topic_publishers.remove(closed_client_id);
+                if topic_publishers.len() == 0 {
+                    topics_without_publishers.push(topic);
+                }
+            }
+        }
+    }
+
+    for topic in &topics_without_publishers {
+        publishers_by_topic.remove(topic.as_str());
+    }
+
+    topics_without_publishers
+}
+
+async fn notify_subscribers_of_stale_topics(
+    closed_client_id: &Uuid,
+    topics_without_publishers: Vec<String>,
+    client_manager: &ClientManager,
+    subscription_manager: &SubscriptionManager,
+) {
+    let Some(publisher) = client_manager.get(closed_client_id) else {
+        println!("handle_close: not publisher {closed_client_id}");
+        return;
+    };
+
+    for topic in topics_without_publishers {
+        let stale_data_message = ForwardedMulticastData {
+            host: publisher.host.clone(),
+            user: publisher.user.clone(),
+            topic: topic.clone(),
+            content_type: String::from("application/octet-stream"),
+            data_packets: Vec::new(),
+        };
+
+        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
+            stale_data_message,
+        )));
+
+        if let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) {
+            for subscriber_id in subscribers.keys() {
+                if let Some(subscriber) = client_manager.get(subscriber_id) {
+                    println!("handle_close: sending stale to {subscriber_id}");
+                    subscriber.tx.send(event.clone()).await.unwrap();
+                }
+            }
         }
     }
 }

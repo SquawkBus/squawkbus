@@ -39,6 +39,7 @@ impl Hub {
                             &id,
                             &mut self.subscription_manager,
                             &mut self.notification_manager,
+                            &mut self.publisher_manager,
                         )
                         .await
                 }

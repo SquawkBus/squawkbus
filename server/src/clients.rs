@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::events::ServerEvent;
 use crate::notifications::NotificationManager;
+use crate::publishing::PublisherManager;
 use crate::subscriptions::SubscriptionManager;
 
 pub struct Client {
@@ -42,12 +43,16 @@ impl ClientManager {
         id: &Uuid,
         subscription_manager: &mut SubscriptionManager,
         notification_manager: &mut NotificationManager,
+        publisher_manager: &mut PublisherManager,
     ) {
         println!("client {id} closed");
         subscription_manager
             .handle_close(id, self, notification_manager)
             .await;
         notification_manager.handle_close(id).await;
+        publisher_manager
+            .handle_close(id, subscription_manager, self)
+            .await;
         self.clients.remove(&id);
     }
 
