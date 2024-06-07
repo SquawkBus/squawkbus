@@ -35,7 +35,7 @@ impl Interactor {
 
         let mut reader = BufReader::new(read_half);
 
-        let (user, _password) = handshake(&mut reader).await.unwrap();
+        let (user, _password) = handshake(&mut reader).await?;
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),
@@ -45,7 +45,7 @@ impl Interactor {
         // Inform the client
         hub.send(ClientEvent::OnConnect(self.id.clone(), host, user, tx))
             .await
-            .unwrap();
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         loop {
             tokio::select! {
@@ -99,7 +99,7 @@ async fn forward_hub_to_client<'a>(
 
 async fn handshake<R: AsyncRead + Unpin>(
     reader: &mut BufReader<R>,
-) -> Result<(String, String), tokio::io::Error> {
+) -> io::Result<(String, String)> {
     let mut user = String::new();
     reader.read_line(&mut user).await?;
     user.truncate(user.len() - 1); // Must have at least a single '\n';

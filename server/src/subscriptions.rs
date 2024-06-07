@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 use regex::Regex;
 
@@ -29,10 +29,10 @@ impl SubscriptionManager {
         msg: SubscriptionRequest,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
-    ) {
+    ) -> io::Result<()> {
         if msg.is_add {
             self.add_subscription(id, msg.topic.as_str(), client_manager, notification_manager)
-                .await;
+                .await
         } else {
             self.remove_subscription(
                 id,
@@ -41,7 +41,7 @@ impl SubscriptionManager {
                 notification_manager,
                 false,
             )
-            .await;
+            .await
         }
     }
 
@@ -51,7 +51,7 @@ impl SubscriptionManager {
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
-    ) {
+    ) -> io::Result<()> {
         let subscribers = self.subscriptions.entry(topic.to_string()).or_default();
 
         if let Some(count) = subscribers.get_mut(&subscriber_id) {
@@ -62,8 +62,10 @@ impl SubscriptionManager {
             subscribers.insert(subscriber_id.clone(), 1);
             notification_manager
                 .notify_listeners(subscriber_id, topic, true, client_manager)
-                .await;
+                .await?;
         }
+
+        Ok(())
     }
 
     async fn remove_subscription(
@@ -73,13 +75,13 @@ impl SubscriptionManager {
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
         is_subscriber_closed: bool,
-    ) {
+    ) -> io::Result<()> {
         let Some(subscribers) = self.subscriptions.get_mut(topic) else {
-            return;
+            return Ok(());
         };
 
         let Some(count) = subscribers.get_mut(&subscriber_id) else {
-            return;
+            return Ok(());
         };
 
         if is_subscriber_closed {
@@ -101,7 +103,7 @@ impl SubscriptionManager {
 
         notification_manager
             .notify_listeners(subscriber_id, topic, false, client_manager)
-            .await;
+            .await
     }
 
     pub async fn handle_close(
@@ -109,7 +111,7 @@ impl SubscriptionManager {
         closed_client_id: &Uuid,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
-    ) {
+    ) -> io::Result<()> {
         let closed_client_topic_subscriptions = self.find_client_topics(closed_client_id);
         for topic in closed_client_topic_subscriptions {
             self.remove_subscription(
@@ -119,8 +121,10 @@ impl SubscriptionManager {
                 notification_manager,
                 true,
             )
-            .await
+            .await?;
         }
+
+        Ok(())
     }
 
     fn find_client_topics(&self, client_id: &Uuid) -> Vec<String> {

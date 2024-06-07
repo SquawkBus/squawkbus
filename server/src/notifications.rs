@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, io};
 
 use regex::Regex;
 
@@ -26,7 +26,7 @@ impl NotificationManager {
         msg: NotificationRequest,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
-    ) {
+    ) -> io::Result<()> {
         if msg.is_add {
             self.add_notification(
                 id,
@@ -34,10 +34,10 @@ impl NotificationManager {
                 client_manager,
                 subscription_manager,
             )
-            .await;
+            .await
         } else {
             self.remove_notification(id, msg.pattern.as_str(), false)
-                .await;
+                .await
         }
     }
 
@@ -47,11 +47,11 @@ impl NotificationManager {
         pattern: &str,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
-    ) {
-        let (regex, listeners) = self
-            .notifications
-            .entry(pattern.to_string())
-            .or_insert((Regex::new(pattern).unwrap(), HashMap::new()));
+    ) -> io::Result<()> {
+        let (regex, listeners) = self.notifications.entry(pattern.to_string()).or_insert((
+            Regex::new(pattern).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+            HashMap::new(),
+        ));
 
         if let Some(count) = listeners.get_mut(&listener_id) {
             *count += 1;
@@ -62,7 +62,10 @@ impl NotificationManager {
         for (topic, subscribers) in subscription_manager.find_subscriptions(regex) {
             if regex.is_match(topic.as_str()) {
                 for subscriber_id in &subscribers {
-                    let client = client_manager.get(subscriber_id).unwrap();
+                    let client = client_manager.get(subscriber_id).ok_or(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("unknown client {subscriber_id}"),
+                    ))?;
                     let message = ForwardedSubscriptionRequest {
                         client_id: subscriber_id.clone(),
                         host: client.host.clone(),
@@ -73,10 +76,16 @@ impl NotificationManager {
                     let event = Arc::new(ServerEvent::OnMessage(
                         Message::ForwardedSubscriptionRequest(message),
                     ));
-                    client.tx.send(event).await.unwrap();
+                    client
+                        .tx
+                        .send(event)
+                        .await
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
                 }
             }
         }
+
+        Ok(())
     }
 
     pub async fn remove_notification(
@@ -84,13 +93,13 @@ impl NotificationManager {
         listener_id: &Uuid,
         pattern: &str,
         is_listener_closed: bool,
-    ) {
+    ) -> io::Result<()> {
         let Some((_, listeners)) = self.notifications.get_mut(pattern) else {
-            return;
+            return Ok(());
         };
 
         let Some(count) = listeners.get_mut(listener_id) else {
-            return;
+            return Ok(());
         };
 
         if is_listener_closed {
@@ -109,6 +118,8 @@ impl NotificationManager {
         if listeners.len() == 0 {
             self.notifications.remove(pattern);
         }
+
+        Ok(())
     }
 
     pub async fn notify_listeners(
@@ -117,12 +128,15 @@ impl NotificationManager {
         topic: &str,
         is_add: bool,
         client_manager: &ClientManager,
-    ) {
+    ) -> io::Result<()> {
         println!("notify_listeners: subscriber_id={subscriber_id}, topic={topic}, is_add={is_add}");
 
         for (_pattern, (regex, listeners)) in &self.notifications {
             if regex.is_match(topic) {
-                let subscriber = client_manager.get(&subscriber_id).unwrap();
+                let subscriber = client_manager.get(&subscriber_id).ok_or(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("unknown client {subscriber_id}"),
+                ))?;
 
                 let message = ForwardedSubscriptionRequest {
                     client_id: subscriber_id.clone(),
@@ -136,18 +150,27 @@ impl NotificationManager {
                 ));
 
                 for (listener_id, _) in listeners {
-                    let listener = client_manager.get(listener_id).unwrap();
-                    listener.tx.send(event.clone()).await.unwrap();
+                    if let Some(listener) = client_manager.get(listener_id) {
+                        listener
+                            .tx
+                            .send(event.clone())
+                            .await
+                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    }
                 }
             }
         }
+
+        Ok(())
     }
 
-    pub async fn handle_close(&mut self, listener_id: &Uuid) {
+    pub async fn handle_close(&mut self, listener_id: &Uuid) -> io::Result<()> {
         let patterns = self.find_listener_patterns(listener_id);
         for pattern in patterns {
-            self.remove_notification(listener_id, &pattern, true).await
+            self.remove_notification(listener_id, &pattern, true)
+                .await?
         }
+        Ok(())
     }
 
     fn find_listener_patterns(&self, listener_id: &Uuid) -> Vec<String> {

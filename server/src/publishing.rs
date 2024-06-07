@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    io,
     sync::Arc,
 };
 
@@ -29,15 +30,15 @@ impl PublisherManager {
         content_type: String,
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
-    ) {
+    ) -> io::Result<()> {
         let Some(publisher) = client_manager.get(&publisher_id) else {
             println!("handle_unicast_data: no publisher {publisher_id}");
-            return;
+            return Ok(());
         };
 
         let Some(client) = client_manager.get(&client_id) else {
             println!("handle_unicast_data: no client {client_id}");
-            return;
+            return Ok(());
         };
 
         if data_packets.len() > 0 {
@@ -60,9 +61,15 @@ impl PublisherManager {
             message,
         )));
 
-        client.tx.send(event.clone()).await.unwrap();
+        client
+            .tx
+            .send(event.clone())
+            .await
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         println!("handle_unicast_data: ...sent");
+
+        Ok(())
     }
 
     pub async fn handle_multicast_data(
@@ -73,15 +80,15 @@ impl PublisherManager {
         data_packets: Vec<DataPacket>,
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
-    ) {
+    ) -> io::Result<()> {
         let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
             println!("handle_multicast_data: no topic {topic}");
-            return;
+            return Ok(());
         };
 
         let Some(publisher) = client_manager.get(publisher_id) else {
             println!("handle_multicast_data: not publisher {publisher_id}");
-            return;
+            return Ok(());
         };
 
         if data_packets.len() > 0 {
@@ -106,11 +113,17 @@ impl PublisherManager {
         for subscriber_id in subscribers.keys() {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 println!("handle_multicast_data: ... {subscriber_id}");
-                subscriber.tx.send(event.clone()).await.unwrap();
+                subscriber
+                    .tx
+                    .send(event.clone())
+                    .await
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             }
         }
 
         println!("handle_multicast_data: ...sent");
+
+        Ok(())
     }
 
     fn add_as_topic_publisher(&mut self, publisher_id: &Uuid, topic: &str) {
@@ -136,7 +149,7 @@ impl PublisherManager {
         closed_client_id: &Uuid,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
-    ) {
+    ) -> io::Result<()> {
         let topics_without_publishers = remove_publisher(
             closed_client_id,
             &mut self.topics_by_publisher,
@@ -150,7 +163,9 @@ impl PublisherManager {
                 client_manager,
                 subscription_manager,
             )
-            .await;
+            .await
+        } else {
+            Ok(())
         }
     }
 }
@@ -186,10 +201,10 @@ async fn notify_subscribers_of_stale_topics(
     topics_without_publishers: Vec<String>,
     client_manager: &ClientManager,
     subscription_manager: &SubscriptionManager,
-) {
+) -> io::Result<()> {
     let Some(publisher) = client_manager.get(closed_client_id) else {
         println!("handle_close: not publisher {closed_client_id}");
-        return;
+        return Ok(());
     };
 
     for topic in topics_without_publishers {
@@ -209,9 +224,15 @@ async fn notify_subscribers_of_stale_topics(
             for subscriber_id in subscribers.keys() {
                 if let Some(subscriber) = client_manager.get(subscriber_id) {
                     println!("handle_close: sending stale to {subscriber_id}");
-                    subscriber.tx.send(event.clone()).await.unwrap();
+                    subscriber
+                        .tx
+                        .send(event.clone())
+                        .await
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                 }
             }
         }
     }
+
+    Ok(())
 }

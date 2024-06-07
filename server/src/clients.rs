@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io;
 use std::sync::Arc;
 
 use tokio::sync::mpsc::Sender;
@@ -44,20 +45,22 @@ impl ClientManager {
         subscription_manager: &mut SubscriptionManager,
         notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
-    ) {
+    ) -> io::Result<()> {
         println!("ClientManager::handle_close: closing {id}");
 
         subscription_manager
             .handle_close(id, self, notification_manager)
-            .await;
+            .await?;
 
-        notification_manager.handle_close(id).await;
+        notification_manager.handle_close(id).await?;
 
         publisher_manager
             .handle_close(id, self, subscription_manager)
-            .await;
+            .await?;
 
         self.clients.remove(&id);
+
+        Ok(())
     }
 
     pub fn get(&self, id: &Uuid) -> Option<&Client> {

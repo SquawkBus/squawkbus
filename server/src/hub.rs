@@ -1,3 +1,5 @@
+use std::io;
+
 use tokio::sync::mpsc::Receiver;
 
 use uuid::Uuid;
@@ -26,7 +28,7 @@ impl Hub {
         }
     }
 
-    pub async fn run(&mut self, mut server_rx: Receiver<ClientEvent>) {
+    pub async fn run(&mut self, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
         loop {
             let msg = server_rx.recv().await.unwrap();
             match msg {
@@ -41,14 +43,14 @@ impl Hub {
                             &mut self.notification_manager,
                             &mut self.publisher_manager,
                         )
-                        .await
+                        .await?
                 }
-                ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await,
+                ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await?,
             }
         }
     }
 
-    async fn handle_message(&mut self, id: Uuid, msg: Message) {
+    async fn handle_message(&mut self, id: Uuid, msg: Message) -> io::Result<()> {
         println!("Received message from {id}: \"{msg:?}\"");
 
         match msg {
