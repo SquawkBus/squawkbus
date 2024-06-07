@@ -106,14 +106,14 @@ impl SubscriptionManager {
 
     pub async fn handle_close(
         &mut self,
-        subscriber_id: &Uuid,
+        closed_client_id: &Uuid,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
     ) {
-        let topics = self.find_client_topics(subscriber_id);
-        for topic in topics {
+        let closed_client_topic_subscriptions = self.find_client_topics(closed_client_id);
+        for topic in closed_client_topic_subscriptions {
             self.remove_subscription(
-                subscriber_id,
+                closed_client_id,
                 &topic,
                 client_manager,
                 notification_manager,
@@ -123,10 +123,10 @@ impl SubscriptionManager {
         }
     }
 
-    fn find_client_topics(&self, subscriber_id: &Uuid) -> Vec<String> {
+    fn find_client_topics(&self, client_id: &Uuid) -> Vec<String> {
         let mut topics: Vec<String> = Vec::new();
         for (topic, subscribers) in &self.subscriptions {
-            if subscribers.contains_key(subscriber_id) {
+            if subscribers.contains_key(client_id) {
                 topics.push(topic.clone());
             }
         }
