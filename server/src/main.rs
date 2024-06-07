@@ -33,7 +33,10 @@ async fn main() {
         let interactor = Interactor::new();
 
         tokio::spawn(async move {
-            interactor.run(socket, addr, client_tx).await;
+            match interactor.run(socket, addr, client_tx).await {
+                Ok(()) => println!("Client exited normally"),
+                Err(e) => println!("Client exited with {e}"),
+            }
         });
     }
 }

@@ -1,7 +1,9 @@
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::net::tcp::WriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Sender};
 
@@ -21,7 +23,12 @@ impl Interactor {
         Interactor { id: Uuid::new_v4() }
     }
 
-    pub async fn run(&self, mut socket: TcpStream, addr: SocketAddr, hub: Sender<ClientEvent>) {
+    pub async fn run(
+        &self,
+        mut socket: TcpStream,
+        addr: SocketAddr,
+        hub: Sender<ClientEvent>,
+    ) -> io::Result<()> {
         let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
 
         let (read_half, mut write_half) = socket.split();
@@ -44,26 +51,41 @@ impl Interactor {
             tokio::select! {
                 // forward client to hub
                 result = Message::read(&mut reader) => {
-                    let msg = result.unwrap();
-                    hub.send(ClientEvent::OnMessage(self.id, msg)).await.unwrap();
+                    self.forward_client_to_hub(result, &hub).await
                 }
                 // forward hub to client
                 result = rx.recv() => {
-                    match result {
-                        Some(event) => {
-                            match event.as_ref() {
-                                ServerEvent::OnMessage(message) => {
-                                    message.write(&mut write_half).await.unwrap();
-                                    // write_half.write_all(line.as_bytes()).await.unwrap();
-                                }
-                            }
-                        },
-                        None => todo!(),
-                    }
+                    forward_hub_to_client(result, &mut write_half).await
                 }
-            }
+            }?
         }
     }
+
+    async fn forward_client_to_hub(
+        &self,
+        result: Result<Message, std::io::Error>,
+        hub: &Sender<ClientEvent>,
+    ) -> io::Result<()> {
+        // let msg = result?;
+        hub.send(ClientEvent::OnMessage(self.id, result?))
+            .await
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(())
+    }
+}
+
+async fn forward_hub_to_client<'a>(
+    result: Option<Arc<ServerEvent>>,
+    write_half: &mut WriteHalf<'a>,
+) -> io::Result<()> {
+    let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
+    match event.as_ref() {
+        ServerEvent::OnMessage(message) => {
+            message.write(write_half).await?;
+        }
+    }
+
+    Ok(())
 }
 
 async fn handshake<R: AsyncRead + Unpin>(
