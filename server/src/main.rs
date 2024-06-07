@@ -14,6 +14,7 @@ use interactor::Interactor;
 
 mod clients;
 mod notifications;
+mod publishing;
 mod subscriptions;
 
 #[tokio::main]
