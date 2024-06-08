@@ -35,7 +35,7 @@ impl ClientManager {
         user: String,
         tx: Sender<Arc<ServerEvent>>,
     ) {
-        println!("client {id} connected for {user}@{host}");
+        log::debug!("client {id} connected for {user}@{host}");
         self.clients.insert(id, Client { host, user, tx });
     }
 
@@ -46,7 +46,7 @@ impl ClientManager {
         notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
     ) -> io::Result<()> {
-        println!("ClientManager::handle_close: closing {id}");
+        log::debug!("ClientManager::handle_close: closing {id}");
 
         subscription_manager
             .handle_close(id, self, notification_manager)

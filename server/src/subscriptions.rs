@@ -55,10 +55,10 @@ impl SubscriptionManager {
         let subscribers = self.subscriptions.entry(topic.to_string()).or_default();
 
         if let Some(count) = subscribers.get_mut(&subscriber_id) {
-            println!("add_subscription: incrementing count for {topic}");
+            log::debug!("add_subscription: incrementing count for {topic}");
             *count += 1;
         } else {
-            println!("add_subscription: creating new {topic}");
+            log::debug!("add_subscription: creating new {topic}");
             subscribers.insert(subscriber_id.clone(), 1);
             notification_manager
                 .notify_listeners(subscriber_id, topic, true, client_manager)
@@ -92,9 +92,9 @@ impl SubscriptionManager {
 
         if *count == 0 {
             subscribers.remove(&subscriber_id);
-            println!("removed all subscriptions for {subscriber_id} on {topic}")
+            log::debug!("removed all subscriptions for {subscriber_id} on {topic}");
         } else {
-            println!("removed one subscription for {subscriber_id} on {topic}")
+            log::debug!("removed one subscription for {subscriber_id} on {topic}");
         }
 
         if subscribers.len() == 0 {

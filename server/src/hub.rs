@@ -51,7 +51,7 @@ impl Hub {
     }
 
     async fn handle_message(&mut self, id: Uuid, msg: Message) -> io::Result<()> {
-        println!("Received message from {id}: \"{msg:?}\"");
+        log::debug!("Received message from {id}: \"{msg:?}\"");
 
         match msg {
             Message::AuthorizationRequest(_) => todo!(),

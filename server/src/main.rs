@@ -3,6 +3,8 @@ use std::io;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
+use env_logger::Env;
+
 mod events;
 use events::ClientEvent;
 
@@ -19,7 +21,13 @@ mod subscriptions;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:8080").await?;
+    env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
+    // env_logger::init();
+
+    let endpoint = "127.0.0.1:8080";
+
+    log::info!("Listening on {endpoint}");
+    let listener = TcpListener::bind(endpoint).await?;
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
     let mut hub = Hub::new();
@@ -37,12 +45,12 @@ async fn main() -> io::Result<()> {
 
         tokio::spawn(async move {
             match interactor.run(socket, addr, client_tx).await {
-                Ok(()) => println!("Client exited normally"),
+                Ok(()) => log::debug!("Client exited normally"),
                 Err(e) => {
                     if e.kind() == io::ErrorKind::UnexpectedEof {
-                        println!("Client closed connection")
+                        log::debug!("Client closed connection")
                     } else {
-                        println!("Client exited with {e}")
+                        log::error!("Client exited with {e}")
                     }
                 }
             }

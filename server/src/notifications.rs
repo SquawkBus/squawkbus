@@ -110,9 +110,9 @@ impl NotificationManager {
 
         if *count == 0 {
             listeners.remove(&listener_id);
-            println!("removed all notifications for {listener_id} on {pattern}")
+            log::debug!("removed all notifications for {listener_id} on {pattern}")
         } else {
-            println!("removed one notification for {listener_id} on {pattern}")
+            log::debug!("removed one notification for {listener_id} on {pattern}")
         }
 
         if listeners.len() == 0 {
@@ -129,7 +129,9 @@ impl NotificationManager {
         is_add: bool,
         client_manager: &ClientManager,
     ) -> io::Result<()> {
-        println!("notify_listeners: subscriber_id={subscriber_id}, topic={topic}, is_add={is_add}");
+        log::debug!(
+            "notify_listeners: subscriber_id={subscriber_id}, topic={topic}, is_add={is_add}"
+        );
 
         for (_pattern, (regex, listeners)) in &self.notifications {
             if regex.is_match(topic) {

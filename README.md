@@ -9,3 +9,4 @@
 * TLS.
 * File password authentication.
 * LDAP authentication.
+* log

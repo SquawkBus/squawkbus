@@ -32,12 +32,12 @@ impl PublisherManager {
         client_manager: &ClientManager,
     ) -> io::Result<()> {
         let Some(publisher) = client_manager.get(&publisher_id) else {
-            println!("handle_unicast_data: no publisher {publisher_id}");
+            log::debug!("handle_unicast_data: no publisher {publisher_id}");
             return Ok(());
         };
 
         let Some(client) = client_manager.get(&client_id) else {
-            println!("handle_unicast_data: no client {client_id}");
+            log::debug!("handle_unicast_data: no client {client_id}");
             return Ok(());
         };
 
@@ -52,7 +52,7 @@ impl PublisherManager {
             data_packets,
         };
 
-        println!("handle_unicast_data: sending to client {client_id} message {message:?}");
+        log::debug!("handle_unicast_data: sending to client {client_id} message {message:?}");
 
         let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedUnicastData(
             message,
@@ -64,7 +64,7 @@ impl PublisherManager {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        println!("handle_unicast_data: ...sent");
+        log::debug!("handle_unicast_data: ...sent");
 
         Ok(())
     }
@@ -79,12 +79,12 @@ impl PublisherManager {
         client_manager: &ClientManager,
     ) -> io::Result<()> {
         let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
-            println!("handle_multicast_data: no topic {topic}");
+            log::debug!("handle_multicast_data: no topic {topic}");
             return Ok(());
         };
 
         let Some(publisher) = client_manager.get(publisher_id) else {
-            println!("handle_multicast_data: not publisher {publisher_id}");
+            log::debug!("handle_multicast_data: not publisher {publisher_id}");
             return Ok(());
         };
 
@@ -98,7 +98,7 @@ impl PublisherManager {
             data_packets,
         };
 
-        println!("handle_multicast_data: sending message {message:?} to clients ...");
+        log::debug!("handle_multicast_data: sending message {message:?} to clients ...");
 
         let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
             message,
@@ -106,7 +106,7 @@ impl PublisherManager {
 
         for subscriber_id in subscribers.keys() {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
-                println!("handle_multicast_data: ... {subscriber_id}");
+                log::debug!("handle_multicast_data: ... {subscriber_id}");
                 subscriber
                     .tx
                     .send(event.clone())
@@ -115,7 +115,7 @@ impl PublisherManager {
             }
         }
 
-        println!("handle_multicast_data: ...sent");
+        log::debug!("handle_multicast_data: ...sent");
 
         Ok(())
     }
@@ -197,7 +197,7 @@ async fn notify_subscribers_of_stale_topics(
     subscription_manager: &SubscriptionManager,
 ) -> io::Result<()> {
     let Some(publisher) = client_manager.get(closed_client_id) else {
-        println!("handle_close: not publisher {closed_client_id}");
+        log::debug!("handle_close: not publisher {closed_client_id}");
         return Ok(());
     };
 
@@ -217,7 +217,7 @@ async fn notify_subscribers_of_stale_topics(
         if let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) {
             for subscriber_id in subscribers.keys() {
                 if let Some(subscriber) = client_manager.get(subscriber_id) {
-                    println!("handle_close: sending stale to {subscriber_id}");
+                    log::debug!("handle_close: sending stale to {subscriber_id}");
                     subscriber
                         .tx
                         .send(event.clone())
