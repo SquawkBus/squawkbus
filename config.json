@@ -1,0 +1,25 @@
+{
+    "endpoint": "0.0.0.0:8080",
+    "sslEndpoint": "0.0.0.0:8081",
+    "authorization": {
+        "mary": {
+            "host1": {
+                "entitlements": {
+                    ".*\\.LSE": [ 1, 2 ],
+                    ".*\\.NSE": [ 3 ]
+                }
+            }
+        },
+        "frank": {
+            "host1": {
+                "entitlements": {
+                    ".*\\.LSE": [ 1 ],
+                    ".*\\.NSE": [ 4 ]
+                },
+                "publish": [
+                    ".*\\.LSE"
+                ]
+            }
+        }
+    }
+}
