@@ -16,45 +16,50 @@ pub enum MessageType {
     ForwardedUnicastData = 9,
 }
 
-impl MessageType {
-    pub fn try_into(value: u8) -> Option<MessageType> {
+impl TryFrom<u8> for MessageType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            1 => Some(MessageType::MulticastData),
-            2 => Some(MessageType::UnicastData),
-            3 => Some(MessageType::ForwardedSubscriptionRequest),
-            4 => Some(MessageType::NotificationRequest),
-            5 => Some(MessageType::SubscriptionRequest),
-            6 => Some(MessageType::AuthorizationRequest),
-            7 => Some(MessageType::AuthorizationResponse),
-            8 => Some(MessageType::ForwardedMulticastData),
-            9 => Some(MessageType::ForwardedUnicastData),
-            _ => None,
+            1 => Ok(MessageType::MulticastData),
+            2 => Ok(MessageType::UnicastData),
+            3 => Ok(MessageType::ForwardedSubscriptionRequest),
+            4 => Ok(MessageType::NotificationRequest),
+            5 => Ok(MessageType::SubscriptionRequest),
+            6 => Ok(MessageType::AuthorizationRequest),
+            7 => Ok(MessageType::AuthorizationResponse),
+            8 => Ok(MessageType::ForwardedMulticastData),
+            9 => Ok(MessageType::ForwardedUnicastData),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Into<u8> for MessageType {
+    fn into(self) -> u8 {
+        match self {
+            MessageType::MulticastData => 1,
+            MessageType::UnicastData => 2,
+            MessageType::ForwardedSubscriptionRequest => 3,
+            MessageType::NotificationRequest => 4,
+            MessageType::SubscriptionRequest => 5,
+            MessageType::AuthorizationRequest => 6,
+            MessageType::AuthorizationResponse => 7,
+            MessageType::ForwardedMulticastData => 8,
+            MessageType::ForwardedUnicastData => 9,
         }
     }
 }
 
 impl Serializable for MessageType {
     async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (*self as u8).write(&mut writer).await?;
+        let byte: u8 = (*self).into();
+        byte.write(&mut writer).await?;
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<MessageType> {
-        match u8::read(&mut reader).await {
-            Ok(1) => Ok(MessageType::MulticastData),
-            Ok(2) => Ok(MessageType::UnicastData),
-            Ok(3) => Ok(MessageType::ForwardedSubscriptionRequest),
-            Ok(4) => Ok(MessageType::NotificationRequest),
-            Ok(5) => Ok(MessageType::SubscriptionRequest),
-            Ok(6) => Ok(MessageType::AuthorizationRequest),
-            Ok(7) => Ok(MessageType::AuthorizationResponse),
-            Ok(8) => Ok(MessageType::ForwardedMulticastData),
-            Ok(9) => Ok(MessageType::ForwardedUnicastData),
-            Ok(message_type) => Err(io::Error::new(
-                ErrorKind::Other,
-                format!("invalid message type {message_type}"),
-            )),
-            Err(e) => Err(e),
-        }
+    async fn read<R: AsyncReadExt + Unpin>(reader: &mut R) -> io::Result<MessageType> {
+        let byte = u8::read(reader).await?;
+        MessageType::try_from(byte).map_err(|_| io::Error::new(ErrorKind::Other, "invalid"))
     }
 }
