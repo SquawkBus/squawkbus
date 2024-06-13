@@ -1,25 +1,51 @@
 {
     "endpoint": "0.0.0.0:8080",
     "sslEndpoint": "0.0.0.0:8081",
-    "authorization": {
-        "mary": {
-            "host1": {
-                "entitlements": {
+    "auth": [
+        {
+            "username": "mary",
+            "host": ".*",
+            "entitlements": {
+                "read": {
                     ".*\\.LSE": [ 1, 2 ],
+                    ".*\\.NSE": [ 3, 4]
+                },
+                "write": {}
+            }
+        },
+        {
+            "username": "frank",
+            "host": ".*",
+            "entitlements": {
+                "read": {
+                    ".*\\.LSE": [ 1 ],
                     ".*\\.NSE": [ 3 ]
+                },
+                "write": {}
+            }
+        },
+        {
+            "username": "ann",
+            "host": ".*",
+            "entitlements": {
+                "read": {},
+                "write": {
+                    ".*\\.LSE": [ 1, 2 ],
+                    ".*\\.NSE": [ 3, 4 ]
                 }
             }
         },
-        "frank": {
-            "host1": {
-                "entitlements": {
-                    ".*\\.LSE": [ 1 ],
-                    ".*\\.NSE": [ 4 ]
+        {
+            "username": ".*",
+            "host": ".*",
+            "entitlements": {
+                "read": {
+                    ".*\\.PUBLIC": []
                 },
-                "publish": [
-                    ".*\\.LSE"
-                ]
+                "write": {
+                    ".*\\.PUBLIC": []
+                }
             }
         }
-    }
+    ]
 }

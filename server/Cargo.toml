@@ -13,3 +13,4 @@ common = { path = "../common" }
 regex = "1.10.4"
 log = "0.4"
 env_logger = "0.11.3"
+config = "0.14.0"
