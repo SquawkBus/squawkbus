@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::fs;
 use std::io;
 
 use tokio::net::TcpListener;
@@ -15,6 +17,7 @@ mod interactor;
 use interactor::Interactor;
 
 mod clients;
+mod entitlements;
 mod notifications;
 mod publishing;
 mod subscriptions;
@@ -24,17 +27,20 @@ async fn main() -> io::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
     // env_logger::init();
 
+    let file = fs::File::open("etc/entitlements1.yaml").expect("should open entitlements");
+    let config: HashMap<String, HashMap<String, Vec<i32>>> =
+        serde_yaml::from_reader(file).expect("should parse entitlements");
+
     let endpoint = "127.0.0.1:8080";
 
     log::info!("Listening on {endpoint}");
     let listener = TcpListener::bind(endpoint).await?;
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
-    let mut hub = Hub::new();
 
     // Create a hub that listens to clients
     tokio::spawn(async move {
-        hub.run(server_rx).await.unwrap();
+        Hub::run(config, server_rx).await.unwrap();
     });
 
     loop {

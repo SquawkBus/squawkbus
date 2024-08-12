@@ -7,7 +7,10 @@ use std::{
 use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData, Message};
 use uuid::Uuid;
 
-use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
+use crate::{
+    clients::ClientManager, entitlements::EntitlementsManager, events::ServerEvent,
+    subscriptions::SubscriptionManager,
+};
 
 pub struct PublisherManager {
     topics_by_publisher: HashMap<Uuid, HashSet<String>>,
@@ -22,6 +25,23 @@ impl PublisherManager {
         }
     }
 
+    fn get_authorized_data(
+        &self,
+        user_name: &str,
+        topic: &str,
+        data_packets: Vec<DataPacket>,
+        entitlements_manager: &EntitlementsManager,
+    ) -> Vec<DataPacket> {
+        let mut authorised_data_packets = Vec::new();
+        let all_entitlements = entitlements_manager.user_entitlements(user_name, topic);
+        for data_packet in data_packets {
+            if data_packet.is_authorized(&all_entitlements) {
+                authorised_data_packets.push(data_packet)
+            }
+        }
+        authorised_data_packets
+    }
+
     pub async fn handle_unicast_data(
         &mut self,
         publisher_id: Uuid,
@@ -30,6 +50,7 @@ impl PublisherManager {
         content_type: String,
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
+        entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
         let Some(publisher) = client_manager.get(&publisher_id) else {
             log::debug!("handle_unicast_data: no publisher {publisher_id}");
@@ -42,6 +63,13 @@ impl PublisherManager {
         };
 
         self.add_as_topic_publisher(&publisher_id, topic.as_str());
+
+        let data_packets = self.get_authorized_data(
+            client.user.as_str(),
+            topic.as_str(),
+            data_packets,
+            entitlements_manager,
+        );
 
         let message = ForwardedUnicastData {
             client_id: publisher_id,
@@ -77,6 +105,7 @@ impl PublisherManager {
         data_packets: Vec<DataPacket>,
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
+        entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
         let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
             log::debug!("handle_multicast_data: no topic {topic}");
@@ -90,23 +119,31 @@ impl PublisherManager {
 
         self.add_as_topic_publisher(publisher_id, topic.as_str());
 
-        let message = ForwardedMulticastData {
-            host: publisher.host.clone(),
-            user: publisher.user.clone(),
-            topic,
-            content_type,
-            data_packets,
-        };
-
-        log::debug!("handle_multicast_data: sending message {message:?} to clients ...");
-
-        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
-            message,
-        )));
-
         for subscriber_id in subscribers.keys() {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("handle_multicast_data: ... {subscriber_id}");
+
+                let auth_data_packets = self.get_authorized_data(
+                    subscriber.user.as_str(),
+                    topic.as_str(),
+                    data_packets.clone(),
+                    entitlements_manager,
+                );
+
+                let message = ForwardedMulticastData {
+                    host: publisher.host.clone(),
+                    user: publisher.user.clone(),
+                    topic: topic.clone(),
+                    content_type: content_type.clone(),
+                    data_packets: auth_data_packets,
+                };
+
+                log::debug!("handle_multicast_data: sending message {message:?} to clients ...");
+
+                let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
+                    message,
+                )));
+
                 subscriber
                     .tx
                     .send(event.clone())
