@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use tokio::sync::mpsc::Sender;
 
 use uuid::Uuid;
@@ -7,7 +5,7 @@ use uuid::Uuid;
 use common::messages::Message;
 
 pub enum ClientEvent {
-    OnConnect(Uuid, String, String, Sender<Arc<ServerEvent>>),
+    OnConnect(Uuid, String, String, Sender<ServerEvent>),
     OnClose(Uuid),
     OnMessage(Uuid, Message),
 }

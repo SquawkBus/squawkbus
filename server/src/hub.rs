@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, sync::Arc};
+use std::{collections::HashMap, io};
 
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -59,7 +59,7 @@ impl Hub {
         id: Uuid,
         host: String,
         user: String,
-        server_tx: Sender<Arc<ServerEvent>>,
+        server_tx: Sender<ServerEvent>,
     ) {
         self.client_manager
             .handle_connect(id, host, user, server_tx)

@@ -1,6 +1,5 @@
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::net::tcp::WriteHalf;
@@ -29,7 +28,7 @@ impl Interactor {
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
     ) -> io::Result<()> {
-        let (tx, mut rx) = mpsc::channel::<Arc<ServerEvent>>(32);
+        let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
         let (read_half, mut write_half) = socket.split();
 
@@ -84,11 +83,11 @@ impl Interactor {
 }
 
 async fn forward_hub_to_client<'a>(
-    result: Option<Arc<ServerEvent>>,
+    result: Option<ServerEvent>,
     write_half: &mut WriteHalf<'a>,
 ) -> io::Result<()> {
     let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
-    match event.as_ref() {
+    match event {
         ServerEvent::OnMessage(message) => {
             message.write(write_half).await?;
         }

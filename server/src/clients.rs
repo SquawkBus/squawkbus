@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::io;
-use std::sync::Arc;
 
 use tokio::sync::mpsc::Sender;
 
@@ -12,7 +11,7 @@ use crate::publishing::PublisherManager;
 use crate::subscriptions::SubscriptionManager;
 
 pub struct Client {
-    pub tx: Sender<Arc<ServerEvent>>,
+    pub tx: Sender<ServerEvent>,
     pub host: String,
     pub user: String,
 }
@@ -33,7 +32,7 @@ impl ClientManager {
         id: Uuid,
         host: String,
         user: String,
-        tx: Sender<Arc<ServerEvent>>,
+        tx: Sender<ServerEvent>,
     ) {
         log::debug!("client {id} connected for {user}@{host}");
         self.clients.insert(id, Client { host, user, tx });

@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     io,
-    sync::Arc,
 };
 
 use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData, Message};
@@ -82,13 +81,11 @@ impl PublisherManager {
 
         log::debug!("handle_unicast_data: sending to client {client_id} message {message:?}");
 
-        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedUnicastData(
-            message,
-        )));
+        let event = ServerEvent::OnMessage(Message::ForwardedUnicastData(message));
 
         client
             .tx
-            .send(event.clone())
+            .send(event)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
@@ -140,13 +137,11 @@ impl PublisherManager {
 
                 log::debug!("handle_multicast_data: sending message {message:?} to clients ...");
 
-                let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
-                    message,
-                )));
+                let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(message));
 
                 subscriber
                     .tx
-                    .send(event.clone())
+                    .send(event)
                     .await
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             }
@@ -247,17 +242,18 @@ async fn notify_subscribers_of_stale_topics(
             data_packets: Vec::new(),
         };
 
-        let event = Arc::new(ServerEvent::OnMessage(Message::ForwardedMulticastData(
-            stale_data_message,
-        )));
-
         if let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) {
             for subscriber_id in subscribers.keys() {
                 if let Some(subscriber) = client_manager.get(subscriber_id) {
                     log::debug!("handle_close: sending stale to {subscriber_id}");
+
+                    let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(
+                        stale_data_message.clone(),
+                    ));
+
                     subscriber
                         .tx
-                        .send(event.clone())
+                        .send(event)
                         .await
                         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                 }

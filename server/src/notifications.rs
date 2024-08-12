@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::{collections::HashMap, io};
 
 use regex::Regex;
@@ -73,9 +72,8 @@ impl NotificationManager {
                         topic: topic.clone(),
                         is_add: true,
                     };
-                    let event = Arc::new(ServerEvent::OnMessage(
-                        Message::ForwardedSubscriptionRequest(message),
-                    ));
+                    let event =
+                        ServerEvent::OnMessage(Message::ForwardedSubscriptionRequest(message));
                     client
                         .tx
                         .send(event)
@@ -147,15 +145,16 @@ impl NotificationManager {
                     topic: topic.to_string(),
                     is_add,
                 };
-                let event = Arc::new(ServerEvent::OnMessage(
-                    Message::ForwardedSubscriptionRequest(message),
-                ));
 
                 for (listener_id, _) in listeners {
                     if let Some(listener) = client_manager.get(listener_id) {
+                        let event = ServerEvent::OnMessage(Message::ForwardedSubscriptionRequest(
+                            message.clone(),
+                        ));
+
                         listener
                             .tx
-                            .send(event.clone())
+                            .send(event)
                             .await
                             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                     }
