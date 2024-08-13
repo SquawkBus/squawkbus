@@ -27,16 +27,10 @@ impl EntitlementsManager {
         let mut entitlements = HashSet::new();
 
         for spec in &self.specs {
-            // if spec.roles.contains(role)
-            //     && spec.user_pattern.is_match(user_name)
-            //     && spec.topic_pattern.is_match(topic)
-            // {
-            //     entitlements.extend(spec.entitlements.iter());
-            // }
-            let is_role = spec.roles.contains(role);
-            let is_user = spec.user_pattern.is_match(user_name);
-            let is_topic = spec.topic_pattern.is_match(topic);
-            if is_role && is_user && is_topic {
+            if spec.roles.contains(role)
+                && spec.user_pattern.is_match(user_name)
+                && spec.topic_pattern.is_match(topic)
+            {
                 entitlements.extend(spec.entitlements.iter());
             }
         }
