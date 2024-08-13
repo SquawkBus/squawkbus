@@ -1,55 +1,17 @@
 use std::{
-    collections::{HashMap, HashSet},
-    fs,
+    collections::HashSet,
     io::{self, ErrorKind, Result},
 };
 
 use regex::Regex;
 
-use bitflags::bitflags;
-use serde::{Deserialize, Serialize};
-
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-    pub struct Role: u8 {
-        const Subscriber = 0b00000001;
-        const Notifier = 0b00000010;
-        const Publisher = 0b00000100;
-    }
-}
-
-pub type Entitlements = HashSet<i32>;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Authorization {
-    entitlements: HashSet<i32>,
-    roles: Role,
-}
-
-pub type AuthorizationByTopic = HashMap<String, Authorization>;
-pub type AuthorizationByUser = HashMap<String, AuthorizationByTopic>;
+use crate::config::{Config, Role};
 
 pub struct UserEntitlementsSpec {
     pub user_pattern: Regex,
     pub topic_pattern: Regex,
-    pub entitlements: Entitlements,
+    pub entitlements: HashSet<i32>,
     pub roles: Role,
-}
-
-impl UserEntitlementsSpec {
-    pub fn new(
-        user_pattern: Regex,
-        topic_pattern: Regex,
-        entitlements: Entitlements,
-        roles: Role,
-    ) -> Self {
-        UserEntitlementsSpec {
-            user_pattern,
-            topic_pattern,
-            entitlements,
-            roles,
-        }
-    }
 }
 
 pub struct EntitlementsManager {
@@ -61,34 +23,30 @@ impl EntitlementsManager {
         EntitlementsManager { specs }
     }
 
-    pub fn entitlements(&self, user_name: &str, topic: &str, role: Role) -> Entitlements {
-        let mut entitlements = Entitlements::new();
+    pub fn entitlements(&self, user_name: &str, topic: &str, role: Role) -> HashSet<i32> {
+        let mut entitlements = HashSet::new();
 
         for spec in &self.specs {
-            if spec.roles.contains(role)
-                && spec.user_pattern.is_match(user_name)
-                && spec.topic_pattern.is_match(topic)
-            {
+            // if spec.roles.contains(role)
+            //     && spec.user_pattern.is_match(user_name)
+            //     && spec.topic_pattern.is_match(topic)
+            // {
+            //     entitlements.extend(spec.entitlements.iter());
+            // }
+            let is_role = spec.roles.contains(role);
+            let is_user = spec.user_pattern.is_match(user_name);
+            let is_topic = spec.topic_pattern.is_match(topic);
+            if is_role && is_user && is_topic {
                 entitlements.extend(spec.entitlements.iter());
             }
         }
+
         entitlements
     }
 
-    pub fn reload(&mut self, specs: Vec<UserEntitlementsSpec>) {
-        self.specs = specs;
-    }
-
-    pub fn load(path: &str) -> Result<Self> {
-        let file = fs::File::open(path)?;
-        let obj: AuthorizationByUser =
-            serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-        Self::from_obj(obj)
-    }
-
-    pub fn from_obj(contents: AuthorizationByUser) -> Result<Self> {
+    pub fn from_config(config: Config) -> Result<EntitlementsManager> {
         let mut specs: Vec<UserEntitlementsSpec> = Vec::new();
-        for (user_pattern, topic_authorization) in contents {
+        for (user_pattern, topic_authorization) in config.authorization {
             for (topic_pattern, authorization) in topic_authorization {
                 let user_pattern = Regex::new(user_pattern.as_str())
                     .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
@@ -115,20 +73,38 @@ mod test {
     #[test]
     fn smoke() {
         let user_entitlements_spec = vec![
-            UserEntitlementsSpec::new(
-                Regex::new("joe").unwrap(),
-                Regex::new(".*\\.LSE").unwrap(),
-                HashSet::from([1, 2]),
-                Role::Subscriber | Role::Notifier,
-            ),
-            UserEntitlementsSpec::new(
-                Regex::new("joe").unwrap(),
-                Regex::new(".*\\.NSE").unwrap(),
-                HashSet::from([3, 4]),
-                Role::Subscriber,
-            ),
+            UserEntitlementsSpec {
+                user_pattern: Regex::new(".*").unwrap(),
+                topic_pattern: Regex::new("PUB\\..*").unwrap(),
+                entitlements: HashSet::from([0]),
+                roles: Role::Subscriber | Role::Notifier | Role::Publisher,
+            },
+            UserEntitlementsSpec {
+                user_pattern: Regex::new("joe").unwrap(),
+                topic_pattern: Regex::new(".*\\.LSE").unwrap(),
+                entitlements: HashSet::from([1, 2]),
+                roles: Role::Subscriber | Role::Notifier,
+            },
+            UserEntitlementsSpec {
+                user_pattern: Regex::new("joe").unwrap(),
+                topic_pattern: Regex::new(".*\\.NSE").unwrap(),
+                entitlements: HashSet::from([3, 4]),
+                roles: Role::Subscriber,
+            },
         ];
         let entitlements_manager = EntitlementsManager::new(user_entitlements_spec);
+
+        let actual = entitlements_manager.entitlements("nobody", "PUB.foo", Role::Subscriber);
+        let expected: HashSet<i32> = HashSet::from([0]);
+        assert_eq!(actual, expected);
+
+        let actual = entitlements_manager.entitlements("nobody", "PUB.foo", Role::Publisher);
+        let expected: HashSet<i32> = HashSet::from([0]);
+        assert_eq!(actual, expected);
+
+        let actual = entitlements_manager.entitlements("nobody", "PUB.foo", Role::Notifier);
+        let expected: HashSet<i32> = HashSet::from([0]);
+        assert_eq!(actual, expected);
 
         let actual = entitlements_manager.entitlements("joe", "TSCO.LSE", Role::Subscriber);
         let expected: HashSet<i32> = HashSet::from([1, 2]);

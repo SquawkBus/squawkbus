@@ -1,7 +1,6 @@
-use std::fs;
 use std::io;
 
-use entitlements::AuthorizationByUser;
+use config::Config;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
@@ -17,6 +16,7 @@ mod interactor;
 use interactor::Interactor;
 
 mod clients;
+mod config;
 mod entitlements;
 mod notifications;
 mod publishing;
@@ -27,14 +27,10 @@ async fn main() -> io::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
     // env_logger::init();
 
-    let file = fs::File::open("etc/entitlements.yaml").expect("should open entitlements");
-    let config: AuthorizationByUser =
-        serde_yaml::from_reader(file).expect("should parse entitlements");
+    let config = Config::load("etc/config-simple.yaml").expect("Should read config");
 
-    let endpoint = "127.0.0.1:8080";
-
-    log::info!("Listening on {endpoint}");
-    let listener = TcpListener::bind(endpoint).await?;
+    log::info!("Listening on {}", config.endpoint.clone());
+    let listener = TcpListener::bind(config.endpoint.clone()).await?;
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
 

@@ -8,7 +8,8 @@ use common::messages::Message;
 
 use crate::{
     clients::ClientManager,
-    entitlements::{AuthorizationByUser, EntitlementsManager},
+    config::Config,
+    entitlements::EntitlementsManager,
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
     publishing::PublisherManager,
@@ -34,12 +35,9 @@ impl Hub {
         }
     }
 
-    pub async fn run(
-        config: AuthorizationByUser,
-        mut server_rx: Receiver<ClientEvent>,
-    ) -> io::Result<()> {
-        let entitlement_manager =
-            EntitlementsManager::from_obj(config).expect("Should load authorizations");
+    pub async fn run(config: Config, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
+        let entitlement_manager: EntitlementsManager =
+            EntitlementsManager::from_config(config).expect("Should load authorizations");
 
         let mut hub = Self::new(entitlement_manager);
         loop {

@@ -7,9 +7,7 @@ use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData,
 use uuid::Uuid;
 
 use crate::{
-    clients::ClientManager,
-    entitlements::{EntitlementsManager, Role},
-    events::ServerEvent,
+    clients::ClientManager, config::Role, entitlements::EntitlementsManager, events::ServerEvent,
     subscriptions::SubscriptionManager,
 };
 
