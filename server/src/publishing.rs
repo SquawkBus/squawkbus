@@ -7,7 +7,9 @@ use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData,
 use uuid::Uuid;
 
 use crate::{
-    clients::ClientManager, entitlements::EntitlementsManager, events::ServerEvent,
+    clients::ClientManager,
+    entitlements::{EntitlementsManager, Role},
+    events::ServerEvent,
     subscriptions::SubscriptionManager,
 };
 
@@ -24,24 +26,39 @@ impl PublisherManager {
         }
     }
 
+    fn get_entitlements(
+        &self,
+        publisher: &str,
+        subscriber: &str,
+        topic: &str,
+        entitlements_manager: &EntitlementsManager,
+    ) -> HashSet<i32> {
+        let publisher_entitlements =
+            entitlements_manager.entitlements(publisher, topic, Role::Publisher);
+        let subscriber_entitlements =
+            entitlements_manager.entitlements(subscriber, topic, Role::Subscriber);
+        let entitlements = publisher_entitlements
+            .intersection(&subscriber_entitlements)
+            .cloned()
+            .collect();
+        entitlements
+    }
+
     fn get_authorized_data(
         &self,
-        user_name: &str,
-        topic: &str,
         data_packets: Vec<DataPacket>,
-        entitlements_manager: &EntitlementsManager,
+        entitlements: &HashSet<i32>,
     ) -> Vec<DataPacket> {
         let mut authorised_data_packets = Vec::new();
-        let all_entitlements = entitlements_manager.user_entitlements(user_name, topic);
         for data_packet in data_packets {
-            if data_packet.is_authorized(&all_entitlements) {
+            if data_packet.is_authorized(&entitlements) {
                 authorised_data_packets.push(data_packet)
             }
         }
         authorised_data_packets
     }
 
-    pub async fn handle_unicast_data(
+    pub async fn send_unicast_data(
         &mut self,
         publisher_id: Uuid,
         client_id: Uuid,
@@ -51,24 +68,43 @@ impl PublisherManager {
         client_manager: &ClientManager,
         entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
+        /*
+         * Send data from a publisher to a client.
+         *
+         * If the publisher has no entitlements reject the request.
+         * If the intersection of the client and publishers entitlements is empty
+         *
+         */
         let Some(publisher) = client_manager.get(&publisher_id) else {
-            log::debug!("handle_unicast_data: no publisher {publisher_id}");
+            log::debug!("send_unicast_data: no publisher {publisher_id}");
             return Ok(());
         };
 
         let Some(client) = client_manager.get(&client_id) else {
-            log::debug!("handle_unicast_data: no client {client_id}");
+            log::debug!("send_unicast_data: no client {client_id}");
             return Ok(());
         };
 
-        self.add_as_topic_publisher(&publisher_id, topic.as_str());
-
-        let data_packets = self.get_authorized_data(
+        let entitlements = self.get_entitlements(
+            publisher.user.as_str(),
             client.user.as_str(),
             topic.as_str(),
-            data_packets,
             entitlements_manager,
         );
+
+        if entitlements.is_empty() {
+            log::debug!(
+                "send_unicast_data: no entitlements from {} to {} for {}",
+                publisher.user,
+                client.user,
+                topic
+            );
+            return Ok(());
+        }
+
+        let auth_data_packets = self.get_authorized_data(data_packets, &entitlements);
+
+        self.add_as_topic_publisher(&publisher_id, topic.as_str());
 
         let message = ForwardedUnicastData {
             client_id: publisher_id,
@@ -76,10 +112,10 @@ impl PublisherManager {
             user: publisher.user.clone(),
             topic,
             content_type,
-            data_packets,
+            data_packets: auth_data_packets,
         };
 
-        log::debug!("handle_unicast_data: sending to client {client_id} message {message:?}");
+        log::debug!("send_unicast_data: sending to client {client_id} message {message:?}");
 
         let event = ServerEvent::OnMessage(Message::ForwardedUnicastData(message));
 
@@ -89,12 +125,12 @@ impl PublisherManager {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        log::debug!("handle_unicast_data: ...sent");
+        log::debug!("send_unicast_data: ...sent");
 
         Ok(())
     }
 
-    pub async fn handle_multicast_data(
+    pub async fn send_multicast_data(
         &mut self,
         publisher_id: &Uuid,
         topic: String,
@@ -105,12 +141,12 @@ impl PublisherManager {
         entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
         let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
-            log::debug!("handle_multicast_data: no topic {topic}");
+            log::debug!("send_multicast_data: no topic {topic}");
             return Ok(());
         };
 
         let Some(publisher) = client_manager.get(publisher_id) else {
-            log::debug!("handle_multicast_data: not publisher {publisher_id}");
+            log::debug!("send_multicast_data: not publisher {publisher_id}");
             return Ok(());
         };
 
@@ -118,14 +154,27 @@ impl PublisherManager {
 
         for subscriber_id in subscribers.keys() {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
-                log::debug!("handle_multicast_data: ... {subscriber_id}");
+                log::debug!("send_multicast_data: ... {subscriber_id}");
 
-                let auth_data_packets = self.get_authorized_data(
+                let entitlements = self.get_entitlements(
+                    publisher.user.as_str(),
                     subscriber.user.as_str(),
                     topic.as_str(),
-                    data_packets.clone(),
                     entitlements_manager,
                 );
+
+                if entitlements.len() == 0 {
+                    log::debug!(
+                        "send_multicast_data: no entitlements from {} to {} for {} - skipping",
+                        publisher.user,
+                        subscriber.user,
+                        topic
+                    );
+                    continue;
+                }
+
+                let auth_data_packets =
+                    self.get_authorized_data(data_packets.clone(), &entitlements);
 
                 let message = ForwardedMulticastData {
                     host: publisher.host.clone(),
@@ -135,7 +184,9 @@ impl PublisherManager {
                     data_packets: auth_data_packets,
                 };
 
-                log::debug!("handle_multicast_data: sending message {message:?} to clients ...");
+                log::debug!(
+                    "send_multicast_data: sending message {message:?} to client {subscriber_id}"
+                );
 
                 let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(message));
 
@@ -147,7 +198,7 @@ impl PublisherManager {
             }
         }
 
-        log::debug!("handle_multicast_data: ...sent");
+        log::debug!("send_multicast_data: ...sent");
 
         Ok(())
     }

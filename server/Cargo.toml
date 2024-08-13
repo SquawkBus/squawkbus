@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitflags = "2.5.0"
+bitflags = { version = "2.5.0", features = ["serde"] }
 tokio = { version = "1", features = [ "full" ] }
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
 common = { path = "../common" }

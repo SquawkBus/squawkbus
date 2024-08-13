@@ -6,7 +6,11 @@ use uuid::Uuid;
 
 use common::messages::SubscriptionRequest;
 
-use crate::{clients::ClientManager, notifications::NotificationManager};
+use crate::{
+    clients::ClientManager,
+    entitlements::{EntitlementsManager, Role},
+    notifications::NotificationManager,
+};
 
 pub struct SubscriptionManager {
     subscriptions: HashMap<String, HashMap<Uuid, u32>>,
@@ -29,10 +33,17 @@ impl SubscriptionManager {
         msg: SubscriptionRequest,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
         if msg.is_add {
-            self.add_subscription(id, msg.topic.as_str(), client_manager, notification_manager)
-                .await
+            self.add_subscription(
+                id,
+                msg.topic.as_str(),
+                client_manager,
+                notification_manager,
+                entitlements_manager,
+            )
+            .await
         } else {
             self.remove_subscription(
                 id,
@@ -51,7 +62,25 @@ impl SubscriptionManager {
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        entitlements_manager: &EntitlementsManager,
     ) -> io::Result<()> {
+        let Some(subscriber) = client_manager.get(&subscriber_id) else {
+            log::debug!("add_subscription: no client {subscriber_id}");
+            return Ok(());
+        };
+
+        let entitlements =
+            entitlements_manager.entitlements(subscriber.user.as_str(), topic, Role::Subscriber);
+
+        if entitlements.is_empty() {
+            log::debug!(
+                "add_subscription: no entitlements to {} for {} - rejecting",
+                subscriber.user,
+                topic
+            );
+            return Ok(());
+        }
+
         let subscribers = self.subscriptions.entry(topic.to_string()).or_default();
 
         if let Some(count) = subscribers.get_mut(&subscriber_id) {

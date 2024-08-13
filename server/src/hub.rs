@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::io;
 
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -8,7 +8,7 @@ use common::messages::Message;
 
 use crate::{
     clients::ClientManager,
-    entitlements::EntitlementsManager,
+    entitlements::{AuthorizationByUser, EntitlementsManager},
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
     publishing::PublisherManager,
@@ -35,11 +35,11 @@ impl Hub {
     }
 
     pub async fn run(
-        config: HashMap<String, HashMap<String, Vec<i32>>>,
+        config: AuthorizationByUser,
         mut server_rx: Receiver<ClientEvent>,
     ) -> io::Result<()> {
         let entitlement_manager =
-            EntitlementsManager::from_obj(config).expect("Should load entitlements");
+            EntitlementsManager::from_obj(config).expect("Should load authorizations");
 
         let mut hub = Self::new(entitlement_manager);
         loop {
@@ -87,7 +87,7 @@ impl Hub {
             Message::ForwardedUnicastData(_) => todo!(),
             Message::MulticastData(msg) => {
                 self.publisher_manager
-                    .handle_multicast_data(
+                    .send_multicast_data(
                         &id,
                         msg.topic,
                         msg.content_type,
@@ -115,12 +115,13 @@ impl Hub {
                         msg,
                         &self.client_manager,
                         &self.notification_manager,
+                        &self.entitlement_manager,
                     )
                     .await
             }
             Message::UnicastData(msg) => {
                 self.publisher_manager
-                    .handle_unicast_data(
+                    .send_unicast_data(
                         id,
                         msg.client_id,
                         msg.topic,

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io;
 
+use entitlements::AuthorizationByUser;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
@@ -27,8 +27,8 @@ async fn main() -> io::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
     // env_logger::init();
 
-    let file = fs::File::open("etc/entitlements1.yaml").expect("should open entitlements");
-    let config: HashMap<String, HashMap<String, Vec<i32>>> =
+    let file = fs::File::open("etc/entitlements.yaml").expect("should open entitlements");
+    let config: AuthorizationByUser =
         serde_yaml::from_reader(file).expect("should parse entitlements");
 
     let endpoint = "127.0.0.1:8080";
