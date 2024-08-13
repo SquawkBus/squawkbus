@@ -115,7 +115,6 @@ impl Hub {
                         msg,
                         &self.client_manager,
                         &self.notification_manager,
-                        &self.entitlement_manager,
                     )
                     .await
             }
