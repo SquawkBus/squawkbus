@@ -78,7 +78,9 @@
             "env": {
                 "RUST_LOG": "debug"
             },
-            "args": [],
+            "args": [
+                "etc/config-simple.yaml"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {

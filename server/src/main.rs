@@ -1,3 +1,4 @@
+use std::env;
 use std::io;
 
 use config::Config;
@@ -24,7 +25,12 @@ mod subscriptions;
 async fn main() -> io::Result<()> {
     env_logger::init();
 
-    let config = Config::load("etc/config-simple.yaml").expect("Should read config");
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        panic!("usage: {} <config-file>", args[0])
+    }
+
+    let config = Config::load(&args[1]).expect("Should read config");
 
     log::info!("Listening on {}", config.endpoint.clone());
     let listener = TcpListener::bind(config.endpoint.clone()).await?;
