@@ -4,8 +4,6 @@ use config::Config;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use env_logger::Env;
-
 mod events;
 use events::ClientEvent;
 
