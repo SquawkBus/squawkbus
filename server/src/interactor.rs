@@ -1,8 +1,7 @@
 use std::io;
 use std::net::SocketAddr;
 
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
-use tokio::net::tcp::WriteHalf;
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Sender};
 
@@ -24,13 +23,13 @@ impl Interactor {
 
     pub async fn run(
         &self,
-        mut socket: TcpStream,
+        socket: TcpStream,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
     ) -> io::Result<()> {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
-        let (read_half, mut write_half) = socket.split();
+        let (read_half, mut write_half) = tokio::io::split(socket);
 
         let mut reader = BufReader::new(read_half);
 
@@ -82,9 +81,9 @@ impl Interactor {
     }
 }
 
-async fn forward_hub_to_client<'a>(
+async fn forward_hub_to_client(
     result: Option<ServerEvent>,
-    write_half: &mut WriteHalf<'a>,
+    write_half: &mut WriteHalf<TcpStream>,
 ) -> io::Result<()> {
     let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
