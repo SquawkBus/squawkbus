@@ -1,39 +1,51 @@
-use std::collections::HashSet;
+use std::error::Error;
+use std::{collections::HashSet, net::ToSocketAddrs};
+
+use native_tls::TlsConnector;
+
+use tokio::{
+    io::{split, AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpStream,
+};
 
 use common::messages::{
     DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest,
 };
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpSocket,
-};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("client");
 
-    let addr = "127.0.0.1:8080".parse().unwrap();
+    let hostname = "beast.jetblack.net";
+    let port = 8080;
+    let endpoint = format!("{}:{}", hostname, port);
 
-    let socket = TcpSocket::new_v4().unwrap();
-    let mut stream = socket.connect(addr).await.unwrap();
+    let addr = endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or(format!("failed to resolve {}", hostname))?;
+
+    let socket = TcpStream::connect(&addr).await?;
+    let cx = TlsConnector::builder()
+        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_hostnames(true)
+        .disable_built_in_roots(true)
+        .build()?;
+    let cx = tokio_native_tls::TlsConnector::from(cx);
+
+    let stream = cx.connect(hostname, socket).await?;
 
     println!("connected");
 
-    let (skt_read_half, mut skt_write_half) = stream.split();
+    let (skt_read_half, mut skt_write_half) = split(stream);
     let mut skt_reader = BufReader::new(skt_read_half);
 
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);
 
     // Handshake
-    skt_write_half
-        .write_all("nobody\n".as_bytes())
-        .await
-        .unwrap();
-    skt_write_half
-        .write_all("trustno1\n".as_bytes())
-        .await
-        .unwrap();
+    skt_write_half.write_all("nobody\n".as_bytes()).await?;
+    skt_write_half.write_all("trustno1\n".as_bytes()).await?;
 
     loop {
         let mut request_line = String::new();

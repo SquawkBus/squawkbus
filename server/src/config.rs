@@ -20,9 +20,24 @@ pub struct Authorization {
     pub roles: Role,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Tls {
+    pub is_enabled: bool,
+    pub identity: String,
+}
+
+fn default_tls() -> Tls {
+    Tls {
+        is_enabled: false,
+        identity: "".to_owned(),
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub endpoint: String,
+    #[serde(default = "default_tls")]
+    pub tls: Tls,
     pub authorization: HashMap<String, HashMap<String, Authorization>>,
 }
 

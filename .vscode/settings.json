@@ -1,9 +1,11 @@
 {
     "cSpell.words": [
+        "addrs",
         "bitflags",
         "datapacket",
         "hashset",
         "interactor",
+        "jetblack",
         "repr",
         "roundtrip"
     ],

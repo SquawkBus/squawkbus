@@ -1,8 +1,7 @@
 use std::io;
 use std::net::SocketAddr;
 
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader, WriteHalf};
-use tokio::net::TcpStream;
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader, WriteHalf};
 use tokio::sync::mpsc::{self, Sender};
 
 use uuid::Uuid;
@@ -21,12 +20,15 @@ impl Interactor {
         Interactor { id: Uuid::new_v4() }
     }
 
-    pub async fn run(
+    pub async fn run<T>(
         &self,
-        socket: TcpStream,
+        socket: T,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
-    ) -> io::Result<()> {
+    ) -> io::Result<()>
+    where
+        T: AsyncRead + AsyncWrite,
+    {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
         let (read_half, mut write_half) = tokio::io::split(socket);
@@ -81,10 +83,13 @@ impl Interactor {
     }
 }
 
-async fn forward_hub_to_client(
+async fn forward_hub_to_client<T>(
     result: Option<ServerEvent>,
-    write_half: &mut WriteHalf<TcpStream>,
-) -> io::Result<()> {
+    write_half: &mut WriteHalf<T>,
+) -> io::Result<()>
+where
+    T: AsyncRead + AsyncWrite,
+{
     let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {
