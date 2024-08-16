@@ -4,7 +4,8 @@ use std::io;
 use std::sync::Arc;
 use std::{collections::HashSet, net::ToSocketAddrs};
 
-use tokio::io::AsyncWriteExt;
+use pki_types::ServerName;
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio_rustls::{rustls, TlsConnector};
 
 use options::Options;
@@ -32,29 +33,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .next()
         .ok_or(format!("failed to resolve {}", options.host.as_str()))?;
 
-    let mut root_cert_store = rustls::RootCertStore::empty();
-    if let Some(cafile) = &options.cafile {
-        let mut pem = io::BufReader::new(File::open(cafile).expect("Should open cert file"));
-        for cert in rustls_pemfile::certs(&mut pem) {
-            root_cert_store.add(cert?).unwrap();
+    let socket = TcpStream::connect(&addr).await?;
+    match options.tls {
+        true => {
+            let (tls_connector, domain) = create_tls_connector(&options);
+            let stream = tls_connector.connect(domain, socket).await?;
+            communicate(stream).await;
         }
-    } else {
-        root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        false => {
+            communicate(socket).await;
+        }
     }
 
-    let config = rustls::ClientConfig::builder()
-        .with_root_certificates(root_cert_store)
-        .with_no_client_auth(); // i guess this was previously the default?
-    let connector = TlsConnector::from(Arc::new(config));
+    Ok(())
+}
 
-    let socket = TcpStream::connect(&addr).await?;
-
-    let domain = pki_types::ServerName::try_from(options.host.as_str())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dns name"))?
-        .to_owned();
-
-    let stream = connector.connect(domain, socket).await?;
-
+async fn communicate<S>(stream: S)
+where
+    S: AsyncRead + AsyncWrite,
+{
     println!("connected");
 
     let (skt_read_half, mut skt_write_half) = split(stream);
@@ -64,8 +61,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut stdin_reader = BufReader::new(stdin);
 
     // Handshake
-    skt_write_half.write_all("nobody\n".as_bytes()).await?;
-    skt_write_half.write_all("trustno1\n".as_bytes()).await?;
+    skt_write_half
+        .write_all("nobody\n".as_bytes())
+        .await
+        .unwrap();
+    skt_write_half
+        .write_all("trustno1\n".as_bytes())
+        .await
+        .unwrap();
 
     loop {
         let mut request_line = String::new();
@@ -158,4 +161,28 @@ fn create_notification_message(pattern: &str) -> NotificationRequest {
         pattern: pattern.to_string(),
         is_add: true,
     }
+}
+
+fn create_tls_connector<'a>(options: &Options) -> (TlsConnector, ServerName<'a>) {
+    let mut root_cert_store = rustls::RootCertStore::empty();
+    if let Some(cafile) = &options.cafile {
+        let mut pem = io::BufReader::new(File::open(cafile).expect("Should open cert file"));
+        for cert in rustls_pemfile::certs(&mut pem) {
+            root_cert_store.add(cert.unwrap()).unwrap();
+        }
+    } else {
+        root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    }
+
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth(); // i guess this was previously the default?
+    let connector = TlsConnector::from(Arc::new(config));
+
+    let domain = pki_types::ServerName::try_from(options.host.as_str())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dns name"))
+        .unwrap()
+        .to_owned();
+
+    (connector, domain)
 }
