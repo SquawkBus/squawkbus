@@ -2,7 +2,9 @@
 
 ## Usage
 
-### Start the server
+### Plain
+
+#### Start the server without TLS
 
 Use the `RUST_LOG` environment variable to enable logging.
 
@@ -12,10 +14,28 @@ The only argument is the location of the config file.
 RUST_LOG=debug cargo run --bin server etc/config-simple.yaml
 ```
 
-### Start the clients
+#### Start the clients without TLS
 
 ```bash
-cargo run --bin client -- -h beast.jetblack.net -p 8080
+cargo run --bin client -- -h localhost -p 8080
+```
+
+### TLS
+
+#### Start the server with TLS
+
+Use the `RUST_LOG` environment variable to enable logging.
+
+The only argument is the location of the config file.
+
+```bash
+RUST_LOG=debug cargo run --bin server etc/config-simple-tls.yaml
+```
+
+#### Start the clients with TLS
+
+```bash
+cargo run --bin client -- -h beast.jetblack.net -p 8080 --tls --cafile /etc/ssl/certs/ca-certificates.crt
 ```
 
 ## Things to do

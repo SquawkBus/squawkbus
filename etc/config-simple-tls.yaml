@@ -1,5 +1,10 @@
-# This is the default config.
+# Simple config with TLS support.
 endpoint: "0.0.0.0:8080"
+tls:
+  is_enabled: true
+  hostname: beast.jetblack.net
+  certfile: /home/rtb/.keys/server.crt
+  keyfile: /home/rtb/.keys/server.key
 authorization:
   # All users can publish to PUB
   .*:
