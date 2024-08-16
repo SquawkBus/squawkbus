@@ -89,7 +89,7 @@ tasks are started: one which reads messages from the client and forwards them to
 the message processor, and a second which receives messages from the message processor
 and forwards them to the client.
 
-The clients communicate to the server through a single multi-producer
+The client read tasks communicate with the message processor task through a multi-producer
 single-consumer queue to  ensure synchronization.
 
 ## Things to do
