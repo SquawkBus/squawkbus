@@ -1,14 +1,19 @@
 use std::env;
 use std::fs::File;
-use std::io::{self, Read};
-use std::net::SocketAddr;
+use std::io::{self, BufReader, ErrorKind};
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::path::Path;
+use std::sync::Arc;
 
 use config::Config;
+
+use pki_types::{CertificateDer, PrivateKeyDer};
+use rustls_pemfile::{certs, private_key};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
 
-use tokio_native_tls::native_tls::Identity;
+use tokio_rustls::{rustls, TlsAcceptor};
 
 mod events;
 use events::ClientEvent;
@@ -18,7 +23,6 @@ use hub::Hub;
 
 mod interactor;
 use interactor::Interactor;
-use tokio_native_tls::TlsAcceptor;
 
 mod clients;
 mod config;
@@ -38,13 +42,19 @@ async fn main() -> io::Result<()> {
 
     let config = Config::load(&args[1]).expect("Should read config");
 
+    let addr = config
+        .endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
+
     let tls_acceptor = match config.tls.is_enabled {
-        true => Some(create_acceptor(&config.tls.identity)),
+        true => Some(create_acceptor(&config)?),
         false => None,
     };
 
     log::info!("Listening on {}", config.endpoint.clone());
-    let listener = TcpListener::bind(config.endpoint.clone()).await?;
+    let listener = TcpListener::bind(&addr).await?;
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
 
@@ -98,16 +108,28 @@ async fn spawn_interactor(
     });
 }
 
-fn create_acceptor(path: &String) -> tokio_native_tls::TlsAcceptor {
-    let mut file = File::open(path).expect("Should open certificate");
-    let mut identity = vec![];
-    file.read_to_end(&mut identity)
-        .expect("Should read certificate");
-    let identity = Identity::from_pkcs12(&identity, "trustno1").expect("Should create identity");
+fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
+    certs(&mut BufReader::new(File::open(path)?)).collect()
+}
 
-    tokio_native_tls::TlsAcceptor::from(
-        native_tls::TlsAcceptor::builder(identity)
-            .build()
-            .expect("Should build native acceptor"),
-    )
+fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
+    Ok(private_key(&mut BufReader::new(File::open(path)?))
+        .unwrap()
+        .ok_or(io::Error::new(
+            ErrorKind::Other,
+            "no private key found".to_string(),
+        ))?)
+}
+
+fn create_acceptor(config: &Config) -> io::Result<TlsAcceptor> {
+    let certs = load_certs(&config.tls.certfile)?;
+    let key = load_key(&config.tls.keyfile)?;
+    // let flag_echo = options.echo_mode;
+
+    let config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
+    let acceptor = TlsAcceptor::from(Arc::new(config));
+    Ok(acceptor)
 }

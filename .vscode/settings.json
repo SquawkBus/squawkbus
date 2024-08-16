@@ -3,12 +3,16 @@
         "addrs",
         "argh",
         "bitflags",
+        "certfile",
         "datapacket",
         "hashset",
         "interactor",
         "jetblack",
+        "keyfile",
+        "pemfile",
         "repr",
-        "roundtrip"
+        "roundtrip",
+        "rustls"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
     "[rust]": {

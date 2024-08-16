@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, ErrorKind, Result};
+use std::path::PathBuf;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -23,13 +24,19 @@ pub struct Authorization {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tls {
     pub is_enabled: bool,
-    pub identity: String,
+    pub hostname: String,
+    pub certfile: PathBuf,
+    pub keyfile: PathBuf,
+    pub password: Option<String>,
 }
 
 fn default_tls() -> Tls {
     Tls {
         is_enabled: false,
-        identity: "".to_owned(),
+        hostname: String::from("host.example.com"),
+        certfile: PathBuf::from("host.crt"),
+        keyfile: PathBuf::from("host.key"),
+        password: None,
     }
 }
 
