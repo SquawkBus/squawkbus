@@ -2,7 +2,9 @@
 
 ## Usage
 
-### Plain
+### Without TLS
+
+The following instructions are intended for operation without TLS.
 
 #### Start the server without TLS
 
@@ -21,6 +23,9 @@ cargo run --bin client -- -h localhost -p 8080
 ```
 
 ### TLS
+
+The following instructions are intended for operation with
+TLS on Linux (tested on Ubuntu 24.04).
 
 #### Start the server with TLS
 
