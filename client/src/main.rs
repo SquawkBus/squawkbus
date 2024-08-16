@@ -3,6 +3,7 @@ use std::{collections::HashSet, net::ToSocketAddrs};
 
 use native_tls::TlsConnector;
 
+use options::Options;
 use tokio::{
     io::{split, AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpStream,
@@ -12,18 +13,20 @@ use common::messages::{
     DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest,
 };
 
+mod options;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("client");
 
-    let hostname = "beast.jetblack.net";
-    let port = 8080;
-    let endpoint = format!("{}:{}", hostname, port);
+    let options = Options::load();
+
+    let endpoint = format!("{}:{}", options.host.as_str(), options.port);
 
     let addr = endpoint
         .to_socket_addrs()?
         .next()
-        .ok_or(format!("failed to resolve {}", hostname))?;
+        .ok_or(format!("failed to resolve {}", options.host.as_str()))?;
 
     let socket = TcpStream::connect(&addr).await?;
     let cx = TlsConnector::builder()
@@ -33,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .build()?;
     let cx = tokio_native_tls::TlsConnector::from(cx);
 
-    let stream = cx.connect(hostname, socket).await?;
+    let stream = cx.connect(options.host.as_str(), socket).await?;
 
     println!("connected");
 
