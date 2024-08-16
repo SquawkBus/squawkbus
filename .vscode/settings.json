@@ -12,7 +12,8 @@
         "pemfile",
         "repr",
         "roundtrip",
-        "rustls"
+        "rustls",
+        "trustno"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
     "[rust]": {
