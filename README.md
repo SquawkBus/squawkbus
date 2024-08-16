@@ -39,11 +39,29 @@ RUST_LOG=debug cargo run --bin server etc/config-simple-tls.yaml
 
 #### Start the clients with TLS
 
+On Unix
+
 ```bash
 cargo run --bin client -- -h beast.jetblack.net -p 8080 --tls --cafile /etc/ssl/certs/ca-certificates.crt
 ```
 
+On Mac
+
+```bash
+cargo run --bin client -- -h brick.jetblack.net -p 8080 --tls --cafile /Users/rtb/.keys/ca-certificates.crt
+```
+
 ## Things to do
+
+### Authentication
+
+This is currently hardcoded to a username/password (`nobody/trustno1`).
+
+Alternatives include:
+
+* Password file
+* LDAP
+* Pluggable authentication
 
 ### Wild-carding
 
@@ -60,16 +78,6 @@ A mechanism to reload entitlements (e.g. on SIGHUP).
 
 Maybe entitlements should be exposed as a pluggable module with dynamic
 access.
-
-### Authentication
-
-This is currently hardcoded to `nobody/trustno1`.
-
-Alternatives include:
-
-* Password file
-* LDAP
-* Pluggable authentication
 
 ### Serialization
 

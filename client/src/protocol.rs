@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf};
 
 use tokio::io::{split, AsyncBufReadExt, BufReader};
 
@@ -20,15 +20,7 @@ where
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);
 
-    // Handshake
-    skt_write_half
-        .write_all("nobody\n".as_bytes())
-        .await
-        .unwrap();
-    skt_write_half
-        .write_all("trustno1\n".as_bytes())
-        .await
-        .unwrap();
+    authenticate(&mut skt_write_half).await;
 
     loop {
         let mut request_line = String::new();
@@ -58,6 +50,29 @@ where
             }
         }
     }
+}
+
+async fn authenticate<S>(skt_write_half: &mut WriteHalf<S>)
+where
+    S: AsyncRead + AsyncWrite,
+{
+    // Mode
+    skt_write_half
+        .write_all("htpasswd\n".as_bytes())
+        .await
+        .unwrap();
+
+    // User
+    skt_write_half
+        .write_all("nobody\n".as_bytes())
+        .await
+        .unwrap();
+
+    // Password
+    skt_write_half
+        .write_all("trustno1\n".as_bytes())
+        .await
+        .unwrap();
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
