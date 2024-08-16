@@ -26,7 +26,7 @@ use interactor::Interactor;
 
 mod clients;
 mod config;
-mod entitlements;
+mod authorization;
 mod notifications;
 mod publishing;
 mod subscriptions;

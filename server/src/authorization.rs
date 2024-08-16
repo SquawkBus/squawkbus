@@ -7,20 +7,20 @@ use regex::Regex;
 
 use crate::config::{Config, Role};
 
-pub struct UserEntitlementsSpec {
+pub struct AuthorizationSpec {
     pub user_pattern: Regex,
     pub topic_pattern: Regex,
     pub entitlements: HashSet<i32>,
     pub roles: Role,
 }
 
-pub struct EntitlementsManager {
-    specs: Vec<UserEntitlementsSpec>,
+pub struct AuthorizationManager {
+    specs: Vec<AuthorizationSpec>,
 }
 
-impl EntitlementsManager {
-    pub fn new(specs: Vec<UserEntitlementsSpec>) -> Self {
-        EntitlementsManager { specs }
+impl AuthorizationManager {
+    pub fn new(specs: Vec<AuthorizationSpec>) -> Self {
+        AuthorizationManager { specs }
     }
 
     pub fn entitlements(&self, user_name: &str, topic: &str, role: Role) -> HashSet<i32> {
@@ -38,8 +38,8 @@ impl EntitlementsManager {
         entitlements
     }
 
-    pub fn from_config(config: Config) -> Result<EntitlementsManager> {
-        let mut specs: Vec<UserEntitlementsSpec> = Vec::new();
+    pub fn from_config(config: Config) -> Result<AuthorizationManager> {
+        let mut specs: Vec<AuthorizationSpec> = Vec::new();
         for (user_pattern, topic_authorization) in config.authorization {
             for (topic_pattern, authorization) in topic_authorization {
                 let user_pattern = Regex::new(user_pattern.as_str())
@@ -48,7 +48,7 @@ impl EntitlementsManager {
                     .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
                 let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
                 let roles = authorization.roles;
-                specs.push(UserEntitlementsSpec {
+                specs.push(AuthorizationSpec {
                     user_pattern,
                     topic_pattern,
                     entitlements,
@@ -56,7 +56,7 @@ impl EntitlementsManager {
                 });
             }
         }
-        Ok(EntitlementsManager::new(specs))
+        Ok(AuthorizationManager::new(specs))
     }
 }
 
@@ -67,26 +67,26 @@ mod test {
     #[test]
     fn smoke() {
         let user_entitlements_spec = vec![
-            UserEntitlementsSpec {
+            AuthorizationSpec {
                 user_pattern: Regex::new(".*").unwrap(),
                 topic_pattern: Regex::new("PUB\\..*").unwrap(),
                 entitlements: HashSet::from([0]),
                 roles: Role::Subscriber | Role::Notifier | Role::Publisher,
             },
-            UserEntitlementsSpec {
+            AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
                 topic_pattern: Regex::new(".*\\.LSE").unwrap(),
                 entitlements: HashSet::from([1, 2]),
                 roles: Role::Subscriber | Role::Notifier,
             },
-            UserEntitlementsSpec {
+            AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
                 topic_pattern: Regex::new(".*\\.NSE").unwrap(),
                 entitlements: HashSet::from([3, 4]),
                 roles: Role::Subscriber,
             },
         ];
-        let entitlements_manager = EntitlementsManager::new(user_entitlements_spec);
+        let entitlements_manager = AuthorizationManager::new(user_entitlements_spec);
 
         let actual = entitlements_manager.entitlements("nobody", "PUB.foo", Role::Subscriber);
         let expected: HashSet<i32> = HashSet::from([0]);

@@ -7,7 +7,7 @@ use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData,
 use uuid::Uuid;
 
 use crate::{
-    clients::ClientManager, config::Role, entitlements::EntitlementsManager, events::ServerEvent,
+    authorization::AuthorizationManager, clients::ClientManager, config::Role, events::ServerEvent,
     subscriptions::SubscriptionManager,
 };
 
@@ -29,7 +29,7 @@ impl PublisherManager {
         publisher: &str,
         subscriber: &str,
         topic: &str,
-        entitlements_manager: &EntitlementsManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> HashSet<i32> {
         let publisher_entitlements =
             entitlements_manager.entitlements(publisher, topic, Role::Publisher);
@@ -64,7 +64,7 @@ impl PublisherManager {
         content_type: String,
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
-        entitlements_manager: &EntitlementsManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         /*
          * Send data from a publisher to a client.
@@ -136,7 +136,7 @@ impl PublisherManager {
         data_packets: Vec<DataPacket>,
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
-        entitlements_manager: &EntitlementsManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
             log::debug!("send_multicast_data: no topic {topic}");

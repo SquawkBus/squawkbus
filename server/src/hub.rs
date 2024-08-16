@@ -7,9 +7,9 @@ use uuid::Uuid;
 use common::messages::Message;
 
 use crate::{
+    authorization::AuthorizationManager,
     clients::ClientManager,
     config::Config,
-    entitlements::EntitlementsManager,
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
     publishing::PublisherManager,
@@ -21,11 +21,11 @@ pub struct Hub {
     subscription_manager: SubscriptionManager,
     notification_manager: NotificationManager,
     publisher_manager: PublisherManager,
-    entitlement_manager: EntitlementsManager,
+    entitlement_manager: AuthorizationManager,
 }
 
 impl Hub {
-    pub fn new(entitlement_manager: EntitlementsManager) -> Hub {
+    pub fn new(entitlement_manager: AuthorizationManager) -> Hub {
         Hub {
             client_manager: ClientManager::new(),
             subscription_manager: SubscriptionManager::new(),
@@ -36,8 +36,8 @@ impl Hub {
     }
 
     pub async fn run(config: Config, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
-        let entitlement_manager: EntitlementsManager =
-            EntitlementsManager::from_config(config).expect("Should load authorizations");
+        let entitlement_manager: AuthorizationManager =
+            AuthorizationManager::from_config(config).expect("Should load authorizations");
 
         let mut hub = Self::new(entitlement_manager);
         loop {
