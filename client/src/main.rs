@@ -1,11 +1,15 @@
 use std::error::Error;
+use std::fs::File;
+use std::io;
+use std::sync::Arc;
 use std::{collections::HashSet, net::ToSocketAddrs};
 
-use native_tls::TlsConnector;
+use tokio::io::AsyncWriteExt;
+use tokio_rustls::{rustls, TlsConnector};
 
 use options::Options;
 use tokio::{
-    io::{split, AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{split, AsyncBufReadExt, BufReader},
     net::TcpStream,
 };
 
@@ -28,15 +32,28 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .next()
         .ok_or(format!("failed to resolve {}", options.host.as_str()))?;
 
-    let socket = TcpStream::connect(&addr).await?;
-    let cx = TlsConnector::builder()
-        .danger_accept_invalid_certs(true)
-        .danger_accept_invalid_hostnames(true)
-        .disable_built_in_roots(true)
-        .build()?;
-    let cx = tokio_native_tls::TlsConnector::from(cx);
+    let mut root_cert_store = rustls::RootCertStore::empty();
+    if let Some(cafile) = &options.cafile {
+        let mut pem = io::BufReader::new(File::open(cafile).expect("Should open cert file"));
+        for cert in rustls_pemfile::certs(&mut pem) {
+            root_cert_store.add(cert?).unwrap();
+        }
+    } else {
+        root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    }
 
-    let stream = cx.connect(options.host.as_str(), socket).await?;
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth(); // i guess this was previously the default?
+    let connector = TlsConnector::from(Arc::new(config));
+
+    let socket = TcpStream::connect(&addr).await?;
+
+    let domain = pki_types::ServerName::try_from(options.host.as_str())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dns name"))?
+        .to_owned();
+
+    let stream = connector.connect(domain, socket).await?;
 
     println!("connected");
 

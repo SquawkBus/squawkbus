@@ -3,6 +3,7 @@
         "addrs",
         "argh",
         "bitflags",
+        "cafile",
         "certfile",
         "datapacket",
         "hashset",

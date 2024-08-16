@@ -27,7 +27,7 @@ pub struct Options {
 
     /// ca file
     #[argh(option, short = 'c')]
-    pub cert: Option<PathBuf>,
+    pub cafile: Option<PathBuf>,
 }
 
 impl Options {
