@@ -45,6 +45,7 @@ fn default_endpoint() -> String {
 }
 
 fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
+    // The default is to authorize all users for all roles on "PUB.*".
     HashMap::from([(
         String::from(".*"),
         HashMap::from([(

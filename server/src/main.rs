@@ -77,6 +77,7 @@ async fn main() -> io::Result<()> {
     );
     let listener = TcpListener::bind(&addr).await?;
 
+    // Make the channel for the client-to-server communication.
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
 
     // Start the message processor.
@@ -85,7 +86,9 @@ async fn main() -> io::Result<()> {
     });
 
     loop {
+        // Wait for a client to connect.
         let (stream, addr) = listener.accept().await?;
+
         // Start an interactor.
         spawn_interactor(stream, addr, tls_acceptor.clone(), client_tx.clone()).await;
     }
@@ -97,13 +100,13 @@ async fn spawn_interactor(
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
 ) {
-    let interactor = Interactor::new();
-
     tokio::spawn(async move {
+        let interactor = Interactor::new();
+
         let result = match tls_acceptor {
             Some(acceptor) => match acceptor.accept(stream).await {
                 Ok(tls_stream) => {
-                    println!("Connecting TLS");
+                    println!("Connecting client {} over TLS", &interactor.id);
                     interactor.run(tls_stream, addr, client_tx).await
                 }
                 Err(e) => Err(io::Error::new(
@@ -112,7 +115,7 @@ async fn spawn_interactor(
                 )),
             },
             None => {
-                println!("Connecting PLAIN");
+                println!("Connecting client {}", &interactor.id);
                 interactor.run(stream, addr, client_tx).await
             }
         };
