@@ -5,15 +5,23 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::Path;
 use std::sync::Arc;
 
-use config::Config;
-
 use pki_types::{CertificateDer, PrivateKeyDer};
+
 use rustls_pemfile::{certs, private_key};
 
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
 
 use tokio_rustls::{rustls, TlsAcceptor};
+
+mod authentication;
+
+mod authorization;
+
+mod clients;
+
+mod config;
+use config::Config;
 
 mod events;
 use events::ClientEvent;
@@ -24,13 +32,17 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
-mod clients;
-mod config;
-mod authorization;
 mod notifications;
+
 mod publishing;
+
 mod subscriptions;
 
+/*
+ * The server starts by creating a `hub` task to process messages. It then
+ * listens for client connections. When a client connects an interactor is
+ * created.
+ */
 #[tokio::main]
 async fn main() -> io::Result<()> {
     env_logger::init();
@@ -58,13 +70,14 @@ async fn main() -> io::Result<()> {
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
 
-    // Create a hub that listens to clients
+    // Start the message processor.
     tokio::spawn(async move {
         Hub::run(config, server_rx).await.unwrap();
     });
 
     loop {
         let (stream, addr) = listener.accept().await?;
+        // Start an interactor.
         spawn_interactor(stream, addr, tls_acceptor.clone(), client_tx.clone()).await;
     }
 }

@@ -81,8 +81,7 @@ the data to the subscribing client.
 
 ### Structure
 
-On startup two tasks are started: one to listen for connections, and a second
-to process messages.
+The server starts by creating a `hub` task to process messages, and then listens for clients connecting.
 
 When a client connects an "interactor" is created, and two
 tasks are started: one which reads messages from the client and forwards them to
