@@ -67,7 +67,14 @@ async fn main() -> io::Result<()> {
         false => None,
     };
 
-    log::info!("Listening on {}", config.endpoint.clone());
+    log::info!(
+        "Listening on {}{}",
+        config.endpoint.clone(),
+        match config.tls.is_enabled {
+            true => " using TLS",
+            false => "",
+        }
+    );
     let listener = TcpListener::bind(&addr).await?;
 
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);

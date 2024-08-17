@@ -41,7 +41,7 @@ fn default_tls() -> Tls {
 }
 
 fn default_endpoint() -> String {
-    String::from("0.0.0.:8080")
+    String::from("0.0.0.0:8080")
 }
 
 fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
