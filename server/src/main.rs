@@ -45,24 +45,22 @@ use tls::create_acceptor;
 async fn main() -> io::Result<()> {
     env_logger::init();
 
+    // Command line options.
     let options = Options::load();
 
+    // Configuration, either from a file, or the default.
     let config = match options.config {
         Some(path) => Config::load(&path).expect("Should load config"),
         None => Config::default(),
     };
 
-    let addr = config
-        .endpoint
-        .to_socket_addrs()?
-        .next()
-        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
-
+    // If using TLS create an acceptor.
     let tls_acceptor = match config.tls.is_enabled {
         true => Some(create_acceptor(&config)?),
         false => None,
     };
 
+    // Create the listener.
     log::info!(
         "Listening on {}{}",
         config.endpoint.clone(),
@@ -71,12 +69,18 @@ async fn main() -> io::Result<()> {
             false => "",
         }
     );
+    let addr = config
+        .endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
     let listener = TcpListener::bind(&addr).await?;
 
     // Make the channel for the client-to-server communication.
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
 
-    // Start the message processor.
+    // Start the hub message processor. Note that is takes the receive end of
+    // the mpsc channel.
     tokio::spawn(async move {
         Hub::run(config, server_rx).await.unwrap();
     });
