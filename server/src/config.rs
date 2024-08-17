@@ -49,7 +49,7 @@ fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
     HashMap::from([(
         String::from(".*"),
         HashMap::from([(
-            String::from("PUB.\\..*"),
+            String::from("PUB\\..*"),
             Authorization {
                 entitlements: HashSet::from([0]),
                 roles: Role::Publisher | Role::Subscriber | Role::Notifier,
