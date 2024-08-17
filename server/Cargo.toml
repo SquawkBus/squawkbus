@@ -19,3 +19,4 @@ serde_yaml = "0.9"
 tokio-rustls = "0.26.0"
 rustls-pemfile = "2.1.3"
 pki-types = { package = "rustls-pki-types", version = "1" }
+argh = "0.1.12"

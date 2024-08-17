@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::File;
 use std::io::{self, BufReader, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -32,6 +31,9 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
+mod options;
+use options::Options;
+
 mod notifications;
 
 mod publishing;
@@ -47,12 +49,12 @@ mod subscriptions;
 async fn main() -> io::Result<()> {
     env_logger::init();
 
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        panic!("usage: {} <config-file>", args[0])
-    }
+    let options = Options::load();
 
-    let config = Config::load(&args[1]).expect("Should read config");
+    let config = match options.config {
+        Some(path) => Config::load(&path).expect("Should load config"),
+        None => Config::default(),
+    };
 
     let addr = config
         .endpoint

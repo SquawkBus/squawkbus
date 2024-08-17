@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, ErrorKind, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -40,17 +40,49 @@ fn default_tls() -> Tls {
     }
 }
 
+fn default_endpoint() -> String {
+    String::from("0.0.0.:8080")
+}
+
+fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
+    HashMap::from([(
+        String::from(".*"),
+        HashMap::from([(
+            String::from("PUB.\\..*"),
+            Authorization {
+                entitlements: HashSet::from([0]),
+                roles: Role::Publisher | Role::Subscriber | Role::Notifier,
+            },
+        )]),
+    )])
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
+    #[serde(default = "default_endpoint")]
     pub endpoint: String,
+
     #[serde(default = "default_tls")]
     pub tls: Tls,
+
+    #[serde(default = "default_authorization")]
     pub authorization: HashMap<String, HashMap<String, Authorization>>,
 }
 
 impl Config {
-    pub fn load(path: &str) -> Result<Config> {
+    pub fn load<P>(path: P) -> Result<Config>
+    where
+        P: AsRef<Path>,
+    {
         let file = fs::File::open(path)?;
         serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))
+    }
+
+    pub fn default() -> Self {
+        Config {
+            endpoint: default_endpoint(),
+            tls: default_tls(),
+            authorization: default_authorization(),
+        }
     }
 }
