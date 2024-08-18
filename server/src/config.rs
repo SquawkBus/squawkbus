@@ -24,7 +24,6 @@ pub struct Authorization {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tls {
     pub is_enabled: bool,
-    pub hostname: String,
     pub certfile: PathBuf,
     pub keyfile: PathBuf,
     pub password: Option<String>,
@@ -33,7 +32,6 @@ pub struct Tls {
 fn default_tls() -> Tls {
     Tls {
         is_enabled: false,
-        hostname: String::from("host.example.com"),
         certfile: PathBuf::from("host.crt"),
         keyfile: PathBuf::from("host.key"),
         password: None,
