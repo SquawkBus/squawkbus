@@ -1,7 +1,6 @@
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use config::load_authorizations;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
 
@@ -10,10 +9,9 @@ use tokio_rustls::TlsAcceptor;
 mod authentication;
 
 mod authorization;
+use authorization::load_authorizations;
 
 mod clients;
-
-mod config;
 
 mod events;
 use events::ClientEvent;

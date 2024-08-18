@@ -7,9 +7,9 @@ use uuid::Uuid;
 use common::messages::Message;
 
 use crate::{
+    authorization::Authorization,
     authorization::AuthorizationManager,
     clients::ClientManager,
-    config::Authorization,
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
     publishing::PublisherManager,
