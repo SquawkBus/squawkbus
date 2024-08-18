@@ -1,4 +1,4 @@
-use std::io;
+use std::{collections::HashMap, io};
 
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -9,7 +9,7 @@ use common::messages::Message;
 use crate::{
     authorization::AuthorizationManager,
     clients::ClientManager,
-    config::Config,
+    config::Authorization,
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
     publishing::PublisherManager,
@@ -35,9 +35,12 @@ impl Hub {
         }
     }
 
-    pub async fn run(config: Config, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
+    pub async fn run(
+        authorizations: HashMap<String, HashMap<String, Authorization>>,
+        mut server_rx: Receiver<ClientEvent>,
+    ) -> io::Result<()> {
         let entitlement_manager: AuthorizationManager =
-            AuthorizationManager::from_config(config).expect("Should load authorizations");
+            AuthorizationManager::from_config(authorizations).expect("Should load authorizations");
 
         let mut hub = Self::new(entitlement_manager);
         loop {

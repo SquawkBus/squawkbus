@@ -11,11 +11,11 @@ fn default_endpoint() -> String {
 /// SquawkBus server.
 #[derive(FromArgs)]
 pub struct Options {
-    /// entitlements file
+    /// an optional authorizations file.
     #[argh(option, short = 'f')]
-    pub config: Option<PathBuf>,
+    pub authorizations: Option<PathBuf>,
 
-    /// endpoint
+    /// endpoint - defaults to 0.0.0.0:8080
     #[argh(option, short = 'e', default = "default_endpoint()")]
     pub endpoint: String,
 
@@ -30,10 +30,6 @@ pub struct Options {
     /// key file
     #[argh(option, short = 'k')]
     pub keyfile: Option<PathBuf>,
-
-    /// host
-    #[argh(option, short = 'h')]
-    pub hostname: Option<String>,
 }
 
 impl Options {

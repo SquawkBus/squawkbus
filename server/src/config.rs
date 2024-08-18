@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, ErrorKind, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -21,27 +21,6 @@ pub struct Authorization {
     pub roles: Role,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Tls {
-    pub is_enabled: bool,
-    pub certfile: PathBuf,
-    pub keyfile: PathBuf,
-    pub password: Option<String>,
-}
-
-fn default_tls() -> Tls {
-    Tls {
-        is_enabled: false,
-        certfile: PathBuf::from("host.crt"),
-        keyfile: PathBuf::from("host.key"),
-        password: None,
-    }
-}
-
-fn default_endpoint() -> String {
-    String::from("0.0.0.0:8080")
-}
-
 fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
     // The default is to authorize all users for all roles on "PUB.*".
     HashMap::from([(
@@ -56,32 +35,17 @@ fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
     )])
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    #[serde(default = "default_endpoint")]
-    pub endpoint: String,
-
-    #[serde(default = "default_tls")]
-    pub tls: Tls,
-
-    #[serde(default = "default_authorization")]
-    pub authorization: HashMap<String, HashMap<String, Authorization>>,
-}
-
-impl Config {
-    pub fn load<P>(path: P) -> Result<Config>
-    where
-        P: AsRef<Path>,
-    {
-        let file = fs::File::open(path)?;
-        serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))
-    }
-
-    pub fn default() -> Self {
-        Config {
-            endpoint: default_endpoint(),
-            tls: default_tls(),
-            authorization: default_authorization(),
+pub fn load_authorizations<P>(
+    path: Option<P>,
+) -> Result<HashMap<String, HashMap<String, Authorization>>>
+where
+    P: AsRef<Path>,
+{
+    match path {
+        Some(path) => {
+            let file = fs::File::open(path)?;
+            serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))
         }
+        None => Ok(default_authorization()),
     }
 }

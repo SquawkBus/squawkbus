@@ -1,0 +1,6 @@
+# All users can publish to PUB
+.*:
+  "PUB\\..*":
+    entitlements:
+    - 0
+    roles: Notifier | Publisher | Subscriber

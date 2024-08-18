@@ -1,11 +1,11 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Result},
 };
 
 use regex::Regex;
 
-use crate::config::{Config, Role};
+use crate::config::{Authorization, Role};
 
 pub struct AuthorizationSpec {
     pub user_pattern: Regex,
@@ -38,9 +38,11 @@ impl AuthorizationManager {
         entitlements
     }
 
-    pub fn from_config(config: Config) -> Result<AuthorizationManager> {
+    pub fn from_config(
+        authorizations: HashMap<String, HashMap<String, Authorization>>,
+    ) -> Result<AuthorizationManager> {
         let mut specs: Vec<AuthorizationSpec> = Vec::new();
-        for (user_pattern, topic_authorization) in config.authorization {
+        for (user_pattern, topic_authorization) in authorizations {
             for (topic_pattern, authorization) in topic_authorization {
                 let user_pattern = Regex::new(user_pattern.as_str())
                     .map_err(|e| io::Error::new(ErrorKind::Other, e))?;

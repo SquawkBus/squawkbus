@@ -1,6 +1,7 @@
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 
+use config::load_authorizations;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
 
@@ -13,7 +14,6 @@ mod authorization;
 mod clients;
 
 mod config;
-use config::Config;
 
 mod events;
 use events::ClientEvent;
@@ -48,28 +48,24 @@ async fn main() -> io::Result<()> {
     // Command line options.
     let options = Options::load();
 
-    // Configuration, either from a file, or the default.
-    let config = match options.config {
-        Some(path) => Config::load(&path).expect("Should load config"),
-        None => Config::default(),
-    };
+    let authorizations = load_authorizations(options.authorizations)?;
 
     // If using TLS create an acceptor.
-    let tls_acceptor = match config.tls.is_enabled {
-        true => Some(create_acceptor(&config)?),
+    let tls_acceptor = match options.tls {
+        true => Some(create_acceptor(options.certfile, options.keyfile)?),
         false => None,
     };
 
     // Create the listener.
     log::info!(
         "Listening on {}{}",
-        config.endpoint.clone(),
-        match config.tls.is_enabled {
+        options.endpoint.clone(),
+        match options.tls {
             true => " using TLS",
             false => "",
         }
     );
-    let addr = config
+    let addr = options
         .endpoint
         .to_socket_addrs()?
         .next()
@@ -82,7 +78,7 @@ async fn main() -> io::Result<()> {
     // Start the hub message processor. Note that is takes the receive end of
     // the mpsc channel.
     tokio::spawn(async move {
-        Hub::run(config, server_rx).await.unwrap();
+        Hub::run(authorizations, server_rx).await.unwrap();
     });
 
     loop {

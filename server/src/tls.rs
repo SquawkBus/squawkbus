@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufReader, ErrorKind};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use pki_types::{CertificateDer, PrivateKeyDer};
@@ -9,11 +9,18 @@ use rustls_pemfile::{certs, private_key};
 
 use tokio_rustls::{rustls, TlsAcceptor};
 
-use crate::config::Config;
+pub fn create_acceptor(
+    certfile: Option<PathBuf>,
+    keyfile: Option<PathBuf>,
+) -> io::Result<TlsAcceptor> {
+    // Ensure we have all the arguments.
+    let certfile =
+        certfile.ok_or_else(|| io::Error::new(ErrorKind::Other, "certfile not specified"))?;
+    let keyfile =
+        keyfile.ok_or_else(|| io::Error::new(ErrorKind::Other, "keyfile not specified"))?;
 
-pub fn create_acceptor(config: &Config) -> io::Result<TlsAcceptor> {
-    let certs = load_certs(&config.tls.certfile)?;
-    let key = load_key(&config.tls.keyfile)?;
+    let certs = load_certs(&certfile)?;
+    let key = load_key(&keyfile)?;
 
     let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
