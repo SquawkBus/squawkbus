@@ -1,3 +1,5 @@
+// Command line parameters.
+
 use std::path::PathBuf;
 
 use argh::FromArgs;
@@ -5,7 +7,7 @@ use argh::FromArgs;
 /// SquawkBus server.
 #[derive(FromArgs)]
 pub struct Options {
-    /// ca file
+    /// config file
     #[argh(option, short = 'c')]
     pub config: Option<PathBuf>,
 }
