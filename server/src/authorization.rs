@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, ErrorKind, Result};
 use std::path::Path;
+use std::str::FromStr;
 
 use bitflags::bitflags;
 use regex::Regex;
@@ -97,6 +98,7 @@ pub fn load_authorizations<P>(
 where
     P: AsRef<Path>,
 {
+    // Either load from a file, or provide useful defaults.
     match path {
         Some(path) => {
             let file = fs::File::open(path)?;
