@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::io;
 
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -7,8 +7,7 @@ use uuid::Uuid;
 use common::messages::Message;
 
 use crate::{
-    authorization::Authorization,
-    authorization::AuthorizationManager,
+    authorization::{AuthorizationManager, AuthorizationSpec},
     clients::ClientManager,
     events::{ClientEvent, ServerEvent},
     notifications::NotificationManager,
@@ -36,11 +35,10 @@ impl Hub {
     }
 
     pub async fn run(
-        authorizations: HashMap<String, HashMap<String, Authorization>>,
+        authorizations: Vec<AuthorizationSpec>,
         mut server_rx: Receiver<ClientEvent>,
     ) -> io::Result<()> {
-        let entitlement_manager: AuthorizationManager =
-            AuthorizationManager::from_config(authorizations).expect("Should load authorizations");
+        let entitlement_manager: AuthorizationManager = AuthorizationManager::new(authorizations);
 
         let mut hub = Self::new(entitlement_manager);
         loop {

@@ -22,6 +22,7 @@ pub struct Authorization {
     pub roles: Role,
 }
 
+#[derive(Debug, Clone)]
 pub struct AuthorizationSpec {
     pub user_pattern: Regex,
     pub topic_pattern: Regex,
@@ -52,59 +53,58 @@ impl AuthorizationManager {
 
         entitlements
     }
-
-    pub fn from_config(
-        authorizations: HashMap<String, HashMap<String, Authorization>>,
-    ) -> Result<AuthorizationManager> {
-        let mut specs: Vec<AuthorizationSpec> = Vec::new();
-        for (user_pattern, topic_authorization) in authorizations {
-            for (topic_pattern, authorization) in topic_authorization {
-                let user_pattern = Regex::new(user_pattern.as_str())
-                    .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-                let topic_pattern = Regex::new(topic_pattern.as_str())
-                    .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-                let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
-                let roles = authorization.roles;
-                specs.push(AuthorizationSpec {
-                    user_pattern,
-                    topic_pattern,
-                    entitlements,
-                    roles,
-                });
-            }
-        }
-        Ok(AuthorizationManager::new(specs))
-    }
-}
-
-fn default_authorization() -> HashMap<String, HashMap<String, Authorization>> {
-    // The default is to authorize all users for all roles on "PUB.*".
-    HashMap::from([(
-        String::from(".*"),
-        HashMap::from([(
-            String::from("PUB\\..*"),
-            Authorization {
-                entitlements: HashSet::from([0]),
-                roles: Role::Publisher | Role::Subscriber | Role::Notifier,
-            },
-        )]),
-    )])
 }
 
 pub fn load_authorizations<P>(
     path: Option<P>,
-) -> Result<HashMap<String, HashMap<String, Authorization>>>
+    specs: &[AuthorizationSpec],
+) -> Result<Vec<AuthorizationSpec>>
 where
     P: AsRef<Path>,
 {
+    let mut specs: Vec<AuthorizationSpec> = specs.to_vec(); // specs.iter().map(|x| *x.clone()).collect();
+
     // Either load from a file, or provide useful defaults.
     match path {
         Some(path) => {
             let file = fs::File::open(path)?;
-            serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))
+            let authorizations: HashMap<String, HashMap<String, Authorization>> =
+                serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            for (user_pattern, topic_authorization) in authorizations {
+                for (topic_pattern, authorization) in topic_authorization {
+                    let user_pattern = Regex::new(user_pattern.as_str())
+                        .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                    let topic_pattern = Regex::new(topic_pattern.as_str())
+                        .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                    let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
+                    let roles = authorization.roles;
+                    specs.push(AuthorizationSpec {
+                        user_pattern,
+                        topic_pattern,
+                        entitlements,
+                        roles,
+                    });
+                }
+            }
         }
-        None => Ok(default_authorization()),
-    }
+        None => {
+            let user_pattern = Regex::new(".*").map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            let topic_pattern =
+                Regex::new("PUB\\.*").map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            let entitlements = HashSet::from([0]);
+            let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
+
+            let spec = AuthorizationSpec {
+                user_pattern,
+                topic_pattern,
+                entitlements,
+                roles,
+            };
+            specs.push(spec)
+        }
+    };
+
+    Ok(specs)
 }
 
 #[cfg(test)]

@@ -43,7 +43,7 @@ impl FromStr for AuthorizationSpec {
 pub struct Options {
     /// an optional authorizations file.
     #[argh(option, short = 'f')]
-    pub authorizations: Option<PathBuf>,
+    pub authorizations_file: Option<PathBuf>,
 
     /// endpoint - defaults to 0.0.0.0:8080
     #[argh(option, short = 'e', default = "default_endpoint()")]
@@ -63,7 +63,7 @@ pub struct Options {
 
     /// authorization
     #[argh(option, short = 'a')]
-    pub authorization: Vec<AuthorizationSpec>,
+    pub authorizations: Vec<AuthorizationSpec>,
 }
 
 impl Options {

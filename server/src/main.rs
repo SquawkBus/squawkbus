@@ -46,7 +46,7 @@ async fn main() -> io::Result<()> {
     // Command line options.
     let options = Options::load();
 
-    let authorizations = load_authorizations(options.authorizations)?;
+    let authorizations = load_authorizations(options.authorizations_file, &options.authorizations)?;
 
     // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
