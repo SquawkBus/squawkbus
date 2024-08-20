@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, ErrorKind, Result};
 use std::path::Path;
-use std::str::FromStr;
 
 use bitflags::bitflags;
 use regex::Regex;
