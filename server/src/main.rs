@@ -1,7 +1,9 @@
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::path::PathBuf;
 
 use tokio::net::{TcpListener, TcpStream};
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
 
 use tokio_rustls::TlsAcceptor;
@@ -9,7 +11,7 @@ use tokio_rustls::TlsAcceptor;
 mod authentication;
 
 mod authorization;
-use authorization::load_authorizations;
+use authorization::{load_authorizations, AuthorizationSpec};
 
 mod clients;
 
@@ -46,7 +48,8 @@ async fn main() -> io::Result<()> {
     // Command line options.
     let options = Options::load();
 
-    let authorizations = load_authorizations(options.authorizations_file, &options.authorizations)?;
+    let authorizations =
+        load_authorizations(&options.authorizations_file, &options.authorizations)?;
 
     // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
@@ -79,6 +82,13 @@ async fn main() -> io::Result<()> {
         Hub::run(authorizations, server_rx).await.unwrap();
     });
 
+    handle_auth_reset(
+        options.authorizations_file.clone(),
+        options.authorizations.clone(),
+        client_tx.clone(),
+    )
+    .await;
+
     loop {
         // Wait for a client to connect.
         let (stream, addr) = listener.accept().await?;
@@ -86,6 +96,28 @@ async fn main() -> io::Result<()> {
         // Start an interactor.
         spawn_interactor(stream, addr, tls_acceptor.clone(), client_tx.clone()).await;
     }
+}
+
+async fn handle_auth_reset(
+    authorizations_file: Option<PathBuf>,
+    authorizations: Vec<AuthorizationSpec>,
+    client_tx: Sender<ClientEvent>,
+) {
+    let mut hangup_stream = signal(SignalKind::hangup()).unwrap();
+    tokio::spawn(async move {
+        loop {
+            // Wait for SIGHUP.
+            hangup_stream.recv().await.unwrap();
+
+            log::info!("Reloading authorizations");
+            let authorizations =
+                load_authorizations(&authorizations_file, &authorizations).unwrap();
+            client_tx
+                .send(ClientEvent::OnReset(authorizations))
+                .await
+                .unwrap();
+        }
+    });
 }
 
 async fn spawn_interactor(

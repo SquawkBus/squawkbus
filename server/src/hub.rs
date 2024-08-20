@@ -20,7 +20,7 @@ pub struct Hub {
     subscription_manager: SubscriptionManager,
     notification_manager: NotificationManager,
     publisher_manager: PublisherManager,
-    entitlement_manager: AuthorizationManager,
+    authorization_manager: AuthorizationManager,
 }
 
 impl Hub {
@@ -30,27 +30,35 @@ impl Hub {
             subscription_manager: SubscriptionManager::new(),
             notification_manager: NotificationManager::new(),
             publisher_manager: PublisherManager::new(),
-            entitlement_manager,
+            authorization_manager: entitlement_manager,
         }
     }
 
     pub async fn run(
         authorizations: Vec<AuthorizationSpec>,
-        mut server_rx: Receiver<ClientEvent>,
+        server_rx: Receiver<ClientEvent>,
     ) -> io::Result<()> {
-        let entitlement_manager: AuthorizationManager = AuthorizationManager::new(authorizations);
+        let mut hub = Self::new(AuthorizationManager::new(authorizations));
+        hub.start(server_rx).await
+    }
 
-        let mut hub = Self::new(entitlement_manager);
+    async fn start(&mut self, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
         loop {
             let msg = server_rx.recv().await.unwrap();
             match msg {
-                ClientEvent::OnMessage(id, msg) => hub.handle_message(id, msg).await?,
+                ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await?,
                 ClientEvent::OnConnect(id, host, user, server_tx) => {
-                    hub.handle_connect(id, host, user, server_tx)
+                    self.handle_connect(id, host, user, server_tx)
                 }
-                ClientEvent::OnClose(id) => hub.handle_close(id).await?,
+                ClientEvent::OnClose(id) => self.handle_close(id).await?,
+                ClientEvent::OnReset(specs) => self.handle_reset(specs),
             }
         }
+    }
+
+    fn handle_reset(&mut self, specs: Vec<AuthorizationSpec>) {
+        log::debug!("Resetting authorizations");
+        self.authorization_manager.reset(specs);
     }
 
     fn handle_connect(
@@ -93,7 +101,7 @@ impl Hub {
                         msg.data_packets,
                         &self.subscription_manager,
                         &self.client_manager,
-                        &self.entitlement_manager,
+                        &self.authorization_manager,
                     )
                     .await
             }
@@ -126,7 +134,7 @@ impl Hub {
                         msg.content_type,
                         msg.data_packets,
                         &self.client_manager,
-                        &self.entitlement_manager,
+                        &self.authorization_manager,
                     )
                     .await
             }

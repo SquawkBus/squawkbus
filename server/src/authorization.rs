@@ -39,6 +39,10 @@ impl AuthorizationManager {
         AuthorizationManager { specs }
     }
 
+    pub fn reset(&mut self, specs: Vec<AuthorizationSpec>) {
+        self.specs = specs
+    }
+
     pub fn entitlements(&self, user_name: &str, topic: &str, role: Role) -> HashSet<i32> {
         let mut entitlements = HashSet::new();
 
@@ -56,7 +60,7 @@ impl AuthorizationManager {
 }
 
 pub fn load_authorizations<P>(
-    path: Option<P>,
+    path: &Option<P>,
     specs: &[AuthorizationSpec],
 ) -> Result<Vec<AuthorizationSpec>>
 where
