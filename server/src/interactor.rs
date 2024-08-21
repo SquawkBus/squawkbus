@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use common::messages::Message;
 
-use crate::authentication::authenticate;
+use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
 
 #[derive(Debug)]
@@ -21,11 +21,12 @@ impl Interactor {
         Interactor { id: Uuid::new_v4() }
     }
 
-    pub async fn run<T>(
+    pub async fn run<'a, T>(
         &self,
         socket: T,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
+        authentication_manager: AuthenticationManager,
     ) -> io::Result<()>
     where
         T: AsyncRead + AsyncWrite,
@@ -36,7 +37,7 @@ impl Interactor {
 
         let mut reader = BufReader::new(read_half);
 
-        let user = authenticate(&mut reader).await?;
+        let user = authentication_manager.authenticate(&mut reader).await?;
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),

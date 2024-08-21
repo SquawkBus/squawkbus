@@ -64,6 +64,10 @@ pub struct Options {
     /// authorization
     #[argh(option, short = 'a')]
     pub authorizations: Vec<AuthorizationSpec>,
+
+    /// htpasswd file
+    #[argh(option, short = 'p')]
+    pub pwfile: Option<PathBuf>,
 }
 
 impl Options {

@@ -2,6 +2,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 
+use authentication::AuthenticationManager;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
@@ -50,6 +51,7 @@ async fn main() -> io::Result<()> {
 
     let authorizations =
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
+    let authentication_manager = AuthenticationManager::new(&options.pwfile);
 
     // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
@@ -94,7 +96,14 @@ async fn main() -> io::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Start an interactor.
-        spawn_interactor(stream, addr, tls_acceptor.clone(), client_tx.clone()).await;
+        spawn_interactor(
+            stream,
+            addr,
+            tls_acceptor.clone(),
+            client_tx.clone(),
+            authentication_manager.clone(),
+        )
+        .await;
     }
 }
 
@@ -125,6 +134,7 @@ async fn spawn_interactor(
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
+    authentication_manager: AuthenticationManager,
 ) {
     tokio::spawn(async move {
         let interactor = Interactor::new();
@@ -133,7 +143,9 @@ async fn spawn_interactor(
             Some(acceptor) => match acceptor.accept(stream).await {
                 Ok(tls_stream) => {
                     println!("Connecting client {} over TLS", &interactor.id);
-                    interactor.run(tls_stream, addr, client_tx).await
+                    interactor
+                        .run(tls_stream, addr, client_tx, authentication_manager)
+                        .await
                 }
                 Err(e) => Err(io::Error::new(
                     io::ErrorKind::Other,
@@ -142,7 +154,9 @@ async fn spawn_interactor(
             },
             None => {
                 println!("Connecting client {}", &interactor.id);
-                interactor.run(stream, addr, client_tx).await
+                interactor
+                    .run(stream, addr, client_tx, authentication_manager)
+                    .await
             }
         };
 
