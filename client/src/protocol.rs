@@ -57,22 +57,17 @@ where
     S: AsyncRead + AsyncWrite,
 {
     // Mode
+    // skt_write_half.write_all("none\n".as_bytes()).await.unwrap();
     skt_write_half
         .write_all("htpasswd\n".as_bytes())
         .await
         .unwrap();
 
     // User
-    skt_write_half
-        .write_all("nobody\n".as_bytes())
-        .await
-        .unwrap();
+    skt_write_half.write_all("tom\n".as_bytes()).await.unwrap();
 
     // Password
-    skt_write_half
-        .write_all("trustno1\n".as_bytes())
-        .await
-        .unwrap();
+    skt_write_half.write_all("tom\n".as_bytes()).await.unwrap();
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {

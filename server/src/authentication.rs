@@ -48,8 +48,14 @@ impl HtpasswdAuthenticationManager {
 
         let is_valid = self.check(username.as_str(), password.as_str());
         match is_valid {
-            true => Ok(username),
-            false => Err(Error::new(ErrorKind::Other, "invalid user {username")),
+            true => {
+                log::info!("Authenticated as {}", username.as_str());
+                Ok(username)
+            }
+            false => {
+                log::info!("Failed to authenticate as {}", username.as_str());
+                Err(Error::new(ErrorKind::Other, "invalid user {username"))
+            }
         }
     }
 }
