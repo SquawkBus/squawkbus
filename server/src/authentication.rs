@@ -115,17 +115,13 @@ impl AuthenticationManager {
         Err(Error::new(ErrorKind::Other, format!("invalid mode {mode}")))
     }
 
-    // pub fn reset(&mut self, pwfile: &Option<PathBuf>) -> Result<()> {
-    //     return match &self.htpasswd {
-    //         Some(auth) => match &pwfile {
-    //             Some(path) => {
-    //                 let contents = read_to_string(path).unwrap();
-    //                 let result = *auth.reset(&contents);
-    //                 Ok(())
-    //             }
-    //             None => Ok(()),
-    //         },
-    //         None => Ok(()),
-    //     };
-    // }
+    pub fn reset(&mut self, pwfile: &Option<PathBuf>) -> Result<()> {
+        return match self.htpasswd {
+            Some(ref mut auth) => match &pwfile {
+                Some(path) => auth.reset(path),
+                None => Ok(()),
+            },
+            None => Ok(()),
+        };
+    }
 }

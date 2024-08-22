@@ -1,8 +1,10 @@
 use std::io;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite, BufReader, WriteHalf};
 use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::RwLock;
 
 use uuid::Uuid;
 
@@ -26,7 +28,7 @@ impl Interactor {
         socket: T,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
-        authentication_manager: AuthenticationManager,
+        authentication_manager: Arc<RwLock<AuthenticationManager>>,
     ) -> io::Result<()>
     where
         T: AsyncRead + AsyncWrite,
@@ -37,7 +39,11 @@ impl Interactor {
 
         let mut reader = BufReader::new(read_half);
 
-        let user = authentication_manager.authenticate(&mut reader).await?;
+        let user = authentication_manager
+            .read()
+            .await
+            .authenticate(&mut reader)
+            .await?;
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),

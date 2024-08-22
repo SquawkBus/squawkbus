@@ -1,11 +1,13 @@
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use authentication::AuthenticationManager;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::RwLock;
 
 use tokio_rustls::TlsAcceptor;
 
@@ -51,7 +53,7 @@ async fn main() -> io::Result<()> {
 
     let authorizations =
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
-    let authentication_manager = AuthenticationManager::new(&options.pwfile);
+    let authentication_manager = Arc::new(RwLock::new(AuthenticationManager::new(&options.pwfile)));
 
     // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
@@ -87,6 +89,8 @@ async fn main() -> io::Result<()> {
     handle_auth_reset(
         options.authorizations_file.clone(),
         options.authorizations.clone(),
+        options.pwfile.clone(),
+        authentication_manager.clone(),
         client_tx.clone(),
     )
     .await;
@@ -110,6 +114,8 @@ async fn main() -> io::Result<()> {
 async fn handle_auth_reset(
     authorizations_file: Option<PathBuf>,
     authorizations: Vec<AuthorizationSpec>,
+    pwfile: Option<PathBuf>,
+    authentication_manager: Arc<RwLock<AuthenticationManager>>,
     client_tx: Sender<ClientEvent>,
 ) {
     let mut hangup_stream = signal(SignalKind::hangup()).unwrap();
@@ -117,6 +123,9 @@ async fn handle_auth_reset(
         loop {
             // Wait for SIGHUP.
             hangup_stream.recv().await.unwrap();
+
+            log::info!("Reloading authentication");
+            authentication_manager.write().await.reset(&pwfile).unwrap();
 
             log::info!("Reloading authorizations");
             let authorizations =
@@ -134,7 +143,7 @@ async fn spawn_interactor(
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
-    authentication_manager: AuthenticationManager,
+    authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) {
     tokio::spawn(async move {
         let interactor = Interactor::new();
