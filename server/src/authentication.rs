@@ -13,14 +13,14 @@ pub struct HtpasswdAuthenticationManager {
 }
 
 impl HtpasswdAuthenticationManager {
-    pub fn new(contents: String) -> Result<Self> {
+    pub fn new(path: &PathBuf) -> Result<Self> {
         Ok(HtpasswdAuthenticationManager {
-            data: htpasswd_contents_to_data(&contents)?,
+            data: load_htpasswd(path)?,
         })
     }
 
-    pub fn reset(&mut self, contents: &String) -> Result<()> {
-        self.data = htpasswd_contents_to_data(contents)?;
+    pub fn reset(&mut self, path: &PathBuf) -> Result<()> {
+        self.data = load_htpasswd(path)?;
         Ok(())
     }
 
@@ -60,7 +60,9 @@ impl HtpasswdAuthenticationManager {
     }
 }
 
-fn htpasswd_contents_to_data(contents: &String) -> Result<HashMap<String, String>> {
+fn load_htpasswd(path: &PathBuf) -> Result<HashMap<String, String>> {
+    let contents = read_to_string(path)?;
+
     let mut data = HashMap::new();
 
     for line in contents.lines() {
@@ -82,8 +84,7 @@ impl AuthenticationManager {
     pub fn new(pwfile: &Option<PathBuf>) -> Self {
         let htpasswd: Option<HtpasswdAuthenticationManager> = match &pwfile {
             Some(path) => {
-                let contents = read_to_string(path).unwrap();
-                let authentication_manager = HtpasswdAuthenticationManager::new(contents).unwrap();
+                let authentication_manager = HtpasswdAuthenticationManager::new(path).unwrap();
                 Some(authentication_manager)
             }
             None => None,
