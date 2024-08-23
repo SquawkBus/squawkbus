@@ -7,6 +7,7 @@ use tls::create_tls_connector;
 use options::Options;
 use tokio::net::TcpStream;
 
+mod authentication;
 mod options;
 mod protocol;
 mod tls;
