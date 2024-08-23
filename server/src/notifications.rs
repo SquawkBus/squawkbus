@@ -8,8 +8,23 @@ use common::messages::{ForwardedSubscriptionRequest, Message, NotificationReques
 
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
 
+struct Notification {
+    regex: Regex,
+    listeners: HashMap<Uuid, u32>,
+}
+
+impl Notification {
+    pub fn new(topic: &str) -> io::Result<Self> {
+        let regex = Regex::new(topic).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(Notification {
+            regex,
+            listeners: HashMap::new(),
+        })
+    }
+}
+
 pub struct NotificationManager {
-    notifications: HashMap<String, (Regex, HashMap<Uuid, u32>)>,
+    notifications: HashMap<String, Notification>,
 }
 
 impl NotificationManager {
@@ -47,19 +62,21 @@ impl NotificationManager {
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
     ) -> io::Result<()> {
-        let (regex, listeners) = self.notifications.entry(pattern.to_string()).or_insert((
-            Regex::new(pattern).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
-            HashMap::new(),
-        ));
+        // Add or get the subscription.
+        if !self.notifications.contains_key(pattern) {
+            self.notifications
+                .insert(pattern.to_owned(), Notification::new(pattern)?);
+        }
+        let notification = self.notifications.get_mut(pattern).unwrap();
 
-        if let Some(count) = listeners.get_mut(&listener_id) {
+        if let Some(count) = notification.listeners.get_mut(&listener_id) {
             *count += 1;
         } else {
-            listeners.insert(listener_id.clone(), 1);
+            notification.listeners.insert(listener_id.clone(), 1);
         }
 
-        for (topic, subscribers) in subscription_manager.find_subscriptions(regex) {
-            if regex.is_match(topic.as_str()) {
+        for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.regex) {
+            if notification.regex.is_match(topic.as_str()) {
                 for subscriber_id in &subscribers {
                     let client = client_manager.get(subscriber_id).ok_or(io::Error::new(
                         io::ErrorKind::Other,
@@ -92,11 +109,11 @@ impl NotificationManager {
         pattern: &str,
         is_listener_closed: bool,
     ) -> io::Result<()> {
-        let Some((_, listeners)) = self.notifications.get_mut(pattern) else {
+        let Some(notification) = self.notifications.get_mut(pattern) else {
             return Ok(());
         };
 
-        let Some(count) = listeners.get_mut(listener_id) else {
+        let Some(count) = notification.listeners.get_mut(listener_id) else {
             return Ok(());
         };
 
@@ -107,13 +124,13 @@ impl NotificationManager {
         }
 
         if *count == 0 {
-            listeners.remove(&listener_id);
+            notification.listeners.remove(&listener_id);
             log::debug!("removed all notifications for {listener_id} on {pattern}")
         } else {
             log::debug!("removed one notification for {listener_id} on {pattern}")
         }
 
-        if listeners.len() == 0 {
+        if notification.listeners.len() == 0 {
             self.notifications.remove(pattern);
         }
 
@@ -131,8 +148,8 @@ impl NotificationManager {
             "notify_listeners: subscriber_id={subscriber_id}, topic={topic}, is_add={is_add}"
         );
 
-        for (_pattern, (regex, listeners)) in &self.notifications {
-            if regex.is_match(topic) {
+        for (_pattern, notification) in &self.notifications {
+            if notification.regex.is_match(topic) {
                 let subscriber = client_manager.get(&subscriber_id).ok_or(io::Error::new(
                     io::ErrorKind::Other,
                     format!("unknown client {subscriber_id}"),
@@ -146,7 +163,7 @@ impl NotificationManager {
                     is_add,
                 };
 
-                for (listener_id, _) in listeners {
+                for listener_id in notification.listeners.keys() {
                     if let Some(listener) = client_manager.get(listener_id) {
                         let event = ServerEvent::OnMessage(Message::ForwardedSubscriptionRequest(
                             message.clone(),
@@ -176,8 +193,8 @@ impl NotificationManager {
 
     fn find_listener_patterns(&self, listener_id: &Uuid) -> Vec<String> {
         let mut patterns: Vec<String> = Vec::new();
-        for (pattern, (_regex, listeners)) in &self.notifications {
-            if listeners.contains_key(listener_id) {
+        for (pattern, notification) in &self.notifications {
+            if notification.listeners.contains_key(listener_id) {
                 patterns.push(pattern.clone());
             }
         }
