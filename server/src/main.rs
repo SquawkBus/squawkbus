@@ -1,3 +1,5 @@
+//! A real time message bus.
+
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
@@ -39,11 +41,9 @@ mod subscriptions;
 mod tls;
 use tls::create_acceptor;
 
-/*
- * The server starts by creating a `hub` task to process messages. It then
- * listens for client connections. When a client connects an interactor is
- * created.
- */
+/// The server starts by creating a `hub` task to process messages. It then
+/// listens for client connections. When a client connects an interactor is
+/// created.
 #[tokio::main]
 async fn main() -> io::Result<()> {
     env_logger::init();
@@ -86,7 +86,7 @@ async fn main() -> io::Result<()> {
         Hub::run(authorizations, server_rx).await.unwrap();
     });
 
-    handle_auth_reset(
+    handle_config_reset(
         options.authorizations_file.clone(),
         options.authorizations.clone(),
         options.pwfile.clone(),
@@ -111,7 +111,7 @@ async fn main() -> io::Result<()> {
     }
 }
 
-async fn handle_auth_reset(
+async fn handle_config_reset(
     authorizations_file: Option<PathBuf>,
     authorizations: Vec<AuthorizationSpec>,
     pwfile: Option<PathBuf>,

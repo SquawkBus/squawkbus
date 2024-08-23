@@ -111,17 +111,20 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
 
 fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
     if args.len() < 4 || args.len() % 2 == 1 {
-        return Err("usage: publish <topic> (<entitlements> <message>)+");
+        return Err("usage: publish <topic> ((<entitlements> | '_') <message>)+");
     }
 
     let topic = args[1];
     let mut i = 2;
     let mut data_packets: Vec<DataPacket> = Vec::new();
     while i < args.len() {
-        let entitlements: HashSet<i32> = args[i]
-            .split(',')
-            .map(|x| x.parse().expect("should be an integer"))
-            .collect();
+        let entitlements: HashSet<i32> = match args[i] {
+            "_" => HashSet::new(),
+            values => values
+                .split(',')
+                .map(|x| x.parse().expect("should be an integer"))
+                .collect(),
+        };
         i += 1;
 
         let message = args[i];
