@@ -2,12 +2,13 @@ use std::error::Error;
 use std::net::ToSocketAddrs;
 
 use protocol::communicate;
-use tls::create_tls_connector;
+use tls::create_tls_stream;
 
 use options::Options;
 use tokio::net::TcpStream;
 
 mod authentication;
+mod client;
 mod options;
 mod protocol;
 mod tls;
@@ -30,8 +31,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let socket = TcpStream::connect(&addr).await?;
     match options.tls {
         true => {
-            let (tls_connector, domain) = create_tls_connector(&options);
-            let stream = tls_connector.connect(domain, socket).await?;
+            let stream = create_tls_stream(options.host.as_str(), &options.cafile, socket).await?;
             communicate(
                 stream,
                 &options.authentication_mode,
