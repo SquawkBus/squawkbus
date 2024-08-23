@@ -13,6 +13,7 @@ fn default_endpoint() -> String {
     String::from("0.0.0.0:8080")
 }
 
+/// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
 impl FromStr for AuthorizationSpec {
     type Err = String;
 

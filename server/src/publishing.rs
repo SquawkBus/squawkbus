@@ -26,24 +26,6 @@ impl PublisherManager {
         }
     }
 
-    fn get_entitlements(
-        &self,
-        publisher: &str,
-        subscriber: &str,
-        topic: &str,
-        entitlements_manager: &AuthorizationManager,
-    ) -> HashSet<i32> {
-        let publisher_entitlements =
-            entitlements_manager.entitlements(publisher, topic, Role::Publisher);
-        let subscriber_entitlements =
-            entitlements_manager.entitlements(subscriber, topic, Role::Subscriber);
-        let entitlements = publisher_entitlements
-            .intersection(&subscriber_entitlements)
-            .cloned()
-            .collect();
-        entitlements
-    }
-
     fn get_authorized_data(
         &self,
         data_packets: Vec<DataPacket>,
@@ -58,45 +40,49 @@ impl PublisherManager {
         authorised_data_packets
     }
 
+    /// Send data from one client to another.
     pub async fn send_unicast_data(
         &mut self,
-        publisher_id: Uuid,
-        client_id: Uuid,
+        sender_id: Uuid,
+        receiver_id: Uuid,
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
-        /*
-         * Send data from a publisher to a client.
-         *
-         * If the publisher has no entitlements reject the request.
-         * If the intersection of the client and publishers entitlements is empty
-         *
-         */
-        let Some(publisher) = client_manager.get(&publisher_id) else {
-            log::debug!("send_unicast_data: no publisher {publisher_id}");
+        let Some(sender) = client_manager.get(&sender_id) else {
+            log::debug!("send_unicast_data: no sender client {sender_id} - skipping");
             return Ok(());
         };
 
-        let Some(client) = client_manager.get(&client_id) else {
-            log::debug!("send_unicast_data: no client {client_id}");
+        let Some(receiver) = client_manager.get(&receiver_id) else {
+            log::debug!("send_unicast_data: no receiver client {receiver_id} - skipping");
             return Ok(());
         };
 
-        let entitlements = self.get_entitlements(
-            publisher.user.as_str(),
-            client.user.as_str(),
+        // Get the entitlements.
+        let sender_entitlements = entitlements_manager.entitlements(
+            sender.user.as_str(),
             topic.as_str(),
-            entitlements_manager,
+            Role::Publisher,
         );
+        let receiver_entitlements = entitlements_manager.entitlements(
+            receiver.user.as_str(),
+            topic.as_str(),
+            Role::Subscriber,
+        );
+        let entitlements: HashSet<i32> = sender_entitlements
+            .intersection(&receiver_entitlements)
+            .cloned()
+            .collect();
 
-        if entitlements.is_empty() {
+        if !sender_entitlements.is_empty() && entitlements.is_empty() {
+            // Entitlements only operate if the sender has entitlements.
             log::debug!(
                 "send_unicast_data: no entitlements from {} to {} for {}",
-                publisher.user,
-                client.user,
+                sender.user,
+                receiver.user,
                 topic
             );
             return Ok(());
@@ -104,22 +90,22 @@ impl PublisherManager {
 
         let auth_data_packets = self.get_authorized_data(data_packets, &entitlements);
 
-        self.add_as_topic_publisher(&publisher_id, topic.as_str());
+        self.add_as_topic_publisher(&sender_id, topic.as_str());
 
         let message = ForwardedUnicastData {
-            client_id: publisher_id,
-            host: publisher.host.clone(),
-            user: publisher.user.clone(),
+            client_id: sender_id,
+            host: sender.host.clone(),
+            user: sender.user.clone(),
             topic,
             content_type,
             data_packets: auth_data_packets,
         };
 
-        log::debug!("send_unicast_data: sending to client {client_id} message {message:?}");
+        log::debug!("send_unicast_data: sending to client {receiver_id} message {message:?}");
 
         let event = ServerEvent::OnMessage(Message::ForwardedUnicastData(message));
 
-        client
+        receiver
             .tx
             .send(event)
             .await
@@ -130,6 +116,7 @@ impl PublisherManager {
         Ok(())
     }
 
+    /// Send data to clients that subscribe to a topic.
     pub async fn send_multicast_data(
         &mut self,
         publisher_id: &Uuid,
@@ -150,22 +137,32 @@ impl PublisherManager {
             return Ok(());
         };
 
+        let publisher_entitlements = entitlements_manager.entitlements(
+            publisher.user.as_str(),
+            topic.as_str(),
+            Role::Publisher,
+        );
+
         self.add_as_topic_publisher(publisher_id, topic.as_str());
 
         for subscriber_id in subscribers.keys() {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("send_multicast_data: ... {subscriber_id}");
 
-                let entitlements = self.get_entitlements(
-                    publisher.user.as_str(),
+                let subscriber_entitlements = entitlements_manager.entitlements(
                     subscriber.user.as_str(),
                     topic.as_str(),
-                    entitlements_manager,
+                    Role::Subscriber,
                 );
+                let entitlements: HashSet<i32> = publisher_entitlements
+                    .intersection(&subscriber_entitlements)
+                    .cloned()
+                    .collect();
 
-                if entitlements.len() == 0 {
+                if !publisher_entitlements.is_empty() && entitlements.is_empty() {
+                    // Entitlements only operate if the publisher has entitlements.
                     log::debug!(
-                        "send_multicast_data: no entitlements from {} to {} for {} - skipping",
+                        "send_multicast_data: no entitlements from {} to {} for {}",
                         publisher.user,
                         subscriber.user,
                         topic
