@@ -10,6 +10,10 @@ fn default_port() -> u16 {
     8080
 }
 
+fn default_authentication_mode() -> String {
+    String::from("none")
+}
+
 /// SquawkBus client test program.
 #[derive(FromArgs)]
 pub struct Options {
@@ -28,6 +32,18 @@ pub struct Options {
     /// ca file
     #[argh(option, short = 'c')]
     pub cafile: Option<PathBuf>,
+
+    /// authentication mode
+    #[argh(option, short = 'm', default = "default_authentication_mode()")]
+    pub authentication_mode: String,
+
+    /// user name
+    #[argh(option, short = 'U')]
+    pub username: Option<String>,
+
+    /// password
+    #[argh(option, short = 'P')]
+    pub password: Option<String>,
 }
 
 impl Options {

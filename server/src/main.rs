@@ -175,7 +175,7 @@ async fn spawn_interactor(
                 if e.kind() == io::ErrorKind::UnexpectedEof {
                     log::debug!("Client closed connection")
                 } else {
-                    log::error!("Client exited with {e}")
+                    log::error!("Client exited with {}", e)
                 }
             }
         }

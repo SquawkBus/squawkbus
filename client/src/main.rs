@@ -13,7 +13,9 @@ mod tls;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    println!("client");
+    env_logger::init();
+
+    log::info!("Starting client");
 
     let options = Options::load();
 
@@ -29,10 +31,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         true => {
             let (tls_connector, domain) = create_tls_connector(&options);
             let stream = tls_connector.connect(domain, socket).await?;
-            communicate(stream).await;
+            communicate(
+                stream,
+                &options.authentication_mode,
+                &options.username,
+                &options.password,
+            )
+            .await;
         }
         false => {
-            communicate(socket).await;
+            communicate(
+                socket,
+                &options.authentication_mode,
+                &options.username,
+                &options.password,
+            )
+            .await;
         }
     }
 

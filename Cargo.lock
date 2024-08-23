@@ -340,6 +340,8 @@ version = "0.1.0"
 dependencies = [
  "argh",
  "common",
+ "env_logger",
+ "log",
  "rustls-pemfile",
  "rustls-pki-types",
  "tokio",

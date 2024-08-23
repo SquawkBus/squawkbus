@@ -97,6 +97,18 @@ single-consumer queue to  ensure synchronization.
 
 ## Things to do
 
+### Timeouts
+
+Slow consumers and producers should be handled, as well as slow authenticators.
+
+On authentication a bad actor could simply never send the send of line token.
+If many clients had this behaviour this would create a task for each client
+that would never complete.
+
+### Large payloads
+
+Maximum sizes for payloads should be introduced.
+
 ### Authentication
 
 This is currently hardcoded to a username/password (`nobody/trustno1`).

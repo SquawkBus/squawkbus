@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::io::{self, Error, ErrorKind};
 
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf};
 
@@ -8,8 +9,12 @@ use common::messages::{
     DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest,
 };
 
-pub async fn communicate<S>(stream: S)
-where
+pub async fn communicate<S>(
+    stream: S,
+    mode: &String,
+    username: &Option<String>,
+    password: &Option<String>,
+) where
     S: AsyncRead + AsyncWrite,
 {
     println!("connected");
@@ -20,7 +25,9 @@ where
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);
 
-    authenticate(&mut skt_write_half).await;
+    authenticate(&mut skt_write_half, mode, username, password)
+        .await
+        .unwrap();
 
     loop {
         let mut request_line = String::new();
@@ -52,22 +59,44 @@ where
     }
 }
 
-async fn authenticate<S>(skt_write_half: &mut WriteHalf<S>)
+async fn authenticate<S>(
+    skt_write_half: &mut WriteHalf<S>,
+    mode: &String,
+    username: &Option<String>,
+    password: &Option<String>,
+) -> io::Result<()>
 where
     S: AsyncRead + AsyncWrite,
 {
     // Mode
-    // skt_write_half.write_all("none\n".as_bytes()).await.unwrap();
-    skt_write_half
-        .write_all("htpasswd\n".as_bytes())
-        .await
-        .unwrap();
+    skt_write_half.write(mode.as_bytes()).await?;
+    skt_write_half.write("\n".as_bytes()).await?;
 
-    // User
-    skt_write_half.write_all("tom\n".as_bytes()).await.unwrap();
+    if mode == "none" {
+        log::info!("Authenticate with {}", mode.as_str());
+    } else if mode == "htpasswd" {
+        log::info!("Authenticate with {}", mode.as_str());
+        let Some(username) = username else {
+            return Err(Error::new(ErrorKind::Other, "missing username"));
+        };
+        let Some(password) = password else {
+            return Err(Error::new(ErrorKind::Other, "missing password"));
+        };
+        // User
+        skt_write_half.write(username.as_bytes()).await?;
+        skt_write_half.write("\n".as_bytes()).await?;
 
-    // Password
-    skt_write_half.write_all("tom\n".as_bytes()).await.unwrap();
+        // Password
+        skt_write_half.write(password.as_bytes()).await?;
+        skt_write_half.write("\n".as_bytes()).await?;
+    } else {
+        log::error!("Invalid mode {}", mode.as_str());
+        return Err(Error::new(ErrorKind::Other, "invalid mode"));
+    }
+
+    skt_write_half.flush().await?;
+
+    Ok(())
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
