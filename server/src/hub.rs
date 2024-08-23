@@ -99,7 +99,6 @@ impl Hub {
                         msg.topic,
                         msg.content_type,
                         msg.data_packets,
-                        false,
                         &self.subscription_manager,
                         &self.client_manager,
                         &self.authorization_manager,
@@ -134,7 +133,6 @@ impl Hub {
                         msg.topic,
                         msg.content_type,
                         msg.data_packets,
-                        false,
                         &self.client_manager,
                         &self.authorization_manager,
                     )

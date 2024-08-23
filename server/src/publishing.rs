@@ -48,7 +48,6 @@ impl PublisherManager {
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-        allow_empty_message: bool,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
@@ -91,7 +90,7 @@ impl PublisherManager {
 
         let auth_data_packets = self.get_authorized_data(data_packets, &entitlements);
 
-        if !allow_empty_message && auth_data_packets.is_empty() {
+        if auth_data_packets.is_empty() {
             log::debug!(
                 "send_unicast_data: empty message from {} to {} for {} - skipping",
                 sender.user,
@@ -134,7 +133,6 @@ impl PublisherManager {
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-        allow_empty_message: bool,
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
@@ -186,7 +184,7 @@ impl PublisherManager {
                 let auth_data_packets =
                     self.get_authorized_data(data_packets.clone(), &entitlements);
 
-                if !allow_empty_message && auth_data_packets.is_empty() {
+                if auth_data_packets.is_empty() {
                     log::debug!(
                         "send_multicast_data: empty message from {} to {} for {}",
                         publisher.user,
