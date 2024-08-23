@@ -92,11 +92,16 @@ where
             }
         }
         None => {
-            let user_pattern = Regex::new(".*").map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-            let topic_pattern =
-                Regex::new("PUB\\.*").map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            // Allow anyone to send anything
+            let user_pattern = ".*";
+            let topic_pattern = ".*";
             let entitlements = HashSet::from([0]);
             let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
+
+            let user_pattern =
+                Regex::new(user_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+            let topic_pattern =
+                Regex::new(topic_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
 
             let spec = AuthorizationSpec {
                 user_pattern,

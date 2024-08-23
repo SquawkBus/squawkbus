@@ -100,64 +100,62 @@ where
 }
 
 fn parse_message(line: &str) -> Result<Message, &'static str> {
-    let parts: Vec<&str> = line.trim().split(' ').collect();
-    match parts[0] {
-        "publish" => {
-            if parts.len() < 4 || parts.len() % 2 == 1 {
-                Err("usage: publish <topic> (<entitlements> <message>)+")
-            } else {
-                let topic = parts[1];
-                let mut i = 2;
-                let mut data_packets: Vec<DataPacket> = Vec::new();
-                while i < parts.len() {
-                    let entitlements: HashSet<i32> = parts[i]
-                        .split(',')
-                        .map(|x| x.parse().expect("should be an integer"))
-                        .collect();
-                    i += 1;
-
-                    let message = parts[i];
-                    data_packets.push(DataPacket::new(entitlements, Vec::from(message.as_bytes())));
-                    i += 1;
-                }
-                let message = MulticastData {
-                    topic: topic.to_string(),
-                    content_type: String::from("text/plain"),
-                    data_packets,
-                };
-                Ok(Message::MulticastData(message))
-            }
-        }
-        "subscribe" => {
-            if parts.len() != 2 {
-                Err("usage: subscribe <topic>")
-            } else {
-                let message = create_subscription_message(parts[1]);
-                Ok(Message::SubscriptionRequest(message))
-            }
-        }
-        "notify" => {
-            if parts.len() != 2 {
-                Err("usage: subscribe <topic>")
-            } else {
-                let message = create_notification_message(parts[1]);
-                Ok(Message::NotificationRequest(message))
-            }
-        }
+    let args: Vec<&str> = line.trim().split(' ').collect();
+    match args[0] {
+        "publish" => handle_publish(args),
+        "subscribe" => handle_subscribe(args),
+        "notify" => handle_notify(args),
         _ => Err("usage: publish/subscribe/notify"),
     }
 }
 
-fn create_subscription_message(topic: &str) -> SubscriptionRequest {
-    SubscriptionRequest {
-        topic: topic.to_string(),
-        is_add: true,
+fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
+    if args.len() < 4 || args.len() % 2 == 1 {
+        return Err("usage: publish <topic> (<entitlements> <message>)+");
     }
+
+    let topic = args[1];
+    let mut i = 2;
+    let mut data_packets: Vec<DataPacket> = Vec::new();
+    while i < args.len() {
+        let entitlements: HashSet<i32> = args[i]
+            .split(',')
+            .map(|x| x.parse().expect("should be an integer"))
+            .collect();
+        i += 1;
+
+        let message = args[i];
+        data_packets.push(DataPacket::new(entitlements, Vec::from(message.as_bytes())));
+        i += 1;
+    }
+    let message = MulticastData {
+        topic: topic.to_string(),
+        content_type: String::from("text/plain"),
+        data_packets,
+    };
+    Ok(Message::MulticastData(message))
 }
 
-fn create_notification_message(pattern: &str) -> NotificationRequest {
-    NotificationRequest {
+fn handle_subscribe(args: Vec<&str>) -> Result<Message, &'static str> {
+    if args.len() != 2 {
+        return Err("usage: subscribe <topic>");
+    }
+    let topic = args[1].to_string();
+    let message = SubscriptionRequest {
+        topic,
+        is_add: true,
+    };
+    Ok(Message::SubscriptionRequest(message))
+}
+
+fn handle_notify(args: Vec<&str>) -> Result<Message, &'static str> {
+    if args.len() != 2 {
+        return Err("usage: subscribe <topic>");
+    }
+    let pattern = args[1].to_string();
+    let message = NotificationRequest {
         pattern: pattern.to_string(),
         is_add: true,
-    }
+    };
+    Ok(Message::NotificationRequest(message))
 }
