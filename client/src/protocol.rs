@@ -103,16 +103,28 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
     let parts: Vec<&str> = line.trim().split(' ').collect();
     match parts[0] {
         "publish" => {
-            if parts.len() != 4 {
-                Err("usage: publish <topic> <entitlements> <message>")
+            if parts.len() < 4 || parts.len() % 2 == 1 {
+                Err("usage: publish <topic> (<entitlements> <message>)+")
             } else {
                 let topic = parts[1];
-                let entitlements: HashSet<i32> = parts[2]
-                    .split(',')
-                    .map(|x| x.parse().expect("should be an integer"))
-                    .collect();
-                let message = parts[3];
-                let message = create_multicast_message(topic, entitlements, message);
+                let mut i = 2;
+                let mut data_packets: Vec<DataPacket> = Vec::new();
+                while i < parts.len() {
+                    let entitlements: HashSet<i32> = parts[i]
+                        .split(',')
+                        .map(|x| x.parse().expect("should be an integer"))
+                        .collect();
+                    i += 1;
+
+                    let message = parts[i];
+                    data_packets.push(DataPacket::new(entitlements, Vec::from(message.as_bytes())));
+                    i += 1;
+                }
+                let message = MulticastData {
+                    topic: topic.to_string(),
+                    content_type: String::from("text/plain"),
+                    data_packets,
+                };
                 Ok(Message::MulticastData(message))
             }
         }
@@ -133,18 +145,6 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
             }
         }
         _ => Err("usage: publish/subscribe/notify"),
-    }
-}
-
-fn create_multicast_message(
-    topic: &str,
-    entitlements: HashSet<i32>,
-    message: &str,
-) -> MulticastData {
-    MulticastData {
-        topic: topic.to_string(),
-        content_type: String::from("text/plain"),
-        data_packets: vec![DataPacket::new(entitlements, Vec::from(message.as_bytes()))],
     }
 }
 
