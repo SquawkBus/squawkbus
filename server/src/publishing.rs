@@ -127,10 +127,11 @@ impl PublisherManager {
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
-        let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) else {
+        let subscribers = subscription_manager.subscribers_for_topic(topic.as_str());
+        if subscribers.is_empty() {
             log::debug!("send_multicast_data: no topic {topic}");
             return Ok(());
-        };
+        }
 
         let Some(publisher) = client_manager.get(publisher_id) else {
             log::debug!("send_multicast_data: not publisher {publisher_id}");
@@ -145,7 +146,7 @@ impl PublisherManager {
 
         self.add_as_topic_publisher(publisher_id, topic.as_str());
 
-        for subscriber_id in subscribers.keys() {
+        for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("send_multicast_data: ... {subscriber_id}");
 
@@ -290,21 +291,20 @@ async fn notify_subscribers_of_stale_topics(
             data_packets: Vec::new(),
         };
 
-        if let Some(subscribers) = subscription_manager.subscribers_for_topic(topic.as_str()) {
-            for subscriber_id in subscribers.keys() {
-                if let Some(subscriber) = client_manager.get(subscriber_id) {
-                    log::debug!("handle_close: sending stale to {subscriber_id}");
+        let subscribers = subscription_manager.subscribers_for_topic(topic.as_str());
+        for subscriber_id in &subscribers {
+            if let Some(subscriber) = client_manager.get(subscriber_id) {
+                log::debug!("handle_close: sending stale to {subscriber_id}");
 
-                    let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(
-                        stale_data_message.clone(),
-                    ));
+                let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(
+                    stale_data_message.clone(),
+                ));
 
-                    subscriber
-                        .tx
-                        .send(event)
-                        .await
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-                }
+                subscriber
+                    .tx
+                    .send(event)
+                    .await
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             }
         }
     }

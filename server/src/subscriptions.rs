@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 
 use regex::Regex;
 
@@ -8,8 +11,23 @@ use common::messages::SubscriptionRequest;
 
 use crate::{clients::ClientManager, notifications::NotificationManager};
 
+struct Subscription {
+    regex: Regex,
+    subscribers: HashMap<Uuid, u32>,
+}
+
+impl Subscription {
+    pub fn new(topic: &str) -> io::Result<Self> {
+        let regex = Regex::new(topic).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(Subscription {
+            regex,
+            subscribers: HashMap::new(),
+        })
+    }
+}
+
 pub struct SubscriptionManager {
-    subscriptions: HashMap<String, HashMap<Uuid, u32>>,
+    subscriptions: HashMap<String, Subscription>,
 }
 
 impl SubscriptionManager {
@@ -19,8 +37,16 @@ impl SubscriptionManager {
         }
     }
 
-    pub fn subscribers_for_topic(&self, topic: &str) -> Option<&HashMap<Uuid, u32>> {
-        self.subscriptions.get(topic)
+    pub fn subscribers_for_topic(&self, topic: &str) -> HashSet<Uuid> {
+        let mut subscribers: HashSet<Uuid> = HashSet::new();
+
+        for subscription in self.subscriptions.values() {
+            if subscription.regex.is_match(topic) {
+                subscribers.extend(subscription.subscribers.keys());
+            }
+        }
+
+        subscribers
     }
 
     pub async fn handle_subscription_request(
@@ -52,14 +78,20 @@ impl SubscriptionManager {
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
     ) -> io::Result<()> {
-        let subscribers = self.subscriptions.entry(topic.to_string()).or_default();
+        // Add or get the subscription.
+        if !self.subscriptions.contains_key(topic) {
+            self.subscriptions
+                .insert(topic.to_owned(), Subscription::new(topic)?);
+        }
+        let subscription = self.subscriptions.get_mut(topic).unwrap();
 
-        if let Some(count) = subscribers.get_mut(&subscriber_id) {
+        // Keep a request count.
+        if let Some(count) = subscription.subscribers.get_mut(&subscriber_id) {
             log::debug!("add_subscription: incrementing count for {topic}");
             *count += 1;
         } else {
             log::debug!("add_subscription: creating new {topic}");
-            subscribers.insert(subscriber_id.clone(), 1);
+            subscription.subscribers.insert(subscriber_id.clone(), 1);
             notification_manager
                 .notify_listeners(subscriber_id, topic, true, client_manager)
                 .await?;
@@ -76,11 +108,11 @@ impl SubscriptionManager {
         notification_manager: &NotificationManager,
         is_subscriber_closed: bool,
     ) -> io::Result<()> {
-        let Some(subscribers) = self.subscriptions.get_mut(topic) else {
+        let Some(subscription) = self.subscriptions.get_mut(topic) else {
             return Ok(());
         };
 
-        let Some(count) = subscribers.get_mut(&subscriber_id) else {
+        let Some(count) = subscription.subscribers.get_mut(&subscriber_id) else {
             return Ok(());
         };
 
@@ -91,13 +123,13 @@ impl SubscriptionManager {
         }
 
         if *count == 0 {
-            subscribers.remove(&subscriber_id);
+            subscription.subscribers.remove(&subscriber_id);
             log::debug!("removed all subscriptions for {subscriber_id} on {topic}");
         } else {
             log::debug!("removed one subscription for {subscriber_id} on {topic}");
         }
 
-        if subscribers.len() == 0 {
+        if subscription.subscribers.is_empty() {
             self.subscriptions.remove(topic);
         }
 
@@ -129,8 +161,8 @@ impl SubscriptionManager {
 
     fn find_client_topics(&self, client_id: &Uuid) -> Vec<String> {
         let mut topics: Vec<String> = Vec::new();
-        for (topic, subscribers) in &self.subscriptions {
-            if subscribers.contains_key(client_id) {
+        for (topic, subscription) in &self.subscriptions {
+            if subscription.subscribers.contains_key(client_id) {
                 topics.push(topic.clone());
             }
         }
@@ -139,11 +171,11 @@ impl SubscriptionManager {
 
     pub fn find_subscriptions(&self, regex: &Regex) -> Vec<(String, Vec<Uuid>)> {
         let mut subscriptions: Vec<(String, Vec<Uuid>)> = Vec::new();
-        for (topic, subscribers) in &self.subscriptions {
+        for (topic, subscription) in &self.subscriptions {
             if regex.is_match(topic.as_str()) {
                 subscriptions.push((
                     topic.clone(),
-                    subscribers.keys().map(|x| x.clone()).collect(),
+                    subscription.subscribers.keys().map(|x| x.clone()).collect(),
                 ));
             }
         }
