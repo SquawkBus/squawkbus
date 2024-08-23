@@ -24,9 +24,7 @@ pub struct Authorization {
 
 #[derive(Debug, Clone)]
 pub struct AuthorizationSpec {
-    pub user: String,
     pub user_pattern: Regex,
-    pub topic: String,
     pub topic_pattern: Regex,
     pub entitlements: HashSet<i32>,
     pub roles: Role,
@@ -49,10 +47,6 @@ impl AuthorizationManager {
         let mut entitlements = HashSet::new();
 
         for spec in &self.specs {
-            let spec_contains_role = spec.roles.contains(role);
-            let spec_matches_user = spec.user_pattern.is_match(user_name);
-            let spec_matches_topic = spec.topic_pattern.is_match(topic);
-
             if spec.roles.contains(role)
                 && spec.user_pattern.is_match(user_name)
                 && spec.topic_pattern.is_match(topic)
@@ -89,8 +83,6 @@ where
                     let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
                     let roles = authorization.roles;
                     specs.push(AuthorizationSpec {
-                        user: user.clone(),
-                        topic,
                         user_pattern,
                         topic_pattern,
                         entitlements,
@@ -113,8 +105,6 @@ where
                     Regex::new(topic).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
 
                 let spec = AuthorizationSpec {
-                    user: user.to_owned(),
-                    topic: topic.to_owned(),
                     user_pattern,
                     topic_pattern,
                     entitlements,
@@ -136,24 +126,18 @@ mod test {
     fn smoke() {
         let user_entitlements_spec = vec![
             AuthorizationSpec {
-                user: String::from(""),
-                topic: String::from(""),
                 user_pattern: Regex::new(".*").unwrap(),
                 topic_pattern: Regex::new("PUB\\..*").unwrap(),
                 entitlements: HashSet::from([0]),
                 roles: Role::Subscriber | Role::Notifier | Role::Publisher,
             },
             AuthorizationSpec {
-                user: String::from(""),
-                topic: String::from(""),
                 user_pattern: Regex::new("joe").unwrap(),
                 topic_pattern: Regex::new(".*\\.LSE").unwrap(),
                 entitlements: HashSet::from([1, 2]),
                 roles: Role::Subscriber | Role::Notifier,
             },
             AuthorizationSpec {
-                user: String::from(""),
-                topic: String::from(""),
                 user_pattern: Regex::new("joe").unwrap(),
                 topic_pattern: Regex::new(".*\\.NSE").unwrap(),
                 entitlements: HashSet::from([3, 4]),

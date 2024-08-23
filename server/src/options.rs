@@ -22,19 +22,22 @@ impl FromStr for AuthorizationSpec {
         if args.len() != 4 {
             return Err(format!("expected 4 parts, found {}", args.len()));
         }
-        let topic = args[0];
-        let user = args[1];
-        let topic_pattern = Regex::new(topic).map_err(|e| format!("invalid regex: {}", e))?;
-        let user_pattern = Regex::new(user).map_err(|e| format!("invalid regex: {}", e))?;
-        let entitlements = args[2]
+
+        let topic_pattern = args[0];
+        let user_pattern = args[1];
+        let entitlements = args[2];
+        let roles = args[3];
+
+        let topic_pattern =
+            Regex::new(topic_pattern).map_err(|e| format!("invalid regex: {}", e))?;
+        let user_pattern = Regex::new(user_pattern).map_err(|e| format!("invalid regex: {}", e))?;
+        let entitlements = entitlements
             .split(',')
             .map(|x| x.parse().map_err(|e| format!("invalid entitlement {}", e)))
             .collect::<std::result::Result<HashSet<i32>, String>>()?;
         let roles: Role =
-            bitflags::parser::from_str(args[3]).map_err(|e| format!("invalid roles: {}", e))?;
+            bitflags::parser::from_str(roles).map_err(|e| format!("invalid roles: {}", e))?;
         Ok(AuthorizationSpec {
-            user: user.to_owned(),
-            topic: topic.to_owned(),
             user_pattern,
             topic_pattern,
             entitlements,
