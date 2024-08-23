@@ -22,8 +22,10 @@ impl FromStr for AuthorizationSpec {
         if args.len() != 4 {
             return Err(format!("expected 4 parts, found {}", args.len()));
         }
-        let user_pattern = Regex::new(args[0]).map_err(|e| format!("invalid regex: {}", e))?;
-        let topic_pattern = Regex::new(args[1]).map_err(|e| format!("invalid regex: {}", e))?;
+        let topic = args[0];
+        let user = args[1];
+        let topic_pattern = Regex::new(topic).map_err(|e| format!("invalid regex: {}", e))?;
+        let user_pattern = Regex::new(user).map_err(|e| format!("invalid regex: {}", e))?;
         let entitlements = args[2]
             .split(',')
             .map(|x| x.parse().map_err(|e| format!("invalid entitlement {}", e)))
@@ -31,6 +33,8 @@ impl FromStr for AuthorizationSpec {
         let roles: Role =
             bitflags::parser::from_str(args[3]).map_err(|e| format!("invalid roles: {}", e))?;
         Ok(AuthorizationSpec {
+            user: user.to_owned(),
+            topic: topic.to_owned(),
             user_pattern,
             topic_pattern,
             entitlements,
