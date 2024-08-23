@@ -92,24 +92,26 @@ where
             }
         }
         None => {
-            // Allow anyone to send anything
-            let user_pattern = ".*";
-            let topic_pattern = ".*";
-            let entitlements = HashSet::from([0]);
-            let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
+            if specs.is_empty() {
+                // Allow anyone to send anything
+                let user_pattern = ".*";
+                let topic_pattern = ".*";
+                let entitlements = HashSet::from([0]);
+                let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
 
-            let user_pattern =
-                Regex::new(user_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-            let topic_pattern =
-                Regex::new(topic_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                let user_pattern =
+                    Regex::new(user_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                let topic_pattern =
+                    Regex::new(topic_pattern).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
 
-            let spec = AuthorizationSpec {
-                user_pattern,
-                topic_pattern,
-                entitlements,
-                roles,
-            };
-            specs.push(spec)
+                let spec = AuthorizationSpec {
+                    user_pattern,
+                    topic_pattern,
+                    entitlements,
+                    roles,
+                };
+                specs.push(spec)
+            }
         }
     };
 

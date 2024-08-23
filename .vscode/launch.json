@@ -64,8 +64,8 @@
             },
             "args": [
                 "--pwfile", "etc/ht.passwd",
-                "-a", "'A\\..*:tom:1:Subscriber'",
-                "-a", "'A\\..*:dick:1:Publisher'"
+                "-a", "A\\..*:tom:1:Subscriber",
+                "-a", "A\\..*:dick:1:Publisher"
             ],
             "cwd": "${workspaceFolder}"
         },
