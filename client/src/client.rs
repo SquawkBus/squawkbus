@@ -9,9 +9,13 @@ use common::messages::MulticastData;
 use common::messages::NotificationRequest;
 use common::messages::SubscriptionRequest;
 use common::messages::UnicastData;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::mpsc::{self, Sender};
+use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader, ReadHalf, WriteHalf};
+use tokio::net::TcpStream;
+use tokio::sync::mpsc::{self, Receiver, Sender};
 use uuid::Uuid;
+
+use crate::authentication::authenticate;
+use crate::tls::create_tls_stream;
 
 pub trait ClientCallbacks {
     fn on_data(
@@ -27,14 +31,6 @@ pub trait ClientCallbacks {
         topic: String,
         is_add: bool,
     ) -> impl Future<Output = ()>;
-}
-
-pub struct Client<C>
-where
-    C: ClientCallbacks,
-{
-    callbacks: Box<C>,
-    sender: Sender<Message>,
 }
 
 trait ClientProtocol {
@@ -57,20 +53,47 @@ trait ClientProtocol {
     fn add_notification(&mut self, topic: String) -> impl Future<Output = io::Result<()>>;
 }
 
-struct Communicator<S>
+pub struct Client<S, C>
 where
     S: AsyncRead + AsyncWrite,
+    C: ClientCallbacks,
 {
-    stream: S,
-    sender: Sender<Message>,
+    callbacks: Box<C>,
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
+    reader: ReadHalf<S>,
+    writer: WriteHalf<S>,
 }
 
-impl<S> Communicator<S>
+impl<S, C> Client<S, C>
 where
     S: AsyncRead + AsyncWrite,
+    C: ClientCallbacks,
 {
+    pub async fn start(
+        stream: S,
+        callbacks: Box<C>,
+        mode: &String,
+        username: &Option<String>,
+        password: &Option<String>,
+    ) -> io::Result<Self> {
+        let (reader, mut writer) = split(stream);
+        //let mut skt_reader = BufReader::new(skt_read_half);
+        let (tx, rx) = mpsc::channel::<Message>(32);
+
+        authenticate(&mut writer, mode, username, password).await?;
+
+        Ok(Client {
+            callbacks,
+            tx,
+            rx,
+            reader,
+            writer,
+        })
+    }
+
     async fn send_message(&mut self, message: Message) -> io::Result<()> {
-        self.sender
+        self.tx
             .send(message)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -118,9 +141,10 @@ where
     }
 }
 
-impl<S> ClientProtocol for Communicator<S>
+impl<S, C> ClientProtocol for Client<S, C>
 where
     S: AsyncRead + AsyncWrite,
+    C: ClientCallbacks,
 {
     fn send(
         &mut self,
@@ -164,24 +188,45 @@ where
     }
 }
 
-impl<T: ClientCallbacks> Client<T> {
-    pub fn new(
-        host: &str,
-        port: u16,
-        tls: bool,
-        cafile: &Option<PathBuf>,
-        callbacks: Box<T>,
-    ) -> io::Result<Self> {
-        let endpoint = format!("{}:{}", host, port);
+pub async fn connect<S, C>(
+    host: &str,
+    port: u16,
+    tls: bool,
+    cafile: &Option<PathBuf>,
+    authentication_mode: &String,
+    username: &Option<String>,
+    password: &Option<String>,
+    callbacks: Box<C>,
+) -> io::Result<Box<Client<S, C>>>
+where
+    C: ClientCallbacks,
+    S: AsyncRead + AsyncWrite,
+{
+    let endpoint = format!("{}:{}", host, port);
 
-        let addr = endpoint
-            .to_socket_addrs()?
-            .next()
-            .ok_or(format!("failed to resolve {}", host))
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let addr = endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or(format!("failed to resolve {}", host))
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        let (sender, receiver) = mpsc::channel::<Message>(10);
+    let stream = TcpStream::connect(&addr).await?;
 
-        Ok(Client { callbacks, sender })
-    }
+    let client = match tls {
+        true => {
+            let stream = create_tls_stream(host, cafile, stream).await?;
+            let client = Box::new(
+                Client::start(stream, callbacks, authentication_mode, username, password).await?,
+            );
+            client
+        }
+        false => {
+            let client = Box::new(
+                Client::start(stream, callbacks, authentication_mode, username, password).await?,
+            );
+            client
+        }
+    };
+
+    Ok(client)
 }
