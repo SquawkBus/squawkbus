@@ -1,7 +1,8 @@
-use std::future::Future;
 use std::io;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
+
+use futures::future::BoxFuture;
 
 use common::messages::DataPacket;
 use common::messages::Message;
@@ -12,6 +13,7 @@ use common::messages::UnicastData;
 use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio_rustls::client;
 use uuid::Uuid;
 
 use crate::authentication::authenticate;
@@ -20,59 +22,56 @@ use crate::tls::create_tls_stream;
 pub trait ClientCallbacks {
     fn on_data(
         &mut self,
-        publisher: String,
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-    ) -> impl Future<Output = ()>;
+    ) -> BoxFuture<'_, ()>;
     fn on_forwarded_subscription(
         &mut self,
-        user: String,
+        user: Uuid,
         topic: String,
         is_add: bool,
-    ) -> impl Future<Output = ()>;
+    ) -> BoxFuture<'_, ()>;
 }
 
-trait ClientProtocol {
+pub trait ClientProtocol {
     fn send(
         &mut self,
         client_id: Uuid,
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-    ) -> impl Future<Output = io::Result<()>>;
+    ) -> BoxFuture<'_, io::Result<()>>;
     fn publish(
         &mut self,
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-    ) -> impl Future<Output = io::Result<()>>;
-    fn add_subscription(&mut self, topic: String) -> impl Future<Output = io::Result<()>>;
-    fn remove_subscription(&mut self, topic: String) -> impl Future<Output = io::Result<()>>;
-    fn remove_notification(&mut self, topic: String) -> impl Future<Output = io::Result<()>>;
-    fn add_notification(&mut self, topic: String) -> impl Future<Output = io::Result<()>>;
+    ) -> BoxFuture<'_, io::Result<()>>;
+    fn add_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
+    fn remove_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
+    fn remove_notification(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
+    fn add_notification(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
 }
 
-pub struct Client<S, C>
+pub struct Client<S>
 where
-    S: AsyncRead + AsyncWrite,
-    C: ClientCallbacks,
+    S: AsyncRead + AsyncWrite + Send,
 {
-    callbacks: Box<C>,
+    callbacks: Box<dyn ClientCallbacks + Send>,
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    reader: ReadHalf<S>,
+    reader: BufReader<ReadHalf<S>>,
     writer: WriteHalf<S>,
 }
 
-impl<S, C> Client<S, C>
+impl<S> Client<S>
 where
-    S: AsyncRead + AsyncWrite,
-    C: ClientCallbacks,
+    S: AsyncRead + AsyncWrite + Send,
 {
     pub async fn start(
         stream: S,
-        callbacks: Box<C>,
+        callbacks: Box<dyn ClientCallbacks + Send>,
         mode: &String,
         username: &Option<String>,
         password: &Option<String>,
@@ -83,21 +82,25 @@ where
 
         authenticate(&mut writer, mode, username, password).await?;
 
-        Ok(Client {
+        let mut client = Client {
             callbacks,
             tx,
             rx,
-            reader,
+            reader: BufReader::new(reader),
             writer,
-        })
+        };
+
+        Ok(client)
     }
 
-    async fn send_message(&mut self, message: Message) -> io::Result<()> {
-        self.tx
-            .send(message)
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(())
+    fn send_message(&mut self, message: Message) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move {
+            self.tx
+                .send(message)
+                .await
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            Ok(())
+        })
     }
 
     async fn send_unicast_request(
@@ -139,12 +142,48 @@ where
         let message = Message::NotificationRequest(NotificationRequest { pattern, is_add });
         self.send_message(message).await
     }
+
+    async fn handle_message(&mut self, message: Message) {
+        match message {
+            Message::UnicastData(msg) => {
+                self.callbacks
+                    .on_data(msg.topic, msg.content_type, msg.data_packets)
+                    .await
+            }
+            Message::MulticastData(msg) => {
+                self.callbacks
+                    .on_data(msg.topic, msg.content_type, msg.data_packets)
+                    .await
+            }
+            Message::ForwardedSubscriptionRequest(msg) => {
+                self.callbacks
+                    .on_forwarded_subscription(msg.client_id, msg.topic, msg.is_add)
+                    .await
+            }
+            _ => todo!(),
+        };
+    }
+
+    async fn process(&mut self) {
+        loop {
+            tokio::select! {
+                result = self.rx.recv() => {
+                    // Send a message to the server.
+                    let message = result.unwrap();
+                    message.write(&mut self.writer).await.unwrap();
+                }
+                result = Message::read(&mut self.reader) => {
+                    let message = result.unwrap();
+                    self.handle_message(message).await;
+                }
+            }
+        }
+    }
 }
 
-impl<S, C> ClientProtocol for Client<S, C>
+impl<S> ClientProtocol for Client<S>
 where
-    S: AsyncRead + AsyncWrite,
-    C: ClientCallbacks,
+    S: AsyncRead + AsyncWrite + Send,
 {
     fn send(
         &mut self,
@@ -152,11 +191,11 @@ where
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-    ) -> impl Future<Output = io::Result<()>> {
-        async move {
+    ) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move {
             self.send_unicast_request(client_id, topic, content_type, data_packets)
                 .await
-        }
+        })
     }
 
     fn publish(
@@ -164,31 +203,31 @@ where
         topic: String,
         content_type: String,
         data_packets: Vec<DataPacket>,
-    ) -> impl Future<Output = io::Result<()>> {
-        async move {
+    ) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move {
             self.send_multicast_request(topic, content_type, data_packets)
                 .await
-        }
+        })
     }
 
-    fn add_subscription(&mut self, topic: String) -> impl Future<Output = io::Result<()>> {
-        async move { self.send_subscription_request(topic, true).await }
+    fn add_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move { self.send_subscription_request(topic, true).await })
     }
 
-    fn remove_subscription(&mut self, topic: String) -> impl Future<Output = io::Result<()>> {
-        async move { self.send_subscription_request(topic, false).await }
+    fn remove_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move { self.send_subscription_request(topic, false).await })
     }
 
-    fn add_notification(&mut self, pattern: String) -> impl Future<Output = io::Result<()>> {
-        async move { self.send_notification_request(pattern, true).await }
+    fn add_notification(&mut self, pattern: String) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move { self.send_notification_request(pattern, true).await })
     }
 
-    fn remove_notification(&mut self, pattern: String) -> impl Future<Output = io::Result<()>> {
-        async move { self.send_notification_request(pattern, false).await }
+    fn remove_notification(&mut self, pattern: String) -> BoxFuture<'_, io::Result<()>> {
+        Box::pin(async move { self.send_notification_request(pattern, false).await })
     }
 }
 
-pub async fn connect<S, C>(
+pub async fn connect<S>(
     host: &str,
     port: u16,
     tls: bool,
@@ -196,11 +235,10 @@ pub async fn connect<S, C>(
     authentication_mode: &String,
     username: &Option<String>,
     password: &Option<String>,
-    callbacks: Box<C>,
-) -> io::Result<Box<Client<S, C>>>
+    callbacks: Box<dyn ClientCallbacks + Send>,
+) -> io::Result<Box<dyn ClientProtocol>>
 where
-    C: ClientCallbacks,
-    S: AsyncRead + AsyncWrite,
+    S: AsyncRead + AsyncWrite + Send,
 {
     let endpoint = format!("{}:{}", host, port);
 
@@ -215,7 +253,7 @@ where
     let client = match tls {
         true => {
             let stream = create_tls_stream(host, cafile, stream).await?;
-            let client = Box::new(
+            let client: Box<dyn ClientProtocol> = Box::from(
                 Client::start(stream, callbacks, authentication_mode, username, password).await?,
             );
             client
