@@ -1,6 +1,9 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
-use crate::io::Serializable;
+use crate::{
+    frame::{FrameReader, FrameWriter},
+    io::Serializable,
+};
 
 use super::message_type::MessageType;
 
@@ -15,16 +18,16 @@ impl NotificationRequest {
         MessageType::NotificationRequest
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<NotificationRequest> {
+    pub fn read(reader: &mut FrameReader) -> io::Result<NotificationRequest> {
         Ok(NotificationRequest {
-            pattern: String::read(&mut reader).await?,
-            is_add: bool::read(&mut reader).await?
+            pattern: String::read(reader)?,
+            is_add: bool::read(reader)?,
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (&self.pattern).write(&mut writer).await?;
-        self.is_add.write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        (&self.pattern).write(writer)?;
+        self.is_add.write(writer)?;
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
+use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::message_type::MessageType;
@@ -42,51 +43,51 @@ impl Message {
         }
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<Message> {
-        match MessageType::read(&mut reader).await {
+    pub fn read(mut reader: &mut FrameReader) -> io::Result<Message> {
+        match MessageType::read(&mut reader) {
             Ok(MessageType::AuthorizationRequest) => {
-                match AuthorizationRequest::read(&mut reader).await {
+                match AuthorizationRequest::read(&mut reader) {
                     Ok(message) => Ok(Message::AuthorizationRequest(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::AuthorizationResponse) => {
-                match AuthorizationResponse::read(&mut reader).await {
+                match AuthorizationResponse::read(&mut reader) {
                     Ok(message) => Ok(Message::AuthorizationResponse(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedMulticastData) => {
-                match ForwardedMulticastData::read(&mut reader).await {
+                match ForwardedMulticastData::read(&mut reader) {
                     Ok(message) => Ok(Message::ForwardedMulticastData(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedSubscriptionRequest) => {
-                match ForwardedSubscriptionRequest::read(&mut reader).await {
+                match ForwardedSubscriptionRequest::read(&mut reader) {
                     Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
                     Err(error) => Err(error),
                 }
             }
             Ok(MessageType::ForwardedUnicastData) => {
-                match ForwardedUnicastData::read(&mut reader).await {
+                match ForwardedUnicastData::read(&mut reader) {
                     Ok(message) => Ok(Message::ForwardedUnicastData(message)),
                     Err(error) => Err(error),
                 }
             }
-            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader).await {
+            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader) {
                 Ok(message) => Ok(Message::MulticastData(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader).await {
+            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader) {
                 Ok(message) => Ok(Message::NotificationRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader).await {
+            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader) {
                 Ok(message) => Ok(Message::SubscriptionRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader).await {
+            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader) {
                 Ok(message) => Ok(Message::UnicastData(message)),
                 Err(error) => Err(error),
             },
@@ -94,203 +95,193 @@ impl Message {
         }
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        self.message_type().write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        self.message_type().write(writer)?;
         match self {
-            Message::AuthorizationRequest(message) => message.write(&mut writer).await,
-            Message::AuthorizationResponse(message) => message.write(&mut writer).await,
-            Message::ForwardedMulticastData(message) => message.write(&mut writer).await,
-            Message::ForwardedSubscriptionRequest(message) => message.write(&mut writer).await,
-            Message::ForwardedUnicastData(message) => message.write(&mut writer).await,
-            Message::MulticastData(message) => message.write(&mut writer).await,
-            Message::NotificationRequest(message) => message.write(&mut writer).await,
-            Message::SubscriptionRequest(message) => message.write(&mut writer).await,
-            Message::UnicastData(message) => message.write(&mut writer).await,
+            Message::AuthorizationRequest(message) => message.write(writer),
+            Message::AuthorizationResponse(message) => message.write(writer),
+            Message::ForwardedMulticastData(message) => message.write(writer),
+            Message::ForwardedSubscriptionRequest(message) => message.write(writer),
+            Message::ForwardedUnicastData(message) => message.write(writer),
+            Message::MulticastData(message) => message.write(writer),
+            Message::NotificationRequest(message) => message.write(writer),
+            Message::SubscriptionRequest(message) => message.write(writer),
+            Message::UnicastData(message) => message.write(writer),
         }
     }
 }
 
 #[cfg(test)]
 mod test_message {
-    use uuid::Uuid;
-
     use super::super::data_packet::DataPacket;
 
     use super::*;
-    use std::{
-        collections::HashSet,
-        io::{Cursor, Seek},
-    };
 
-    #[tokio::test]
-    async fn should_round_trip_authorization_request() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_round_trip_authorization_request() {
         let initial = Message::AuthorizationRequest(AuthorizationRequest {
-            host: String::from("host1"),
-            user: String::from("mary"),
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
+            host: "host1".into(),
+            user: "mary".into(),
+            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: String::from("VOD LSE"),
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_authorization_response() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_authorization_response() {
         let initial = Message::AuthorizationResponse(AuthorizationResponse {
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            topic: String::from("VOD LSE"),
+            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            topic: "VOD LSE".into(),
             is_authorization_required: true,
-            entitlements: HashSet::from([1, 2, 3]),
+            entitlement: 1,
         });
-        initial.write(&mut cursor).await.expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
+
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_forwarded_multicast_data() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_forwarded_multicast_data() {
         let initial = Message::ForwardedMulticastData(ForwardedMulticastData {
-            host: String::from("host1"),
-            user: String::from("mary"),
-            topic: String::from("VOD LSE"),
-            content_type: String::from("application/json"),
+            host: "host1".into(),
+            user: "mary".into(),
+            topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                entitlements: HashSet::from([-5i32, 1, 17]),
-                data: vec![1u8, 2, 3, 4],
+                name: "greeting".into(),
+                content_type: "text/plain".into(),
+                entitlement: 1,
+                data: "Hello, World!".into(),
             }],
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_forwarded_subscription_request() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_forwarded_subscription_request() {
         let initial = Message::ForwardedSubscriptionRequest(ForwardedSubscriptionRequest {
-            host: String::from("host1"),
-            user: String::from("mary"),
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            topic: String::from("VOD LSE"),
+            host: "host1".into(),
+            user: "mary".into(),
+            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            topic: "VOD LSE".into(),
             is_add: true,
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_forwarded_unicast_data() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_forwarded_unicast_data() {
         let initial = Message::ForwardedUnicastData(ForwardedUnicastData {
-            host: String::from("host1"),
-            user: String::from("mary"),
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            topic: String::from("VOD LSE"),
-            content_type: String::from("application/json"),
+            host: "host1".into(),
+            user: "mary".into(),
+            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                entitlements: HashSet::from([-5i32, 1, 17]),
-                data: vec![1u8, 2, 3, 4],
+                name: "greeting".into(),
+                content_type: "text/plain".into(),
+                entitlement: 1,
+                data: "Hello, World!".into(),
             }],
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_multicast_data() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_multicast_data() {
         let initial = Message::MulticastData(MulticastData {
-            topic: String::from("VOD LSE"),
-            content_type: String::from("application/json"),
+            topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                entitlements: HashSet::from([-5i32, 1, 17]),
-                data: vec![1u8, 2, 3, 4],
+                name: "greeting".into(),
+                content_type: "text/plain".into(),
+                entitlement: 1,
+                data: "Hello, World!".into(),
             }],
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_notification_request() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_notification_request() {
         let initial = Message::NotificationRequest(NotificationRequest {
-            pattern: String::from(".* LSE"),
+            pattern: ".* LSE".into(),
             is_add: true,
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_subscription_request() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_subscription_request() {
         let initial = Message::SubscriptionRequest(SubscriptionRequest {
-            topic: String::from("VOD LSE"),
+            topic: "VOD LSE".into(),
             is_add: true,
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
-    #[tokio::test]
-    async fn should_roundtrip_unicast_data() {
-        let mut cursor = Cursor::new(Vec::new());
-
+    #[test]
+    fn should_roundtrip_unicast_data() {
         let initial = Message::UnicastData(UnicastData {
-            client_id: Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap(),
-            topic: String::from("VOD LSE"),
-            content_type: String::from("application/json"),
+            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                entitlements: HashSet::from([-5i32, 1, 17]),
-                data: vec![1u8, 2, 3, 4],
+                name: "greeting".into(),
+                content_type: "text/plain".into(),
+                entitlement: 1,
+                data: "Hello, World!".into(),
             }],
         });
 
-        initial.write(&mut cursor).await.expect("should serialize");
+        let mut writer = FrameWriter::new();
+        initial.write(&mut writer).expect("should serialize");
 
-        cursor.rewind().unwrap();
-        let round_trip = Message::read(&mut cursor).await.unwrap();
+        let mut reader = FrameReader::from(&writer);
+        let round_trip = Message::read(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 }

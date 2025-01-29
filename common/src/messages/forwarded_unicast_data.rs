@@ -1,7 +1,6 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
-use uuid::Uuid;
-
+use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
@@ -11,10 +10,9 @@ use super::message_type::MessageType;
 pub struct ForwardedUnicastData {
     pub host: String,
     pub user: String,
-    pub client_id: Uuid,
+    pub client_id: String,
     pub topic: String,
-    pub content_type: String,
-    pub data_packets: Vec<DataPacket>
+    pub data_packets: Vec<DataPacket>,
 }
 
 impl ForwardedUnicastData {
@@ -22,24 +20,22 @@ impl ForwardedUnicastData {
         MessageType::ForwardedUnicastData
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<ForwardedUnicastData> {
+    pub fn read(reader: &mut FrameReader) -> io::Result<ForwardedUnicastData> {
         Ok(ForwardedUnicastData {
-            host: String::read(&mut reader).await?,
-            user: String::read(&mut reader).await?,
-            client_id: Uuid::read(&mut reader).await?,
-            topic: String::read(&mut reader).await?,
-            content_type: String::read(&mut reader).await?,
-            data_packets: Vec::<DataPacket>::read(&mut reader).await?,
+            host: String::read(reader)?,
+            user: String::read(reader)?,
+            client_id: String::read(reader)?,
+            topic: String::read(reader)?,
+            data_packets: Vec::<DataPacket>::read(reader)?,
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (&self.host).write(&mut writer).await?;
-        (&self.user).write(&mut writer).await?;
-        (&self.client_id).write(&mut writer).await?;
-        (&self.topic).write(&mut writer).await?;
-        (&self.content_type).write(&mut writer).await?;
-        (&self.data_packets).write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        (&self.host).write(writer)?;
+        (&self.user).write(writer)?;
+        (&self.client_id).write(writer)?;
+        (&self.topic).write(writer)?;
+        (&self.data_packets).write(writer)?;
         Ok(())
     }
 }

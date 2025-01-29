@@ -1,8 +1,9 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
-use uuid::Uuid;
-
-use crate::io::Serializable;
+use crate::{
+    frame::{FrameReader, FrameWriter},
+    io::Serializable,
+};
 
 use super::message_type::MessageType;
 
@@ -10,8 +11,8 @@ use super::message_type::MessageType;
 pub struct AuthorizationRequest {
     pub host: String,
     pub user: String,
-    pub client_id: Uuid,
-    pub topic: String
+    pub client_id: String,
+    pub topic: String,
 }
 
 impl AuthorizationRequest {
@@ -19,20 +20,20 @@ impl AuthorizationRequest {
         MessageType::AuthorizationRequest
     }
 
-    pub async fn read<R: AsyncReadExt+Unpin>(mut reader: &mut R) -> io::Result<AuthorizationRequest> {
+    pub fn read(reader: &mut FrameReader) -> io::Result<AuthorizationRequest> {
         Ok(AuthorizationRequest {
-            host: String::read(&mut reader).await?,
-            user: String::read(&mut reader).await?,
-            client_id: Uuid::read(&mut reader).await?,
-            topic: String::read(&mut reader).await?,
+            host: String::read(reader)?,
+            user: String::read(reader)?,
+            client_id: String::read(reader)?,
+            topic: String::read(reader)?,
         })
     }
 
-    pub async fn write<W: AsyncWriteExt+Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (&self.host).write(&mut writer).await?;
-        (&self.user).write(&mut writer).await?;
-        (&self.client_id).write(&mut writer).await?;
-        (&self.topic).write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        (&self.host).write(writer)?;
+        (&self.user).write(writer)?;
+        (&self.client_id).write(writer)?;
+        (&self.topic).write(writer)?;
         Ok(())
     }
 }

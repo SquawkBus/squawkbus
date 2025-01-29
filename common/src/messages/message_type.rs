@@ -1,6 +1,9 @@
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt, ErrorKind};
+use std::io::{self, ErrorKind};
 
-use crate::io::Serializable;
+use crate::{
+    frame::{FrameReader, FrameWriter},
+    io::Serializable,
+};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
@@ -52,14 +55,14 @@ impl Into<u8> for MessageType {
 }
 
 impl Serializable for MessageType {
-    async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
+    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let byte: u8 = (*self).into();
-        byte.write(&mut writer).await?;
+        byte.write(writer)?;
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt + Unpin>(reader: &mut R) -> io::Result<MessageType> {
-        let byte = u8::read(reader).await?;
+    fn read(reader: &mut FrameReader) -> io::Result<MessageType> {
+        let byte = u8::read(reader)?;
         MessageType::try_from(byte).map_err(|_| io::Error::new(ErrorKind::Other, "invalid"))
     }
 }
