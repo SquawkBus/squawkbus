@@ -79,7 +79,7 @@ impl Interactor {
     ) -> io::Result<()> {
         match result {
             Ok(mut frame_reader) => {
-                let message = Message::read(&mut frame_reader)?;
+                let message = Message::deserialize(&mut frame_reader)?;
                 hub.send(ClientEvent::OnMessage(self.id.clone(), message))
                     .await
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -106,7 +106,7 @@ where
     match event {
         ServerEvent::OnMessage(message) => {
             let mut writer = FrameWriter::new();
-            message.write(&mut writer)?;
+            message.serialize(&mut writer)?;
             writer.write(write_half).await?;
         }
     }

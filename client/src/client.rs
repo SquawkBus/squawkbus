@@ -170,9 +170,9 @@ where
                 result = self.rx.recv() => {
                     // Send a message to the server.
                     let message = result.unwrap();
-                    message.write(&mut self.writer).await.unwrap();
+                    message.serialize(&mut self.writer).await.unwrap();
                 }
-                result = Message::read(&mut self.reader) => {
+                result = Message::deserialize(&mut self.reader) => {
                     let message = result.unwrap();
                     self.handle_message(message).await;
                 }

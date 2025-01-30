@@ -20,14 +20,14 @@ impl NotificationRequest {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<NotificationRequest> {
         Ok(NotificationRequest {
-            pattern: String::read(reader)?,
-            is_add: bool::read(reader)?,
+            pattern: String::deserialize(reader)?,
+            is_add: bool::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.pattern).write(writer)?;
-        self.is_add.write(writer)?;
+        (&self.pattern).serialize(writer)?;
+        self.is_add.serialize(writer)?;
         Ok(())
     }
 }

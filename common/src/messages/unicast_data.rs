@@ -20,16 +20,16 @@ impl UnicastData {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<UnicastData> {
         Ok(UnicastData {
-            client_id: String::read(reader)?,
-            topic: String::read(reader)?,
-            data_packets: Vec::<DataPacket>::read(reader)?,
+            client_id: String::deserialize(reader)?,
+            topic: String::deserialize(reader)?,
+            data_packets: Vec::<DataPacket>::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.client_id).write(writer)?;
-        (&self.topic).write(writer)?;
-        (&self.data_packets).write(writer)?;
+        (&self.client_id).serialize(writer)?;
+        (&self.topic).serialize(writer)?;
+        (&self.data_packets).serialize(writer)?;
         Ok(())
     }
 }

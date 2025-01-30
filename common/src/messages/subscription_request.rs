@@ -20,14 +20,14 @@ impl SubscriptionRequest {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<SubscriptionRequest> {
         Ok(SubscriptionRequest {
-            topic: String::read(reader)?,
-            is_add: bool::read(reader)?,
+            topic: String::deserialize(reader)?,
+            is_add: bool::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.topic).write(writer)?;
-        self.is_add.write(writer)?;
+        (&self.topic).serialize(writer)?;
+        self.is_add.serialize(writer)?;
         Ok(())
     }
 }

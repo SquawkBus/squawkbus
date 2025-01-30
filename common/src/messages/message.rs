@@ -43,8 +43,8 @@ impl Message {
         }
     }
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<Message> {
-        match MessageType::read(reader) {
+    pub fn deserialize(reader: &mut FrameReader) -> io::Result<Message> {
+        match MessageType::deserialize(reader) {
             Ok(MessageType::AuthorizationRequest) => match AuthorizationRequest::read(reader) {
                 Ok(message) => Ok(Message::AuthorizationRequest(message)),
                 Err(error) => Err(error),
@@ -87,8 +87,8 @@ impl Message {
         }
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        self.message_type().write(writer)?;
+    pub fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        self.message_type().serialize(writer)?;
         match self {
             Message::AuthorizationRequest(message) => message.write(writer),
             Message::AuthorizationResponse(message) => message.write(writer),
@@ -119,10 +119,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).expect("should deserialize");
+        let round_trip = Message::deserialize(&mut reader).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
@@ -136,10 +136,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).expect("should deserialize");
+        let round_trip = Message::deserialize(&mut reader).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
@@ -158,10 +158,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -176,10 +176,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -199,10 +199,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -219,10 +219,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -234,10 +234,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -249,10 +249,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -270,10 +270,10 @@ mod test_message {
         });
 
         let mut writer = FrameWriter::new();
-        initial.write(&mut writer).expect("should serialize");
+        initial.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::read(&mut reader).unwrap();
+        let round_trip = Message::deserialize(&mut reader).unwrap();
         assert_eq!(initial, round_trip);
     }
 }

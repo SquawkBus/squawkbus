@@ -42,7 +42,7 @@ pub async fn communicate<S>(
                 result.unwrap();
                 match parse_message(request_line.as_str()) {
                     Ok(message) => {
-                        message.write(&mut skt_write_half).await.unwrap();
+                        message.serialize(&mut skt_write_half).await.unwrap();
                     },
                     Err(message) => {
                         println!("{message}");
@@ -50,7 +50,7 @@ pub async fn communicate<S>(
                 }
             }
             // response
-            result = Message::read(&mut skt_reader) => {
+            result = Message::deserialize(&mut skt_reader) => {
                 let message = result.unwrap();
                 println!("Received message {message:?}");
             }

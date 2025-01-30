@@ -22,18 +22,18 @@ impl AuthorizationResponse {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<AuthorizationResponse> {
         Ok(AuthorizationResponse {
-            client_id: String::read(reader)?,
-            topic: String::read(reader)?,
-            is_authorization_required: bool::read(reader)?,
-            entitlement: i32::read(reader)?,
+            client_id: String::deserialize(reader)?,
+            topic: String::deserialize(reader)?,
+            is_authorization_required: bool::deserialize(reader)?,
+            entitlement: i32::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.client_id).write(writer)?;
-        (&self.topic).write(writer)?;
-        (&self.is_authorization_required).write(writer)?;
-        (&self.entitlement).write(writer)?;
+        (&self.client_id).serialize(writer)?;
+        (&self.topic).serialize(writer)?;
+        (&self.is_authorization_required).serialize(writer)?;
+        (&self.entitlement).serialize(writer)?;
         Ok(())
     }
 }

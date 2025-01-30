@@ -21,18 +21,18 @@ impl ForwardedMulticastData {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<ForwardedMulticastData> {
         Ok(ForwardedMulticastData {
-            host: String::read(reader)?,
-            user: String::read(reader)?,
-            topic: String::read(reader)?,
-            data_packets: Vec::<DataPacket>::read(reader)?,
+            host: String::deserialize(reader)?,
+            user: String::deserialize(reader)?,
+            topic: String::deserialize(reader)?,
+            data_packets: Vec::<DataPacket>::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.host).write(writer)?;
-        (&self.user).write(writer)?;
-        (&self.topic).write(writer)?;
-        (&self.data_packets).write(writer)?;
+        (&self.host).serialize(writer)?;
+        (&self.user).serialize(writer)?;
+        (&self.topic).serialize(writer)?;
+        (&self.data_packets).serialize(writer)?;
         Ok(())
     }
 }

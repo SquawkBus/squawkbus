@@ -29,19 +29,19 @@ impl DataPacket {
 }
 
 impl Serializable for DataPacket {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        self.name.write(writer)?;
-        self.content_type.write(writer)?;
-        self.entitlement.write(writer)?;
-        self.data.write(writer)?;
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        self.name.serialize(writer)?;
+        self.content_type.serialize(writer)?;
+        self.entitlement.serialize(writer)?;
+        self.data.serialize(writer)?;
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<DataPacket> {
-        let name = String::read(reader)?;
-        let content_type = String::read(reader)?;
-        let entitlement = i32::read(reader)?;
-        let data = Vec::<u8>::read(reader)?;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<DataPacket> {
+        let name = String::deserialize(reader)?;
+        let content_type = String::deserialize(reader)?;
+        let entitlement = i32::deserialize(reader)?;
+        let data = Vec::<u8>::deserialize(reader)?;
         let data_packet = DataPacket::new(name, content_type, entitlement, data);
         Ok(data_packet)
     }
@@ -61,10 +61,10 @@ mod tests {
         };
 
         let mut writer = FrameWriter::new();
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match DataPacket::read(&mut reader) {
+        match DataPacket::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -88,10 +88,10 @@ mod tests {
         ];
 
         let mut writer = FrameWriter::new();
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match Vec::<DataPacket>::read(&mut reader) {
+        match Vec::<DataPacket>::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }

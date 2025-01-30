@@ -22,20 +22,20 @@ impl ForwardedUnicastData {
 
     pub fn read(reader: &mut FrameReader) -> io::Result<ForwardedUnicastData> {
         Ok(ForwardedUnicastData {
-            host: String::read(reader)?,
-            user: String::read(reader)?,
-            client_id: String::read(reader)?,
-            topic: String::read(reader)?,
-            data_packets: Vec::<DataPacket>::read(reader)?,
+            host: String::deserialize(reader)?,
+            user: String::deserialize(reader)?,
+            client_id: String::deserialize(reader)?,
+            topic: String::deserialize(reader)?,
+            data_packets: Vec::<DataPacket>::deserialize(reader)?,
         })
     }
 
     pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.host).write(writer)?;
-        (&self.user).write(writer)?;
-        (&self.client_id).write(writer)?;
-        (&self.topic).write(writer)?;
-        (&self.data_packets).write(writer)?;
+        (&self.host).serialize(writer)?;
+        (&self.user).serialize(writer)?;
+        (&self.client_id).serialize(writer)?;
+        (&self.topic).serialize(writer)?;
+        (&self.data_packets).serialize(writer)?;
         Ok(())
     }
 }

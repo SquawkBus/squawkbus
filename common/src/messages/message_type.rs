@@ -55,14 +55,14 @@ impl Into<u8> for MessageType {
 }
 
 impl Serializable for MessageType {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let byte: u8 = (*self).into();
-        byte.write(writer)?;
+        byte.serialize(writer)?;
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<MessageType> {
-        let byte = u8::read(reader)?;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<MessageType> {
+        let byte = u8::deserialize(reader)?;
         MessageType::try_from(byte).map_err(|_| io::Error::new(ErrorKind::Other, "invalid"))
     }
 }

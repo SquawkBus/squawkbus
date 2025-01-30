@@ -3,18 +3,18 @@ use std::io;
 use super::frame::{FrameReader, FrameWriter};
 
 pub trait Serializable: Sized + Send {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()>;
-    fn read(reader: &mut FrameReader) -> io::Result<Self>;
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()>;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self>;
 }
 
 impl Serializable for u8 {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         writer.push(vec![*self])?;
 
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
         let mut buf = [0_u8; 1];
         reader.take(&mut buf)?;
 
@@ -23,7 +23,7 @@ impl Serializable for u8 {
 }
 
 impl Serializable for bool {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         if *self {
             writer.push(vec![1])?;
         } else {
@@ -33,7 +33,7 @@ impl Serializable for bool {
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
         let mut buf = [0_u8; 1];
         reader.take(&mut buf)?;
 
@@ -42,13 +42,13 @@ impl Serializable for bool {
 }
 
 impl Serializable for u32 {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let buf = self.to_be_bytes();
         writer.push(buf.into())?;
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
         let mut buf = [0_u8; 4];
         reader.take(&mut buf)?;
         let i = Self::from_be_bytes(buf);
@@ -57,13 +57,13 @@ impl Serializable for u32 {
 }
 
 impl Serializable for i32 {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let buf = self.to_be_bytes();
         writer.push(buf.into())?;
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
         let mut buf = [0_u8; 4];
         reader.take(&mut buf)?;
         let i = Self::from_be_bytes(buf);
@@ -72,15 +72,15 @@ impl Serializable for i32 {
 }
 
 impl Serializable for String {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let len_buf = (self.len() as u32).to_be_bytes();
         writer.push(len_buf.into())?;
         writer.push(self.as_bytes().into())?;
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
-        let len = u32::read(reader)?;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
         let mut buf = vec![0u8; len as usize];
         reader.take(&mut buf)?;
         match String::from_utf8(buf) {
@@ -94,20 +94,20 @@ impl<T> Serializable for Vec<T>
 where
     T: Serializable,
 {
-    fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let len_buf = (self.len() as u32).to_be_bytes();
         writer.push(len_buf.into())?;
         for value in self {
-            value.write(writer)?;
+            value.serialize(writer)?;
         }
         Ok(())
     }
 
-    fn read(reader: &mut FrameReader) -> io::Result<Self> {
-        let mut len = u32::read(reader)?;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<Self> {
+        let mut len = u32::deserialize(reader)?;
         let mut buf = Vec::with_capacity(len as usize);
         while len > 0 {
-            let value = T::read(reader)?;
+            let value = T::deserialize(reader)?;
             buf.push(value);
             len = len - 1;
         }
@@ -124,10 +124,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual: u32 = 12345678;
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match u32::read(&mut reader) {
+        match u32::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -138,10 +138,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual: i32 = 12345678;
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match i32::read(&mut reader) {
+        match i32::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -152,10 +152,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual: i32 = -12345678;
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match i32::read(&mut reader) {
+        match i32::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -166,10 +166,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual = String::from("Hello, World!");
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match String::read(&mut reader) {
+        match String::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -180,10 +180,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual: Vec<u32> = vec![1, 10, 100, 1000, 10000];
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match Vec::<u32>::read(&mut reader) {
+        match Vec::<u32>::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -194,10 +194,10 @@ mod tests {
         let mut writer = FrameWriter::new();
 
         let actual: Vec<i32> = vec![-10000, -100, -10, -1, 0, 1, 10, 100, 1000, 10000];
-        actual.write(&mut writer).expect("should serialize");
+        actual.serialize(&mut writer).expect("should serialize");
 
         let mut reader = FrameReader::from(&writer);
-        match Vec::<i32>::read(&mut reader) {
+        match Vec::<i32>::deserialize(&mut reader) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
