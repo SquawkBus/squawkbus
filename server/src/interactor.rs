@@ -96,13 +96,13 @@ impl Interactor {
 }
 
 async fn forward_hub_to_client<T>(
-    result: Option<ServerEvent>,
+    event: Option<ServerEvent>,
     write_half: &mut WriteHalf<T>,
 ) -> io::Result<()>
 where
     T: AsyncRead + AsyncWrite,
 {
-    let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
+    let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {
             let mut writer = FrameWriter::new();
