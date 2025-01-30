@@ -2,7 +2,6 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common::frame::{FrameReader, FrameWriter};
 use tokio::io::{AsyncRead, AsyncWrite, BufReader, WriteHalf};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
@@ -61,7 +60,7 @@ impl Interactor {
         loop {
             tokio::select! {
                 // forward client to hub
-                result = FrameReader::read(&mut reader) => {
+                result = Message::read(&mut reader) => {
                     self.forward_client_to_hub(result, &hub).await
                 }
                 // forward hub to client
@@ -74,12 +73,11 @@ impl Interactor {
 
     async fn forward_client_to_hub(
         &self,
-        result: Result<FrameReader, std::io::Error>,
+        result: Result<Message, std::io::Error>,
         hub: &Sender<ClientEvent>,
     ) -> io::Result<()> {
         match result {
-            Ok(mut frame_reader) => {
-                let message = Message::deserialize(&mut frame_reader)?;
+            Ok(message) => {
                 hub.send(ClientEvent::OnMessage(self.id.clone(), message))
                     .await
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -105,9 +103,7 @@ where
     let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {
-            let mut writer = FrameWriter::new();
-            message.serialize(&mut writer)?;
-            writer.write(write_half).await?;
+            message.write(write_half).await?;
         }
     }
 

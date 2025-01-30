@@ -1,4 +1,4 @@
-use std::io;
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 
 use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
@@ -100,6 +100,25 @@ impl Message {
             Message::SubscriptionRequest(message) => message.write(writer),
             Message::UnicastData(message) => message.write(writer),
         }
+    }
+
+    pub async fn read<R>(reader: &mut R) -> io::Result<Message>
+    where
+        R: AsyncReadExt + Unpin,
+    {
+        let mut frame = FrameReader::read(reader).await?;
+        Message::deserialize(&mut frame)
+    }
+
+    pub async fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        let mut frame = FrameWriter::new();
+        self.serialize(&mut frame)?;
+        frame.write(writer).await?;
+
+        Ok(())
     }
 }
 
