@@ -2,15 +2,13 @@ use std::{collections::HashMap, io};
 
 use regex::Regex;
 
-use uuid::Uuid;
-
 use common::messages::{ForwardedSubscriptionRequest, Message, NotificationRequest};
 
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
 
 struct Notification {
     regex: Regex,
-    listeners: HashMap<Uuid, u32>,
+    listeners: HashMap<String, u32>,
 }
 
 impl Notification {
@@ -36,28 +34,28 @@ impl NotificationManager {
 
     pub async fn handle_notification_request(
         &mut self,
-        id: &Uuid,
+        client_id: &str,
         msg: NotificationRequest,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
     ) -> io::Result<()> {
         if msg.is_add {
             self.add_notification(
-                id,
+                client_id,
                 msg.pattern.as_str(),
                 client_manager,
                 subscription_manager,
             )
             .await
         } else {
-            self.remove_notification(id, msg.pattern.as_str(), false)
+            self.remove_notification(client_id, msg.pattern.as_str(), false)
                 .await
         }
     }
 
     pub async fn add_notification(
         &mut self,
-        listener_id: &Uuid,
+        listener_id: &str,
         pattern: &str,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
@@ -69,10 +67,10 @@ impl NotificationManager {
         }
         let notification = self.notifications.get_mut(pattern).unwrap();
 
-        if let Some(count) = notification.listeners.get_mut(&listener_id) {
+        if let Some(count) = notification.listeners.get_mut(listener_id) {
             *count += 1;
         } else {
-            notification.listeners.insert(listener_id.clone(), 1);
+            notification.listeners.insert(listener_id.into(), 1);
         }
 
         for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.regex) {
@@ -105,7 +103,7 @@ impl NotificationManager {
 
     pub async fn remove_notification(
         &mut self,
-        listener_id: &Uuid,
+        listener_id: &str,
         pattern: &str,
         is_listener_closed: bool,
     ) -> io::Result<()> {
@@ -124,7 +122,7 @@ impl NotificationManager {
         }
 
         if *count == 0 {
-            notification.listeners.remove(&listener_id);
+            notification.listeners.remove(listener_id);
             log::debug!("removed all notifications for {listener_id} on {pattern}")
         } else {
             log::debug!("removed one notification for {listener_id} on {pattern}")
@@ -139,7 +137,7 @@ impl NotificationManager {
 
     pub async fn notify_listeners(
         &self,
-        subscriber_id: &Uuid,
+        subscriber_id: &str,
         topic: &str,
         is_add: bool,
         client_manager: &ClientManager,
@@ -156,7 +154,7 @@ impl NotificationManager {
                 ))?;
 
                 let message = ForwardedSubscriptionRequest {
-                    client_id: subscriber_id.clone(),
+                    client_id: subscriber_id.into(),
                     host: subscriber.host.clone(),
                     user: subscriber.user.clone(),
                     topic: topic.to_string(),
@@ -182,7 +180,7 @@ impl NotificationManager {
         Ok(())
     }
 
-    pub async fn handle_close(&mut self, listener_id: &Uuid) -> io::Result<()> {
+    pub async fn handle_close(&mut self, listener_id: &str) -> io::Result<()> {
         let patterns = self.find_listener_patterns(listener_id);
         for pattern in patterns {
             self.remove_notification(listener_id, &pattern, true)
@@ -191,7 +189,7 @@ impl NotificationManager {
         Ok(())
     }
 
-    fn find_listener_patterns(&self, listener_id: &Uuid) -> Vec<String> {
+    fn find_listener_patterns(&self, listener_id: &str) -> Vec<String> {
         let mut patterns: Vec<String> = Vec::new();
         for (pattern, notification) in &self.notifications {
             if notification.listeners.contains_key(listener_id) {

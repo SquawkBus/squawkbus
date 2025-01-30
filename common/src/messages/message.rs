@@ -43,51 +43,43 @@ impl Message {
         }
     }
 
-    pub fn read(mut reader: &mut FrameReader) -> io::Result<Message> {
-        match MessageType::read(&mut reader) {
-            Ok(MessageType::AuthorizationRequest) => {
-                match AuthorizationRequest::read(&mut reader) {
-                    Ok(message) => Ok(Message::AuthorizationRequest(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::AuthorizationResponse) => {
-                match AuthorizationResponse::read(&mut reader) {
-                    Ok(message) => Ok(Message::AuthorizationResponse(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::ForwardedMulticastData) => {
-                match ForwardedMulticastData::read(&mut reader) {
-                    Ok(message) => Ok(Message::ForwardedMulticastData(message)),
-                    Err(error) => Err(error),
-                }
-            }
+    pub fn read(reader: &mut FrameReader) -> io::Result<Message> {
+        match MessageType::read(reader) {
+            Ok(MessageType::AuthorizationRequest) => match AuthorizationRequest::read(reader) {
+                Ok(message) => Ok(Message::AuthorizationRequest(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::AuthorizationResponse) => match AuthorizationResponse::read(reader) {
+                Ok(message) => Ok(Message::AuthorizationResponse(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::ForwardedMulticastData) => match ForwardedMulticastData::read(reader) {
+                Ok(message) => Ok(Message::ForwardedMulticastData(message)),
+                Err(error) => Err(error),
+            },
             Ok(MessageType::ForwardedSubscriptionRequest) => {
-                match ForwardedSubscriptionRequest::read(&mut reader) {
+                match ForwardedSubscriptionRequest::read(reader) {
                     Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
                     Err(error) => Err(error),
                 }
             }
-            Ok(MessageType::ForwardedUnicastData) => {
-                match ForwardedUnicastData::read(&mut reader) {
-                    Ok(message) => Ok(Message::ForwardedUnicastData(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::MulticastData) => match MulticastData::read(&mut reader) {
+            Ok(MessageType::ForwardedUnicastData) => match ForwardedUnicastData::read(reader) {
+                Ok(message) => Ok(Message::ForwardedUnicastData(message)),
+                Err(error) => Err(error),
+            },
+            Ok(MessageType::MulticastData) => match MulticastData::read(reader) {
                 Ok(message) => Ok(Message::MulticastData(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(&mut reader) {
+            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(reader) {
                 Ok(message) => Ok(Message::NotificationRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(&mut reader) {
+            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(reader) {
                 Ok(message) => Ok(Message::SubscriptionRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::UnicastData) => match UnicastData::read(&mut reader) {
+            Ok(MessageType::UnicastData) => match UnicastData::read(reader) {
                 Ok(message) => Ok(Message::UnicastData(message)),
                 Err(error) => Err(error),
             },

@@ -4,7 +4,6 @@ use std::{
 };
 
 use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData, Message};
-use uuid::Uuid;
 
 use crate::{
     authorization::{AuthorizationManager, Role},
@@ -14,8 +13,8 @@ use crate::{
 };
 
 pub struct PublisherManager {
-    topics_by_publisher: HashMap<Uuid, HashSet<String>>,
-    publishers_by_topic: HashMap<String, HashSet<Uuid>>,
+    topics_by_publisher: HashMap<String, HashSet<String>>,
+    publishers_by_topic: HashMap<String, HashSet<String>>,
 }
 
 impl PublisherManager {
@@ -43,10 +42,9 @@ impl PublisherManager {
     /// Send data from one client to another.
     pub async fn send_unicast_data(
         &mut self,
-        sender_id: Uuid,
-        receiver_id: Uuid,
-        topic: String,
-        content_type: String,
+        sender_id: &str,
+        receiver_id: &str,
+        topic: &str,
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
@@ -62,16 +60,10 @@ impl PublisherManager {
         };
 
         // Get the entitlements.
-        let sender_entitlements = entitlements_manager.entitlements(
-            sender.user.as_str(),
-            topic.as_str(),
-            Role::Publisher,
-        );
-        let receiver_entitlements = entitlements_manager.entitlements(
-            receiver.user.as_str(),
-            topic.as_str(),
-            Role::Subscriber,
-        );
+        let sender_entitlements =
+            entitlements_manager.entitlements(sender.user.as_str(), topic, Role::Publisher);
+        let receiver_entitlements =
+            entitlements_manager.entitlements(receiver.user.as_str(), topic, Role::Subscriber);
         let entitlements: HashSet<i32> = sender_entitlements
             .intersection(&receiver_entitlements)
             .cloned()
@@ -100,14 +92,13 @@ impl PublisherManager {
             return Ok(());
         }
 
-        self.add_as_topic_publisher(&sender_id, topic.as_str());
+        self.add_as_topic_publisher(sender_id, topic);
 
         let message = ForwardedUnicastData {
-            client_id: sender_id,
+            client_id: sender_id.into(),
             host: sender.host.clone(),
             user: sender.user.clone(),
-            topic,
-            content_type,
+            topic: topic.into(),
             data_packets: auth_data_packets,
         };
 
@@ -129,15 +120,14 @@ impl PublisherManager {
     /// Send data to clients that subscribe to a topic.
     pub async fn send_multicast_data(
         &mut self,
-        publisher_id: &Uuid,
-        topic: String,
-        content_type: String,
+        publisher_id: &str,
+        topic: &str,
         data_packets: Vec<DataPacket>,
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
-        let subscribers = subscription_manager.subscribers_for_topic(topic.as_str());
+        let subscribers = subscription_manager.subscribers_for_topic(topic);
         if subscribers.is_empty() {
             log::debug!("send_multicast_data: no topic {topic}");
             return Ok(());
@@ -148,13 +138,10 @@ impl PublisherManager {
             return Ok(());
         };
 
-        let publisher_entitlements = entitlements_manager.entitlements(
-            publisher.user.as_str(),
-            topic.as_str(),
-            Role::Publisher,
-        );
+        let publisher_entitlements =
+            entitlements_manager.entitlements(publisher.user.as_str(), topic, Role::Publisher);
 
-        self.add_as_topic_publisher(publisher_id, topic.as_str());
+        self.add_as_topic_publisher(publisher_id, topic);
 
         for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
@@ -162,7 +149,7 @@ impl PublisherManager {
 
                 let subscriber_entitlements = entitlements_manager.entitlements(
                     subscriber.user.as_str(),
-                    topic.as_str(),
+                    topic,
                     Role::Subscriber,
                 );
                 let entitlements: HashSet<i32> = publisher_entitlements
@@ -197,8 +184,7 @@ impl PublisherManager {
                 let message = ForwardedMulticastData {
                     host: publisher.host.clone(),
                     user: publisher.user.clone(),
-                    topic: topic.clone(),
-                    content_type: content_type.clone(),
+                    topic: topic.into(),
                     data_packets: auth_data_packets,
                 };
 
@@ -221,10 +207,10 @@ impl PublisherManager {
         Ok(())
     }
 
-    fn add_as_topic_publisher(&mut self, publisher_id: &Uuid, topic: &str) {
+    fn add_as_topic_publisher(&mut self, publisher_id: &str, topic: &str) {
         let topics = self
             .topics_by_publisher
-            .entry(publisher_id.clone())
+            .entry(publisher_id.into())
             .or_default();
         if !topics.contains(topic) {
             topics.insert(topic.to_string());
@@ -235,13 +221,13 @@ impl PublisherManager {
             .entry(topic.to_string())
             .or_default();
         if !publishers.contains(publisher_id) {
-            publishers.insert(publisher_id.clone());
+            publishers.insert(publisher_id.into());
         }
     }
 
     pub async fn handle_close(
         &mut self,
-        closed_client_id: &Uuid,
+        closed_client_id: &str,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
     ) -> io::Result<()> {
@@ -266,9 +252,9 @@ impl PublisherManager {
 }
 
 fn remove_publisher(
-    closed_client_id: &Uuid,
-    topics_by_publisher: &mut HashMap<Uuid, HashSet<String>>,
-    publishers_by_topic: &mut HashMap<String, HashSet<Uuid>>,
+    closed_client_id: &str,
+    topics_by_publisher: &mut HashMap<String, HashSet<String>>,
+    publishers_by_topic: &mut HashMap<String, HashSet<String>>,
 ) -> Vec<String> {
     let mut topics_without_publishers: Vec<String> = Vec::new();
 
@@ -292,7 +278,7 @@ fn remove_publisher(
 }
 
 async fn notify_subscribers_of_stale_topics(
-    closed_client_id: &Uuid,
+    closed_client_id: &str,
     topics_without_publishers: Vec<String>,
     client_manager: &ClientManager,
     subscription_manager: &SubscriptionManager,
@@ -307,7 +293,6 @@ async fn notify_subscribers_of_stale_topics(
             host: publisher.host.clone(),
             user: publisher.user.clone(),
             topic: topic.clone(),
-            content_type: String::from("application/octet-stream"),
             data_packets: Vec::new(),
         };
 

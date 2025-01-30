@@ -2,6 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use common::frame::{FrameReader, FrameWriter};
 use tokio::io::{AsyncRead, AsyncWrite, BufReader, WriteHalf};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
@@ -15,12 +16,14 @@ use crate::events::{ClientEvent, ServerEvent};
 
 #[derive(Debug)]
 pub struct Interactor {
-    pub id: Uuid,
+    pub id: String,
 }
 
 impl Interactor {
     pub fn new() -> Interactor {
-        Interactor { id: Uuid::new_v4() }
+        Interactor {
+            id: Uuid::new_v4().into(),
+        }
     }
 
     pub async fn run<'a, T>(
@@ -58,7 +61,7 @@ impl Interactor {
         loop {
             tokio::select! {
                 // forward client to hub
-                result = Message::read(&mut reader) => {
+                result = FrameReader::read(&mut reader) => {
                     self.forward_client_to_hub(result, &hub).await
                 }
                 // forward hub to client
@@ -71,18 +74,19 @@ impl Interactor {
 
     async fn forward_client_to_hub(
         &self,
-        result: Result<Message, std::io::Error>,
+        result: Result<FrameReader, std::io::Error>,
         hub: &Sender<ClientEvent>,
     ) -> io::Result<()> {
         match result {
-            Ok(message) => {
-                hub.send(ClientEvent::OnMessage(self.id, message))
+            Ok(mut frame_reader) => {
+                let message = Message::read(&mut frame_reader)?;
+                hub.send(ClientEvent::OnMessage(self.id.clone(), message))
                     .await
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                 Ok(())
             }
             Err(forward_error) => {
-                hub.send(ClientEvent::OnClose(self.id))
+                hub.send(ClientEvent::OnClose(self.id.clone()))
                     .await
                     .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))?;
                 Err(forward_error)
@@ -101,7 +105,9 @@ where
     let event = result.ok_or(io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {
-            message.write(write_half).await?;
+            let mut writer = FrameWriter::new();
+            message.write(&mut writer)?;
+            writer.write(write_half).await?;
         }
     }
 

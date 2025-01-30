@@ -2,8 +2,6 @@ use std::io;
 
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use uuid::Uuid;
-
 use common::messages::Message;
 
 use crate::{
@@ -46,11 +44,11 @@ impl Hub {
         loop {
             let msg = server_rx.recv().await.unwrap();
             match msg {
-                ClientEvent::OnMessage(id, msg) => self.handle_message(id, msg).await?,
+                ClientEvent::OnMessage(id, msg) => self.handle_message(&id, msg).await?,
                 ClientEvent::OnConnect(id, host, user, server_tx) => {
-                    self.handle_connect(id, host, user, server_tx)
+                    self.handle_connect(&id, host, user, server_tx)
                 }
-                ClientEvent::OnClose(id) => self.handle_close(id).await?,
+                ClientEvent::OnClose(id) => self.handle_close(&id).await?,
                 ClientEvent::OnReset(specs) => self.handle_reset(specs),
             }
         }
@@ -63,19 +61,19 @@ impl Hub {
 
     fn handle_connect(
         &mut self,
-        id: Uuid,
+        client_id: &str,
         host: String,
         user: String,
         server_tx: Sender<ServerEvent>,
     ) {
         self.client_manager
-            .handle_connect(id, host, user, server_tx)
+            .handle_connect(client_id, host, user, server_tx)
     }
 
-    async fn handle_close(&mut self, id: Uuid) -> io::Result<()> {
+    async fn handle_close(&mut self, client_id: &str) -> io::Result<()> {
         self.client_manager
             .handle_close(
-                &id,
+                client_id,
                 &mut self.subscription_manager,
                 &mut self.notification_manager,
                 &mut self.publisher_manager,
@@ -83,8 +81,8 @@ impl Hub {
             .await
     }
 
-    async fn handle_message(&mut self, id: Uuid, msg: Message) -> io::Result<()> {
-        log::debug!("Received message from {id}: \"{msg:?}\"");
+    async fn handle_message(&mut self, client_id: &str, msg: Message) -> io::Result<()> {
+        log::debug!("Received message from {client_id}: \"{msg:?}\"");
 
         match msg {
             Message::AuthorizationRequest(_) => todo!(),
@@ -95,9 +93,8 @@ impl Hub {
             Message::MulticastData(msg) => {
                 self.publisher_manager
                     .send_multicast_data(
-                        &id,
-                        msg.topic,
-                        msg.content_type,
+                        client_id,
+                        msg.topic.as_str(),
                         msg.data_packets,
                         &self.subscription_manager,
                         &self.client_manager,
@@ -108,7 +105,7 @@ impl Hub {
             Message::NotificationRequest(msg) => {
                 self.notification_manager
                     .handle_notification_request(
-                        &id,
+                        client_id,
                         msg,
                         &self.client_manager,
                         &self.subscription_manager,
@@ -118,7 +115,7 @@ impl Hub {
             Message::SubscriptionRequest(msg) => {
                 self.subscription_manager
                     .handle_subscription_request(
-                        &id,
+                        &client_id,
                         msg,
                         &self.client_manager,
                         &self.notification_manager,
@@ -128,10 +125,9 @@ impl Hub {
             Message::UnicastData(msg) => {
                 self.publisher_manager
                     .send_unicast_data(
-                        id,
-                        msg.client_id,
-                        msg.topic,
-                        msg.content_type,
+                        client_id,
+                        msg.client_id.as_str(),
+                        msg.topic.as_str(),
                         msg.data_packets,
                         &self.client_manager,
                         &self.authorization_manager,
