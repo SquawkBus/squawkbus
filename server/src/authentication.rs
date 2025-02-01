@@ -3,7 +3,9 @@ use std::fs::read_to_string;
 use std::io::{Error, ErrorKind, Result};
 use std::path::PathBuf;
 
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use common::messages::Message;
+use http_auth_basic::Credentials;
+use tokio::io::{AsyncRead, BufReader};
 
 use htpasswd_verify::Htpasswd;
 
@@ -32,31 +34,24 @@ impl HtpasswdAuthenticationManager {
         return encoded.check(username, password);
     }
 
-    pub async fn authenticate<R>(&self, reader: &mut BufReader<R>) -> Result<String>
-    where
-        R: AsyncRead + Unpin,
-    {
-        // Read the username
-        let mut username = String::new();
-        reader.read_line(&mut username).await?;
-        username.truncate(username.len() - 1); // Must have at least a single '\n';
+    pub fn authenticate(&self, credentials: &str) -> Result<String> {
+        let credentials = Credentials::decode(credentials.to_string())
+            .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
 
-        // Read the password.
-        let mut password = String::new();
-        reader.read_line(&mut password).await?;
-        password.truncate(password.len() - 1); // Must have at least a single '\n';
-
-        let is_valid = self.check(username.as_str(), password.as_str());
+        let is_valid = self.check(credentials.user_id.as_str(), credentials.password.as_str());
         match is_valid {
             true => {
-                log::info!("Authenticated as \"{}\"", username.as_str());
-                Ok(username)
+                log::info!("Authenticated as \"{}\"", credentials.user_id.as_str());
+                Ok(credentials.user_id)
             }
             false => {
-                log::info!("Failed to authenticate as \"{}\"", username.as_str());
+                log::info!(
+                    "Failed to authenticate as \"{}\"",
+                    credentials.user_id.as_str()
+                );
                 Err(Error::new(
                     ErrorKind::Other,
-                    format!("invalid user \"{}\"", username),
+                    format!("invalid user \"{}\"", credentials.user_id),
                 ))
             }
         }
@@ -99,25 +94,31 @@ impl AuthenticationManager {
         &self,
         reader: &mut BufReader<R>,
     ) -> Result<String> {
-        // Read the mode.
-        let mut mode = String::new();
-        reader.read_line(&mut mode).await?;
-        mode.truncate(mode.len() - 1); // Must have at least a single '\n';
+        let message = Message::read(reader).await?;
+        let Message::AuthenticationRequest(request) = message else {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "expected authentication request",
+            ));
+        };
 
-        if mode == "none" {
-            log::debug!("Authenticating with \"none\"");
-            return Ok(String::from("nobody"));
+        match request.method.as_str() {
+            "none" => {
+                log::debug!("Authenticating with \"none\"");
+                return Ok("nobody".into());
+            }
+            "basic" => {
+                log::debug!("Authenticating with \"htpasswd\"");
+                return match &self.htpasswd {
+                    Some(auth) => auth.authenticate(request.data.as_str()),
+                    None => Err(Error::new(ErrorKind::Other, "no htpasswd auth")),
+                };
+            }
+            method => Err(Error::new(
+                ErrorKind::Other,
+                format!("invalid mode {method}"),
+            )),
         }
-
-        if mode == "htpasswd" {
-            log::debug!("Authenticating with \"htpasswd\"");
-            return match &self.htpasswd {
-                Some(auth) => auth.authenticate(reader).await,
-                None => Err(Error::new(ErrorKind::Other, "no htpasswd auth")),
-            };
-        }
-
-        Err(Error::new(ErrorKind::Other, format!("invalid mode {mode}")))
     }
 
     pub fn reset(&mut self, pwfile: &Option<PathBuf>) -> Result<()> {
