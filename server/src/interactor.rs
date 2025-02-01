@@ -2,13 +2,13 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncRead, AsyncWrite, BufReader, WriteHalf};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, WriteHalf};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 
 use uuid::Uuid;
 
-use common::messages::Message;
+use common::messages::{AuthenticationResponse, Message};
 
 use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
@@ -33,7 +33,7 @@ impl Interactor {
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
     ) -> io::Result<()>
     where
-        T: AsyncRead + AsyncWrite,
+        T: AsyncRead + AsyncWrite + Unpin,
     {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
@@ -41,10 +41,8 @@ impl Interactor {
 
         let mut reader = BufReader::new(read_half);
 
-        let user = authentication_manager
-            .read()
-            .await
-            .authenticate(&mut reader)
+        let user = self
+            .authenticate(&mut reader, &mut write_half, authentication_manager)
             .await?;
 
         let host = match addr {
@@ -69,6 +67,35 @@ impl Interactor {
                 }
             }?
         }
+    }
+
+    async fn authenticate<R, W>(
+        &self,
+        mut reader: &mut BufReader<R>,
+        write_half: &mut WriteHalf<W>,
+        authentication_manager: Arc<RwLock<AuthenticationManager>>,
+    ) -> io::Result<String>
+    where
+        R: AsyncRead + Unpin,
+        W: AsyncWriteExt + Unpin,
+    {
+        // If successful, the authentication manager resolves the user for
+        // authorization.
+        // If unsuccessful an error will be returned and propagated up until
+        // the connection is closed.
+        let user = authentication_manager
+            .read() // Acquire the lock.
+            .await
+            .authenticate(&mut reader)
+            .await?;
+
+        // The id is returned to the client.
+        let response = Message::AuthenticationResponse(AuthenticationResponse {
+            client_id: self.id.clone(),
+        });
+        response.write(write_half).await?;
+
+        Ok(user)
     }
 
     async fn forward_client_to_hub(
