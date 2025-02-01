@@ -5,8 +5,8 @@ use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
-use super::authorization_request::AuthorizationRequest;
-use super::authorization_response::AuthorizationResponse;
+use super::authentication_request::AuthenticationRequest;
+use super::authentication_response::AuthenticationResponse;
 use super::forwarded_multicast_data::ForwardedMulticastData;
 use super::forwarded_subscription_request::ForwardedSubscriptionRequest;
 use super::forwarded_unicast_data::ForwardedUnicastData;
@@ -17,8 +17,8 @@ use super::unicast_data::UnicastData;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Message {
-    AuthorizationRequest(AuthorizationRequest),
-    AuthorizationResponse(AuthorizationResponse),
+    AuthenticationRequest(AuthenticationRequest),
+    AuthenticationResponse(AuthenticationResponse),
     ForwardedMulticastData(ForwardedMulticastData),
     ForwardedSubscriptionRequest(ForwardedSubscriptionRequest),
     ForwardedUnicastData(ForwardedUnicastData),
@@ -31,8 +31,8 @@ pub enum Message {
 impl Message {
     pub fn message_type(&self) -> MessageType {
         match self {
-            Message::AuthorizationRequest(message) => message.message_type(),
-            Message::AuthorizationResponse(message) => message.message_type(),
+            Message::AuthenticationRequest(message) => message.message_type(),
+            Message::AuthenticationResponse(message) => message.message_type(),
             Message::ForwardedMulticastData(message) => message.message_type(),
             Message::ForwardedSubscriptionRequest(message) => message.message_type(),
             Message::ForwardedUnicastData(message) => message.message_type(),
@@ -45,12 +45,12 @@ impl Message {
 
     pub fn deserialize(reader: &mut FrameReader) -> io::Result<Message> {
         match MessageType::deserialize(reader) {
-            Ok(MessageType::AuthorizationRequest) => match AuthorizationRequest::read(reader) {
-                Ok(message) => Ok(Message::AuthorizationRequest(message)),
+            Ok(MessageType::AuthenticationRequest) => match AuthenticationRequest::read(reader) {
+                Ok(message) => Ok(Message::AuthenticationRequest(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::AuthorizationResponse) => match AuthorizationResponse::read(reader) {
-                Ok(message) => Ok(Message::AuthorizationResponse(message)),
+            Ok(MessageType::AuthenticationResponse) => match AuthenticationResponse::read(reader) {
+                Ok(message) => Ok(Message::AuthenticationResponse(message)),
                 Err(error) => Err(error),
             },
             Ok(MessageType::ForwardedMulticastData) => match ForwardedMulticastData::read(reader) {
@@ -90,8 +90,8 @@ impl Message {
     pub fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         self.message_type().serialize(writer)?;
         match self {
-            Message::AuthorizationRequest(message) => message.write(writer),
-            Message::AuthorizationResponse(message) => message.write(writer),
+            Message::AuthenticationRequest(message) => message.write(writer),
+            Message::AuthenticationResponse(message) => message.write(writer),
             Message::ForwardedMulticastData(message) => message.write(writer),
             Message::ForwardedSubscriptionRequest(message) => message.write(writer),
             Message::ForwardedUnicastData(message) => message.write(writer),
@@ -129,12 +129,10 @@ mod test_message {
     use super::*;
 
     #[test]
-    fn should_round_trip_authorization_request() {
-        let initial = Message::AuthorizationRequest(AuthorizationRequest {
-            host: "host1".into(),
-            user: "mary".into(),
-            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-            topic: String::from("VOD LSE"),
+    fn should_round_trip_authentication_request() {
+        let initial = Message::AuthenticationRequest(AuthenticationRequest {
+            method: "basic".into(),
+            data: "mary".into(),
         });
 
         let mut writer = FrameWriter::new();
@@ -146,12 +144,9 @@ mod test_message {
     }
 
     #[test]
-    fn should_roundtrip_authorization_response() {
-        let initial = Message::AuthorizationResponse(AuthorizationResponse {
+    fn should_roundtrip_authentication_response() {
+        let initial = Message::AuthenticationResponse(AuthenticationResponse {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-            topic: "VOD LSE".into(),
-            is_authorization_required: true,
-            entitlement: 1,
         });
 
         let mut writer = FrameWriter::new();

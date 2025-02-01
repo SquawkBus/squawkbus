@@ -85,8 +85,6 @@ impl Hub {
         log::debug!("Received message from {client_id}: \"{msg:?}\"");
 
         match msg {
-            Message::AuthorizationRequest(_) => todo!(),
-            Message::AuthorizationResponse(_) => todo!(),
             Message::ForwardedMulticastData(_) => todo!(),
             Message::ForwardedSubscriptionRequest(_) => todo!(),
             Message::ForwardedUnicastData(_) => todo!(),
@@ -134,6 +132,7 @@ impl Hub {
                     )
                     .await
             }
+            _ => Err(io::Error::new(io::ErrorKind::Other, "unhandled message")),
         }
     }
 }

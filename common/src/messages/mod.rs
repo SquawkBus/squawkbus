@@ -7,11 +7,11 @@ pub use message_type::MessageType;
 mod message;
 pub use message::Message;
 
-mod authorization_request;
-pub use authorization_request::AuthorizationRequest;
+mod authentication_request;
+pub use authentication_request::AuthenticationRequest;
 
-mod authorization_response;
-pub use authorization_response::AuthorizationResponse;
+mod authentication_response;
+pub use authentication_response::AuthenticationResponse;
 
 mod forwarded_multicast_data;
 pub use forwarded_multicast_data::ForwardedMulticastData;
