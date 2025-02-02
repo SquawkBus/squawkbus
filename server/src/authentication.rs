@@ -34,8 +34,10 @@ impl HtpasswdAuthenticationManager {
         return encoded.check(username, password);
     }
 
-    pub fn authenticate(&self, credentials: &str) -> Result<String> {
-        let credentials = Credentials::decode(credentials.to_string())
+    pub fn authenticate(&self, credentials: &[u8]) -> Result<String> {
+        let credentials = String::from_utf8(credentials.into())
+            .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
+        let credentials = Credentials::decode(credentials)
             .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
 
         let is_valid = self.check(credentials.user_id.as_str(), credentials.password.as_str());
@@ -110,7 +112,7 @@ impl AuthenticationManager {
             "basic" => {
                 log::debug!("Authenticating with \"htpasswd\"");
                 return match &self.htpasswd {
-                    Some(auth) => auth.authenticate(request.data.as_str()),
+                    Some(auth) => auth.authenticate(&request.credentials),
                     None => Err(Error::new(ErrorKind::Other, "no htpasswd auth")),
                 };
             }
