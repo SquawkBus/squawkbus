@@ -5,9 +5,12 @@ use std::path::PathBuf;
 
 use common::messages::Message;
 use http_auth_basic::Credentials;
-use tokio::io::{AsyncRead, BufReader};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use htpasswd_verify::Htpasswd;
+
+use crate::message_socket::MessageSocket;
+use crate::message_stream::MessageStream;
 
 #[derive(Clone)]
 pub struct HtpasswdAuthenticationManager {
@@ -92,11 +95,11 @@ impl AuthenticationManager {
         AuthenticationManager { htpasswd }
     }
 
-    pub async fn authenticate<R: AsyncRead + Unpin>(
+    pub async fn authenticate<T: AsyncRead + AsyncWrite + Unpin>(
         &self,
-        reader: &mut BufReader<R>,
+        stream: &mut MessageSocket<T>,
     ) -> Result<String> {
-        let message = Message::read(reader).await?;
+        let message = stream.read().await?;
         let Message::AuthenticationRequest(request) = message else {
             return Err(Error::new(
                 ErrorKind::Other,

@@ -30,12 +30,16 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
+mod message_stream;
+
 mod options;
 use options::Options;
 
 mod notifications;
 
 mod publishing;
+
+mod message_socket;
 
 mod subscriptions;
 

@@ -50,7 +50,7 @@ impl Serializable for DataPacket {
 
 impl Serializable for Vec<DataPacket> {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
-        (self.len() as u32).serialize(writer);
+        (self.len() as u32).serialize(writer)?;
         for value in self {
             value.serialize(writer)?;
         }
@@ -128,8 +128,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn check_is_authorized() {
+    #[test]
+    fn check_is_authorized() {
         // Same single entitlement.
         let data_packet = DataPacket {
             name: "Level 1".into(),

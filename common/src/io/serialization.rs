@@ -79,7 +79,7 @@ impl Serializable for i32 {
 
 impl Serializable for String {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
-        (self.len() as u32).serialize(writer);
+        (self.len() as u32).serialize(writer)?;
         writer.write_all(self.as_bytes().into())?;
         Ok(())
     }
@@ -102,7 +102,7 @@ impl Serializable for String {
 
 impl Serializable for Vec<u8> {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
-        (self.len() as u32).serialize(writer);
+        (self.len() as u32).serialize(writer)?;
         writer.write_all(self.as_slice())?;
         Ok(())
     }

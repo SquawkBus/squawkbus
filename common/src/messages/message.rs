@@ -1,6 +1,4 @@
-use std::io::Cursor;
-
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use std::io::{self, Cursor};
 
 use crate::io::Serializable;
 
@@ -42,32 +40,6 @@ impl Message {
             Message::SubscriptionRequest(message) => message.message_type(),
             Message::UnicastData(message) => message.message_type(),
         }
-    }
-
-    pub async fn read<R>(reader: &mut R) -> io::Result<Message>
-    where
-        R: AsyncReadExt + Unpin,
-    {
-        let mut len_buf = [0_u8; 4];
-        reader.read_exact(&mut len_buf).await?;
-        let len = u32::from_be_bytes(len_buf);
-        let mut buf: Vec<u8> = vec![0; len as usize];
-        reader.read_exact(&mut buf).await?;
-        let mut cursor = Cursor::new(buf);
-        Message::deserialize(&mut cursor)
-    }
-
-    pub async fn write<W>(&self, writer: &mut W) -> io::Result<()>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        let bytes_to_write = self.size();
-        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(4 + bytes_to_write));
-
-        (bytes_to_write as u32).serialize(&mut cursor)?;
-        self.serialize(&mut cursor)?;
-
-        writer.write_all(cursor.get_ref().as_slice()).await
     }
 }
 

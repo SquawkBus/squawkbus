@@ -1,8 +1,8 @@
-use std::io;
+use std::io::{self};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, WriteHalf};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 
@@ -12,6 +12,8 @@ use common::messages::{AuthenticationResponse, Message};
 
 use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
+use crate::message_socket::MessageSocket;
+use crate::message_stream::MessageStream;
 
 #[derive(Debug)]
 pub struct Interactor {
@@ -27,7 +29,7 @@ impl Interactor {
 
     pub async fn run<'a, T>(
         &self,
-        socket: T,
+        stream: T,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -37,12 +39,10 @@ impl Interactor {
     {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
-        let (read_half, mut write_half) = tokio::io::split(socket);
-
-        let mut reader = BufReader::new(read_half);
+        let mut stream = MessageSocket::new(stream);
 
         let user = self
-            .authenticate(&mut reader, &mut write_half, authentication_manager)
+            .authenticate(&mut stream, authentication_manager)
             .await?;
 
         let host = match addr {
@@ -58,26 +58,24 @@ impl Interactor {
         loop {
             tokio::select! {
                 // forward client to hub
-                result = Message::read(&mut reader) => {
+                result = stream.read() => {
                     self.forward_client_to_hub(result, &hub).await
                 }
                 // forward hub to client
                 result = rx.recv() => {
-                    forward_hub_to_client(result, &mut write_half).await
+                    forward_hub_to_client(result, &mut stream).await
                 }
             }?
         }
     }
 
-    async fn authenticate<R, W>(
+    async fn authenticate<T>(
         &self,
-        mut reader: &mut BufReader<R>,
-        write_half: &mut WriteHalf<W>,
+        mut stream: &mut MessageSocket<T>,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
     ) -> io::Result<String>
     where
-        R: AsyncRead + Unpin,
-        W: AsyncWriteExt + Unpin,
+        T: AsyncRead + AsyncWriteExt + Unpin,
     {
         // If successful, the authentication manager resolves the user for
         // authorization.
@@ -86,14 +84,14 @@ impl Interactor {
         let user = authentication_manager
             .read() // Acquire the lock.
             .await
-            .authenticate(&mut reader)
+            .authenticate(&mut stream)
             .await?;
 
         // The id is returned to the client.
         let response = Message::AuthenticationResponse(AuthenticationResponse {
             client_id: self.id.clone(),
         });
-        response.write(write_half).await?;
+        stream.write(&response).await?;
 
         Ok(user)
     }
@@ -122,15 +120,15 @@ impl Interactor {
 
 async fn forward_hub_to_client<T>(
     event: Option<ServerEvent>,
-    write_half: &mut WriteHalf<T>,
+    stream: &mut MessageSocket<T>,
 ) -> io::Result<()>
 where
-    T: AsyncRead + AsyncWrite,
+    T: AsyncRead + AsyncWrite + Unpin,
 {
     let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {
-            message.write(write_half).await?;
+            stream.write(&message).await?;
         }
     }
 

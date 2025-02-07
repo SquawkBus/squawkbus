@@ -1,0 +1,50 @@
+use std::io::Cursor;
+
+use common::messages::Message;
+use common::Serializable;
+use tokio::io::{
+    self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf, WriteHalf,
+};
+
+use crate::message_stream::MessageStream;
+
+pub struct MessageSocket<T> {
+    reader: BufReader<ReadHalf<T>>,
+    writer: WriteHalf<T>,
+}
+
+impl<T> MessageSocket<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(stream: T) -> MessageSocket<T> {
+        let (read_half, writer) = tokio::io::split(stream);
+        let reader = BufReader::new(read_half);
+        MessageSocket { reader, writer }
+    }
+}
+
+impl<T> MessageStream for MessageSocket<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    async fn read(&mut self) -> io::Result<Message> {
+        let mut len_buf = [0_u8; 4];
+        self.reader.read_exact(&mut len_buf).await?;
+        let len = u32::from_be_bytes(len_buf);
+        let mut buf: Vec<u8> = vec![0; len as usize];
+        self.reader.read_exact(&mut buf).await?;
+        let mut cursor = Cursor::new(buf);
+        Message::deserialize(&mut cursor)
+    }
+
+    async fn write(&mut self, message: &Message) -> io::Result<()> {
+        let bytes_to_write = message.size();
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(4 + bytes_to_write));
+
+        (bytes_to_write as u32).serialize(&mut cursor)?;
+        message.serialize(&mut cursor)?;
+
+        self.writer.write_all(cursor.get_ref().as_slice()).await
+    }
+}
