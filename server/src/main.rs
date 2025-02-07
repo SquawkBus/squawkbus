@@ -146,28 +146,14 @@ async fn spawn_interactor(
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) {
     tokio::spawn(async move {
-        let interactor = Interactor::new();
-
-        let result = match tls_acceptor {
-            Some(acceptor) => match acceptor.accept(stream).await {
-                Ok(tls_stream) => {
-                    println!("Connecting client {} over TLS", &interactor.id);
-                    interactor
-                        .run(tls_stream, addr, client_tx, authentication_manager)
-                        .await
-                }
-                Err(e) => Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to create TLS acceptor{}", e),
-                )),
-            },
-            None => {
-                println!("Connecting client {}", &interactor.id);
-                interactor
-                    .run(stream, addr, client_tx, authentication_manager)
-                    .await
-            }
-        };
+        let result = start_interactor(
+            stream,
+            addr,
+            tls_acceptor,
+            client_tx,
+            authentication_manager,
+        )
+        .await;
 
         match result {
             Ok(()) => log::debug!("Client exited normally"),
@@ -180,4 +166,29 @@ async fn spawn_interactor(
             }
         }
     });
+}
+
+async fn start_interactor(
+    stream: TcpStream,
+    addr: SocketAddr,
+    tls_acceptor: Option<TlsAcceptor>,
+    client_tx: Sender<ClientEvent>,
+    authentication_manager: Arc<RwLock<AuthenticationManager>>,
+) -> io::Result<()> {
+    let interactor = Interactor::new();
+
+    match tls_acceptor {
+        Some(acceptor) => {
+            let tls_stream = acceptor.accept(stream).await?;
+            interactor
+                .run(tls_stream, addr, client_tx, authentication_manager)
+                .await
+        }
+        None => {
+            println!("Connecting client {}", &interactor.id);
+            interactor
+                .run(stream, addr, client_tx, authentication_manager)
+                .await
+        }
+    }
 }
