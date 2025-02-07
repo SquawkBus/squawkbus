@@ -1,5 +1,6 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
+use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
@@ -8,8 +9,7 @@ use super::message_type::MessageType;
 #[derive(Debug, PartialEq, Clone)]
 pub struct MulticastData {
     pub topic: String,
-    pub content_type: String,
-    pub data_packets: Vec<DataPacket>
+    pub data_packets: Vec<DataPacket>,
 }
 
 impl MulticastData {
@@ -17,18 +17,16 @@ impl MulticastData {
         MessageType::MulticastData
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<MulticastData> {
+    pub fn read(reader: &mut FrameReader) -> io::Result<MulticastData> {
         Ok(MulticastData {
-            topic: String::read(&mut reader).await?,
-            content_type: String::read(&mut reader).await?,
-            data_packets: Vec::<DataPacket>::read(&mut reader).await?,
+            topic: String::deserialize(reader)?,
+            data_packets: Vec::<DataPacket>::deserialize(reader)?,
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (&self.topic).write(&mut writer).await?;
-        (&self.content_type).write(&mut writer).await?;
-        (&self.data_packets).write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        (&self.topic).serialize(writer)?;
+        (&self.data_packets).serialize(writer)?;
         Ok(())
     }
 }

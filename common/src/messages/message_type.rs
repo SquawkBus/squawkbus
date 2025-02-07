@@ -1,17 +1,20 @@
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt, ErrorKind};
+use std::io::{self, ErrorKind};
 
-use crate::io::Serializable;
+use crate::{
+    frame::{FrameReader, FrameWriter},
+    io::Serializable,
+};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub enum MessageType {
-    MulticastData = 1,
-    UnicastData = 2,
-    ForwardedSubscriptionRequest = 3,
-    NotificationRequest = 4,
-    SubscriptionRequest = 5,
-    AuthorizationRequest = 6,
-    AuthorizationResponse = 7,
+    AuthenticationRequest = 1,
+    AuthenticationResponse = 2,
+    MulticastData = 3,
+    UnicastData = 4,
+    ForwardedSubscriptionRequest = 5,
+    NotificationRequest = 6,
+    SubscriptionRequest = 7,
     ForwardedMulticastData = 8,
     ForwardedUnicastData = 9,
 }
@@ -21,13 +24,13 @@ impl TryFrom<u8> for MessageType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            1 => Ok(MessageType::MulticastData),
-            2 => Ok(MessageType::UnicastData),
-            3 => Ok(MessageType::ForwardedSubscriptionRequest),
-            4 => Ok(MessageType::NotificationRequest),
-            5 => Ok(MessageType::SubscriptionRequest),
-            6 => Ok(MessageType::AuthorizationRequest),
-            7 => Ok(MessageType::AuthorizationResponse),
+            1 => Ok(MessageType::AuthenticationRequest),
+            2 => Ok(MessageType::AuthenticationResponse),
+            3 => Ok(MessageType::MulticastData),
+            4 => Ok(MessageType::UnicastData),
+            5 => Ok(MessageType::ForwardedSubscriptionRequest),
+            6 => Ok(MessageType::NotificationRequest),
+            7 => Ok(MessageType::SubscriptionRequest),
             8 => Ok(MessageType::ForwardedMulticastData),
             9 => Ok(MessageType::ForwardedUnicastData),
             _ => Err(()),
@@ -38,13 +41,13 @@ impl TryFrom<u8> for MessageType {
 impl Into<u8> for MessageType {
     fn into(self) -> u8 {
         match self {
-            MessageType::MulticastData => 1,
-            MessageType::UnicastData => 2,
-            MessageType::ForwardedSubscriptionRequest => 3,
-            MessageType::NotificationRequest => 4,
-            MessageType::SubscriptionRequest => 5,
-            MessageType::AuthorizationRequest => 6,
-            MessageType::AuthorizationResponse => 7,
+            MessageType::AuthenticationRequest => 1,
+            MessageType::AuthenticationResponse => 2,
+            MessageType::MulticastData => 3,
+            MessageType::UnicastData => 4,
+            MessageType::ForwardedSubscriptionRequest => 5,
+            MessageType::NotificationRequest => 6,
+            MessageType::SubscriptionRequest => 7,
             MessageType::ForwardedMulticastData => 8,
             MessageType::ForwardedUnicastData => 9,
         }
@@ -52,14 +55,14 @@ impl Into<u8> for MessageType {
 }
 
 impl Serializable for MessageType {
-    async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
+    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         let byte: u8 = (*self).into();
-        byte.write(&mut writer).await?;
+        byte.serialize(writer)?;
         Ok(())
     }
 
-    async fn read<R: AsyncReadExt + Unpin>(reader: &mut R) -> io::Result<MessageType> {
-        let byte = u8::read(reader).await?;
+    fn deserialize(reader: &mut FrameReader) -> io::Result<MessageType> {
+        let byte = u8::deserialize(reader)?;
         MessageType::try_from(byte).map_err(|_| io::Error::new(ErrorKind::Other, "invalid"))
     }
 }

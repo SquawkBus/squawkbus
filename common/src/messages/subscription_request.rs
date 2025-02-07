@@ -1,6 +1,9 @@
-use tokio::io::{self,AsyncReadExt,AsyncWriteExt};
+use std::io;
 
-use crate::io::Serializable;
+use crate::{
+    frame::{FrameReader, FrameWriter},
+    io::Serializable,
+};
 
 use super::message_type::MessageType;
 
@@ -15,16 +18,16 @@ impl SubscriptionRequest {
         MessageType::SubscriptionRequest
     }
 
-    pub async fn read<R: AsyncReadExt + Unpin>(mut reader: &mut R) -> io::Result<SubscriptionRequest> {
+    pub fn read(reader: &mut FrameReader) -> io::Result<SubscriptionRequest> {
         Ok(SubscriptionRequest {
-            topic: String::read(&mut reader).await?,
-            is_add: bool::read(&mut reader).await?
+            topic: String::deserialize(reader)?,
+            is_add: bool::deserialize(reader)?,
         })
     }
 
-    pub async fn write<W: AsyncWriteExt + Unpin>(&self, mut writer: &mut W) -> io::Result<()> {
-        (&self.topic).write(&mut writer).await?;
-        self.is_add.write(&mut writer).await?;
+    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
+        (&self.topic).serialize(writer)?;
+        self.is_add.serialize(writer)?;
         Ok(())
     }
 }

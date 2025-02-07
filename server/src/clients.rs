@@ -3,8 +3,6 @@ use std::io;
 
 use tokio::sync::mpsc::Sender;
 
-use uuid::Uuid;
-
 use crate::events::ServerEvent;
 use crate::notifications::NotificationManager;
 use crate::publishing::PublisherManager;
@@ -17,7 +15,7 @@ pub struct Client {
 }
 
 pub struct ClientManager {
-    clients: HashMap<Uuid, Client>,
+    clients: HashMap<String, Client>,
 }
 
 impl ClientManager {
@@ -29,40 +27,41 @@ impl ClientManager {
 
     pub fn handle_connect(
         &mut self,
-        id: Uuid,
+        client_id: &str,
         host: String,
         user: String,
         tx: Sender<ServerEvent>,
     ) {
-        log::debug!("client {id} connected for {user}@{host}");
-        self.clients.insert(id, Client { host, user, tx });
+        log::debug!("client {client_id} connected for {user}@{host}");
+        self.clients
+            .insert(client_id.into(), Client { host, user, tx });
     }
 
     pub async fn handle_close(
         &mut self,
-        id: &Uuid,
+        client_id: &str,
         subscription_manager: &mut SubscriptionManager,
         notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
     ) -> io::Result<()> {
-        log::debug!("ClientManager::handle_close: closing {id}");
+        log::debug!("ClientManager::handle_close: closing {client_id}");
 
         subscription_manager
-            .handle_close(id, self, notification_manager)
+            .handle_close(client_id, self, notification_manager)
             .await?;
 
-        notification_manager.handle_close(id).await?;
+        notification_manager.handle_close(client_id).await?;
 
         publisher_manager
-            .handle_close(id, self, subscription_manager)
+            .handle_close(client_id, self, subscription_manager)
             .await?;
 
-        self.clients.remove(&id);
+        self.clients.remove(client_id);
 
         Ok(())
     }
 
-    pub fn get(&self, id: &Uuid) -> Option<&Client> {
-        self.clients.get(&id)
+    pub fn get(&self, client_id: &str) -> Option<&Client> {
+        self.clients.get(client_id)
     }
 }
