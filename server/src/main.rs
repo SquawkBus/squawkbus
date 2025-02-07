@@ -61,21 +61,11 @@ async fn main() -> io::Result<()> {
         false => None,
     };
 
-    // Create the listener.
-    log::info!(
-        "Listening on {}{}",
-        options.endpoint.clone(),
-        match options.tls {
-            true => " using TLS",
-            false => "",
-        }
-    );
     let addr = options
         .endpoint
         .to_socket_addrs()?
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
-    let listener = TcpListener::bind(&addr).await?;
 
     // Make the channel for the client-to-server communication.
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
@@ -94,6 +84,28 @@ async fn main() -> io::Result<()> {
         client_tx.clone(),
     )
     .await;
+
+    start_listener(addr, tls_acceptor, client_tx, authentication_manager).await?;
+
+    Ok(())
+}
+
+async fn start_listener(
+    addr: SocketAddr,
+    tls_acceptor: Option<TlsAcceptor>,
+    client_tx: Sender<ClientEvent>,
+    authentication_manager: Arc<RwLock<AuthenticationManager>>,
+) -> io::Result<()> {
+    log::info!(
+        "Listening on {}{}",
+        &addr,
+        match tls_acceptor {
+            Some(_) => " using TLS",
+            None => "",
+        }
+    );
+
+    let listener = TcpListener::bind(&addr).await?;
 
     loop {
         // Wait for a client to connect.
