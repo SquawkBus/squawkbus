@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 bitflags = { version = "2.5.0", features = ["serde"] }
-tokio = { version = "1", features = [ "full" ] }
+tokio = { version = "1", features = [ "full", "rt" ] }
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"]}
 common = { path = "../common" }
 regex = "1.10.4"

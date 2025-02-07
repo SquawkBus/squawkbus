@@ -11,6 +11,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 
+use tokio::task::JoinSet;
 use tokio_rustls::TlsAcceptor;
 
 mod authentication;
@@ -55,6 +56,24 @@ async fn main() -> io::Result<()> {
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
     let authentication_manager = Arc::new(RwLock::new(AuthenticationManager::new(&options.pwfile)));
 
+    // Make the channel for the client-to-server communication.
+    let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
+
+    let mut join_set = JoinSet::new();
+
+    // Start the hub message processor. Note that is takes the receive end of
+    // the mpsc channel.
+    join_set.spawn(async move { Hub::run(authorizations, server_rx).await });
+
+    handle_config_reset(
+        options.authorizations_file.clone(),
+        options.authorizations.clone(),
+        options.pwfile.clone(),
+        authentication_manager.clone(),
+        client_tx.clone(),
+    )
+    .await;
+
     // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
         true => Some(create_acceptor(options.certfile, options.keyfile)?),
@@ -67,25 +86,11 @@ async fn main() -> io::Result<()> {
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
 
-    // Make the channel for the client-to-server communication.
-    let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
-
-    // Start the hub message processor. Note that is takes the receive end of
-    // the mpsc channel.
-    tokio::spawn(async move {
-        Hub::run(authorizations, server_rx).await.unwrap();
+    join_set.spawn(async move {
+        start_listener(addr, tls_acceptor, client_tx, authentication_manager).await
     });
 
-    handle_config_reset(
-        options.authorizations_file.clone(),
-        options.authorizations.clone(),
-        options.pwfile.clone(),
-        authentication_manager.clone(),
-        client_tx.clone(),
-    )
-    .await;
-
-    start_listener(addr, tls_acceptor, client_tx, authentication_manager).await?;
+    join_set.join_all().await;
 
     Ok(())
 }
