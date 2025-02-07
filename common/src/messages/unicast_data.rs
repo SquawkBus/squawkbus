@@ -1,6 +1,5 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
@@ -17,8 +16,10 @@ impl UnicastData {
     pub fn message_type(&self) -> MessageType {
         MessageType::UnicastData
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<UnicastData> {
+impl Serializable for UnicastData {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(UnicastData {
             client_id: String::deserialize(reader)?,
             topic: String::deserialize(reader)?,
@@ -26,10 +27,14 @@ impl UnicastData {
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.client_id).serialize(writer)?;
-        (&self.topic).serialize(writer)?;
-        (&self.data_packets).serialize(writer)?;
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.client_id.serialize(writer)?;
+        self.topic.serialize(writer)?;
+        self.data_packets.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.client_id.size() + self.topic.size() + self.data_packets.size()
     }
 }

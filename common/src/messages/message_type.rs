@@ -1,9 +1,6 @@
-use std::io::{self, ErrorKind};
+use std::io::{self, Cursor, ErrorKind};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
@@ -55,14 +52,18 @@ impl Into<u8> for MessageType {
 }
 
 impl Serializable for MessageType {
-    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         let byte: u8 = (*self).into();
         byte.serialize(writer)?;
         Ok(())
     }
 
-    fn deserialize(reader: &mut FrameReader) -> io::Result<MessageType> {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<MessageType> {
         let byte = u8::deserialize(reader)?;
         MessageType::try_from(byte).map_err(|_| io::Error::new(ErrorKind::Other, "invalid"))
+    }
+
+    fn size(&self) -> usize {
+        1
     }
 }

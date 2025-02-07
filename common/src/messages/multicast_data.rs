@@ -1,6 +1,5 @@
 use std::io;
 
-use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
@@ -16,17 +15,23 @@ impl MulticastData {
     pub fn message_type(&self) -> MessageType {
         MessageType::MulticastData
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<MulticastData> {
+impl Serializable for MulticastData {
+    fn deserialize(reader: &mut io::Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(MulticastData {
             topic: String::deserialize(reader)?,
             data_packets: Vec::<DataPacket>::deserialize(reader)?,
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.topic).serialize(writer)?;
-        (&self.data_packets).serialize(writer)?;
+    fn serialize(&self, writer: &mut io::Cursor<Vec<u8>>) -> io::Result<()> {
+        self.topic.serialize(writer)?;
+        self.data_packets.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.topic.size() + self.data_packets.size()
     }
 }

@@ -1,6 +1,5 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::data_packet::DataPacket;
@@ -19,8 +18,10 @@ impl ForwardedUnicastData {
     pub fn message_type(&self) -> MessageType {
         MessageType::ForwardedUnicastData
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<ForwardedUnicastData> {
+impl Serializable for ForwardedUnicastData {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(ForwardedUnicastData {
             host: String::deserialize(reader)?,
             user: String::deserialize(reader)?,
@@ -30,12 +31,20 @@ impl ForwardedUnicastData {
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.host).serialize(writer)?;
-        (&self.user).serialize(writer)?;
-        (&self.client_id).serialize(writer)?;
-        (&self.topic).serialize(writer)?;
-        (&self.data_packets).serialize(writer)?;
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.host.serialize(writer)?;
+        self.user.serialize(writer)?;
+        self.client_id.serialize(writer)?;
+        self.topic.serialize(writer)?;
+        self.data_packets.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.host.size()
+            + self.user.size()
+            + self.client_id.size()
+            + self.topic.size()
+            + self.data_packets.size()
     }
 }

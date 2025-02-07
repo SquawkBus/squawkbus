@@ -1,9 +1,7 @@
-use std::{collections::HashSet, io};
+use std::collections::HashSet;
+use std::io::{self, Cursor};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
@@ -29,7 +27,7 @@ impl DataPacket {
 }
 
 impl Serializable for DataPacket {
-    fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         self.name.serialize(writer)?;
         self.entitlement.serialize(writer)?;
         self.content_type.serialize(writer)?;
@@ -37,19 +35,52 @@ impl Serializable for DataPacket {
         Ok(())
     }
 
-    fn deserialize(reader: &mut FrameReader) -> io::Result<DataPacket> {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<DataPacket> {
         let name = String::deserialize(reader)?;
         let entitlement = i32::deserialize(reader)?;
         let content_type = String::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
-        let data_packet = DataPacket::new(name, entitlement, content_type, data);
-        Ok(data_packet)
+        Ok(DataPacket::new(name, entitlement, content_type, data))
+    }
+
+    fn size(&self) -> usize {
+        self.name.size() + self.entitlement.size() + self.content_type.size() + self.data.size()
+    }
+}
+
+impl Serializable for Vec<DataPacket> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer);
+        for value in self {
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let mut len = u32::deserialize(reader)?;
+        let mut buf = Vec::with_capacity(len as usize);
+        while len > 0 {
+            let value = DataPacket::deserialize(reader)?;
+            buf.push(value);
+            len = len - 1;
+        }
+        Ok(buf)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = self.len();
+        for value in self {
+            len = len + value.size()
+        }
+        len
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Seek;
 
     #[test]
     fn should_roundtrip_datapacket() {
@@ -60,11 +91,11 @@ mod tests {
             data: "Hello, World!".into(),
         };
 
-        let mut writer = FrameWriter::new();
-        actual.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        actual.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        match DataPacket::deserialize(&mut reader) {
+        cursor.rewind().expect("should rewind");
+        match DataPacket::deserialize(&mut cursor) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }
@@ -87,11 +118,11 @@ mod tests {
             },
         ];
 
-        let mut writer = FrameWriter::new();
-        actual.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        actual.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        match Vec::<DataPacket>::deserialize(&mut reader) {
+        cursor.rewind().expect("should rewind");
+        match Vec::<DataPacket>::deserialize(&mut cursor) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }

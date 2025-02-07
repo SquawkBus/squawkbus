@@ -1,9 +1,6 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
@@ -17,17 +14,23 @@ impl NotificationRequest {
     pub fn message_type(&self) -> MessageType {
         MessageType::NotificationRequest
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<NotificationRequest> {
+impl Serializable for NotificationRequest {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(NotificationRequest {
             pattern: String::deserialize(reader)?,
             is_add: bool::deserialize(reader)?,
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.pattern).serialize(writer)?;
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.pattern.serialize(writer)?;
         self.is_add.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.pattern.size() + self.is_add.size()
     }
 }
