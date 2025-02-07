@@ -10,25 +10,19 @@ use common::messages::MulticastData;
 use common::messages::NotificationRequest;
 use common::messages::SubscriptionRequest;
 use common::messages::UnicastData;
-use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader, ReadHalf, WriteHalf};
+use tokio::io::{split, AsyncRead, AsyncWrite, BufReader, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio_rustls::client;
-use uuid::Uuid;
 
 use crate::authentication::authenticate;
 use crate::tls::create_tls_stream;
 
 pub trait ClientCallbacks {
-    fn on_data(
-        &mut self,
-        topic: String,
-        content_type: String,
-        data_packets: Vec<DataPacket>,
-    ) -> BoxFuture<'_, ()>;
+    fn on_data(&mut self, topic: String, data_packets: Vec<DataPacket>) -> BoxFuture<'_, ()>;
     fn on_forwarded_subscription(
         &mut self,
-        user: Uuid,
+        user: String,
         topic: String,
         is_add: bool,
     ) -> BoxFuture<'_, ()>;
@@ -37,15 +31,13 @@ pub trait ClientCallbacks {
 pub trait ClientProtocol {
     fn send(
         &mut self,
-        client_id: Uuid,
+        client_id: String,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> BoxFuture<'_, io::Result<()>>;
     fn publish(
         &mut self,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> BoxFuture<'_, io::Result<()>>;
     fn add_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
@@ -105,15 +97,13 @@ where
 
     async fn send_unicast_request(
         &mut self,
-        client_id: Uuid,
+        client_id: String,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> io::Result<()> {
         let message = Message::UnicastData(UnicastData {
             client_id,
             topic,
-            content_type,
             data_packets,
         });
         self.send_message(message).await
@@ -122,12 +112,10 @@ where
     async fn send_multicast_request(
         &mut self,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> io::Result<()> {
         let message = Message::MulticastData(MulticastData {
             topic,
-            content_type,
             data_packets,
         });
         self.send_message(message).await
@@ -145,15 +133,9 @@ where
 
     async fn handle_message(&mut self, message: Message) {
         match message {
-            Message::UnicastData(msg) => {
-                self.callbacks
-                    .on_data(msg.topic, msg.content_type, msg.data_packets)
-                    .await
-            }
+            Message::UnicastData(msg) => self.callbacks.on_data(msg.topic, msg.data_packets).await,
             Message::MulticastData(msg) => {
-                self.callbacks
-                    .on_data(msg.topic, msg.content_type, msg.data_packets)
-                    .await
+                self.callbacks.on_data(msg.topic, msg.data_packets).await
             }
             Message::ForwardedSubscriptionRequest(msg) => {
                 self.callbacks
@@ -170,9 +152,9 @@ where
                 result = self.rx.recv() => {
                     // Send a message to the server.
                     let message = result.unwrap();
-                    message.serialize(&mut self.writer).await.unwrap();
+                    message.write(&mut self.writer).await.unwrap();
                 }
-                result = Message::deserialize(&mut self.reader) => {
+                result = Message::read(&mut self.reader) => {
                     let message = result.unwrap();
                     self.handle_message(message).await;
                 }
@@ -187,13 +169,12 @@ where
 {
     fn send(
         &mut self,
-        client_id: Uuid,
+        client_id: String,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> BoxFuture<'_, io::Result<()>> {
         Box::pin(async move {
-            self.send_unicast_request(client_id, topic, content_type, data_packets)
+            self.send_unicast_request(client_id, topic, data_packets)
                 .await
         })
     }
@@ -201,13 +182,9 @@ where
     fn publish(
         &mut self,
         topic: String,
-        content_type: String,
         data_packets: Vec<DataPacket>,
     ) -> BoxFuture<'_, io::Result<()>> {
-        Box::pin(async move {
-            self.send_multicast_request(topic, content_type, data_packets)
-                .await
-        })
+        Box::pin(async move { self.send_multicast_request(topic, data_packets).await })
     }
 
     fn add_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>> {

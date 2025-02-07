@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
 
 use common::messages::{
@@ -42,7 +40,7 @@ pub async fn communicate<S>(
                 result.unwrap();
                 match parse_message(request_line.as_str()) {
                     Ok(message) => {
-                        message.serialize(&mut skt_write_half).await.unwrap();
+                        message.write(&mut skt_write_half).await.unwrap();
                     },
                     Err(message) => {
                         println!("{message}");
@@ -50,7 +48,7 @@ pub async fn communicate<S>(
                 }
             }
             // response
-            result = Message::deserialize(&mut skt_reader) => {
+            result = Message::read(&mut skt_reader) => {
                 let message = result.unwrap();
                 println!("Received message {message:?}");
             }
@@ -77,22 +75,20 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
     let mut i = 2;
     let mut data_packets: Vec<DataPacket> = Vec::new();
     while i < args.len() {
-        let entitlements: HashSet<i32> = match args[i] {
-            "_" => HashSet::new(),
-            values => values
-                .split(',')
-                .map(|x| x.parse().expect("should be an integer"))
-                .collect(),
-        };
+        let entitlement: i32 = args[i].parse().expect("expected an integer");
         i += 1;
 
         let message = args[i];
-        data_packets.push(DataPacket::new(entitlements, Vec::from(message.as_bytes())));
+        data_packets.push(DataPacket::new(
+            "message".into(),
+            entitlement,
+            "text/plain".into(),
+            Vec::from(message.as_bytes()),
+        ));
         i += 1;
     }
     let message = MulticastData {
         topic: topic.to_string(),
-        content_type: String::from("text/plain"),
         data_packets,
     };
     Ok(Message::MulticastData(message))
