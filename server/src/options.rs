@@ -10,7 +10,7 @@ use regex::Regex;
 use crate::authorization::{AuthorizationSpec, Role};
 
 fn default_endpoint() -> String {
-    String::from("0.0.0.0:8080")
+    String::from("0.0.0.0:8558")
 }
 
 /// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
