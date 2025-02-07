@@ -132,7 +132,7 @@ mod test_message {
     fn should_round_trip_authentication_request() {
         let initial = Message::AuthenticationRequest(AuthenticationRequest {
             method: "basic".into(),
-            data: "mary".into(),
+            credentials: "mary".into(),
         });
 
         let mut writer = FrameWriter::new();

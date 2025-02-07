@@ -89,7 +89,7 @@ impl FrameReader {
         let mut len_buf = [0_u8; 4];
         reader.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf);
-        let mut buf: Vec<u8> = Vec::with_capacity(len as usize);
+        let mut buf: Vec<u8> = vec![0; len as usize];
         reader.read_exact(&mut buf).await?;
         let frame = FrameReader {
             cursor: Cursor::new(buf),

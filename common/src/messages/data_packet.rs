@@ -8,17 +8,17 @@ use crate::{
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
     pub name: String,
-    pub content_type: String,
     pub entitlement: i32,
+    pub content_type: String,
     pub data: Vec<u8>,
 }
 
 impl DataPacket {
-    pub fn new(name: String, content_type: String, entitlement: i32, data: Vec<u8>) -> DataPacket {
+    pub fn new(name: String, entitlement: i32, content_type: String, data: Vec<u8>) -> DataPacket {
         DataPacket {
             name,
-            content_type,
             entitlement,
+            content_type,
             data,
         }
     }
@@ -31,18 +31,18 @@ impl DataPacket {
 impl Serializable for DataPacket {
     fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
         self.name.serialize(writer)?;
-        self.content_type.serialize(writer)?;
         self.entitlement.serialize(writer)?;
+        self.content_type.serialize(writer)?;
         self.data.serialize(writer)?;
         Ok(())
     }
 
     fn deserialize(reader: &mut FrameReader) -> io::Result<DataPacket> {
         let name = String::deserialize(reader)?;
-        let content_type = String::deserialize(reader)?;
         let entitlement = i32::deserialize(reader)?;
+        let content_type = String::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
-        let data_packet = DataPacket::new(name, content_type, entitlement, data);
+        let data_packet = DataPacket::new(name, entitlement, content_type, data);
         Ok(data_packet)
     }
 }
@@ -55,8 +55,8 @@ mod tests {
     fn should_roundtrip_datapacket() {
         let actual = DataPacket {
             name: "image".into(),
-            content_type: "text/plain".into(),
             entitlement: 1,
+            content_type: "text/plain".into(),
             data: "Hello, World!".into(),
         };
 
@@ -75,14 +75,14 @@ mod tests {
         let actual = vec![
             DataPacket {
                 name: "Level 1".into(),
-                content_type: "text/plain".into(),
                 entitlement: 1,
+                content_type: "text/plain".into(),
                 data: "Data 1".into(),
             },
             DataPacket {
                 name: "Level 2".into(),
-                content_type: "text/plain".into(),
                 entitlement: 2,
+                content_type: "text/plain".into(),
                 data: "Data 2".into(),
             },
         ];
@@ -102,8 +102,8 @@ mod tests {
         // Same single entitlement.
         let data_packet = DataPacket {
             name: "Level 1".into(),
-            content_type: "text/plain".into(),
             entitlement: 1,
+            content_type: "text/plain".into(),
             data: "Data 1".into(),
         };
 

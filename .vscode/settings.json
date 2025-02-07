@@ -17,9 +17,11 @@
         "outbuf",
         "pemfile",
         "pwfile",
+        "pwhash",
         "repr",
         "roundtrip",
         "rustls",
+        "serde",
         "trustno"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
