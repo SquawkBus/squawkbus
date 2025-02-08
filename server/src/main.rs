@@ -40,6 +40,7 @@ mod notifications;
 mod publishing;
 
 mod message_socket;
+mod message_web_socket;
 
 mod subscriptions;
 
@@ -85,7 +86,7 @@ async fn main() -> io::Result<()> {
     };
 
     let addr = options
-        .endpoint
+        .socket_endpoint
         .to_socket_addrs()?
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
@@ -167,7 +168,7 @@ async fn spawn_interactor(
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) {
     tokio::spawn(async move {
-        let result = start_interactor(
+        let result = start_socket_interactor(
             stream,
             addr,
             tls_acceptor,
@@ -189,7 +190,7 @@ async fn spawn_interactor(
     });
 }
 
-async fn start_interactor(
+async fn start_socket_interactor(
     stream: TcpStream,
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
