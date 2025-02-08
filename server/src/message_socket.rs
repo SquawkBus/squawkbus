@@ -32,6 +32,9 @@ where
         let mut len_buf = [0_u8; 4];
         self.reader.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf);
+
+        log::debug!("MessageSocket::read: reading frame of {} bytes", len);
+
         let mut buf: Vec<u8> = vec![0; len as usize];
         self.reader.read_exact(&mut buf).await?;
         let mut cursor = Cursor::new(buf);
@@ -39,11 +42,13 @@ where
     }
 
     async fn write(&mut self, message: &Message) -> io::Result<()> {
-        let bytes_to_write = message.size();
-        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(4 + bytes_to_write));
+        let len = message.size();
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(4 + len));
 
-        (bytes_to_write as u32).serialize(&mut cursor)?;
+        (len as u32).serialize(&mut cursor)?;
         message.serialize(&mut cursor)?;
+
+        log::debug!("MessageSocket::write: writing frame of {} bytes", len);
 
         self.writer.write_all(cursor.get_ref().as_slice()).await
     }

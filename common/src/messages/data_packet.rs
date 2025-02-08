@@ -69,7 +69,7 @@ impl Serializable for Vec<DataPacket> {
     }
 
     fn size(&self) -> usize {
-        let mut len = self.len();
+        let mut len = (self.len() as u32).size();
         for value in self {
             len = len + value.size()
         }
