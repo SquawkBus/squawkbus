@@ -2,7 +2,6 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
 
@@ -12,7 +11,6 @@ use common::messages::{AuthenticationResponse, Message};
 
 use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
-use crate::message_socket::MessageSocket;
 use crate::message_stream::MessageStream;
 
 #[derive(Debug)]
@@ -27,23 +25,16 @@ impl Interactor {
         }
     }
 
-    pub async fn run<'a, T>(
+    pub async fn run<'a>(
         &self,
-        stream: T,
+        stream: &mut impl MessageStream,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
-    ) -> io::Result<()>
-    where
-        T: AsyncRead + AsyncWrite + Unpin,
-    {
+    ) -> io::Result<()> {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
-        let mut stream = MessageSocket::new(stream);
-
-        let user = self
-            .authenticate(&mut stream, authentication_manager)
-            .await?;
+        let user = self.authenticate(stream, authentication_manager).await?;
 
         let host = match addr {
             SocketAddr::V4(v4) => v4.ip().to_string(),
@@ -63,20 +54,17 @@ impl Interactor {
                 }
                 // forward hub to client
                 result = rx.recv() => {
-                    forward_hub_to_client(result, &mut stream).await
+                    forward_hub_to_client(result, stream).await
                 }
             }?
         }
     }
 
-    async fn authenticate<T>(
+    async fn authenticate(
         &self,
-        mut stream: &mut MessageSocket<T>,
+        stream: &mut impl MessageStream,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
-    ) -> io::Result<String>
-    where
-        T: AsyncRead + AsyncWriteExt + Unpin,
-    {
+    ) -> io::Result<String> {
         // If successful, the authentication manager resolves the user for
         // authorization.
         // If unsuccessful an error will be returned and propagated up until
@@ -84,7 +72,7 @@ impl Interactor {
         let user = authentication_manager
             .read() // Acquire the lock.
             .await
-            .authenticate(&mut stream)
+            .authenticate(stream)
             .await?;
 
         // The id is returned to the client.
@@ -118,13 +106,10 @@ impl Interactor {
     }
 }
 
-async fn forward_hub_to_client<T>(
+async fn forward_hub_to_client(
     event: Option<ServerEvent>,
-    stream: &mut MessageSocket<T>,
-) -> io::Result<()>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-{
+    stream: &mut impl MessageStream,
+) -> io::Result<()> {
     let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
     match event {
         ServerEvent::OnMessage(message) => {

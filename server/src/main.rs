@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use authentication::AuthenticationManager;
+use message_socket::MessageSocket;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
@@ -201,15 +202,17 @@ async fn start_socket_interactor(
 
     match tls_acceptor {
         Some(acceptor) => {
-            let tls_stream = acceptor.accept(stream).await?;
+            let stream = acceptor.accept(stream).await?;
+            let mut stream = MessageSocket::new(stream);
             interactor
-                .run(tls_stream, addr, client_tx, authentication_manager)
+                .run(&mut stream, addr, client_tx, authentication_manager)
                 .await
         }
         None => {
             println!("Connecting client {}", &interactor.id);
+            let mut stream = MessageSocket::new(stream);
             interactor
-                .run(stream, addr, client_tx, authentication_manager)
+                .run(&mut stream, addr, client_tx, authentication_manager)
                 .await
         }
     }
