@@ -14,7 +14,7 @@ fn default_socket_endpoint() -> String {
 }
 
 fn default_web_socket_endpoint() -> String {
-    String::from("0.0.0.0:8558")
+    String::from("0.0.0.0:8559")
 }
 
 /// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
