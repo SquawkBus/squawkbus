@@ -61,7 +61,10 @@ async fn main() -> io::Result<()> {
 
     let authorizations =
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
-    let authentication_manager = Arc::new(RwLock::new(AuthenticationManager::new(&options.pwfile)));
+    let authentication_manager = Arc::new(RwLock::new(AuthenticationManager::new(
+        options.pwfile.clone(),
+        options.ldap_url,
+    )));
 
     // Make the channel for the client-to-server communication.
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
