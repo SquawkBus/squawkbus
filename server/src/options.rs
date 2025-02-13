@@ -9,8 +9,12 @@ use regex::Regex;
 
 use crate::authorization::{AuthorizationSpec, Role};
 
-fn default_endpoint() -> String {
+fn default_socket_endpoint() -> String {
     String::from("0.0.0.0:8558")
+}
+
+fn default_web_socket_endpoint() -> String {
+    String::from("0.0.0.0:8559")
 }
 
 /// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
@@ -53,9 +57,13 @@ pub struct Options {
     #[argh(option, short = 'f')]
     pub authorizations_file: Option<PathBuf>,
 
-    /// endpoint - defaults to 0.0.0.0:8080
-    #[argh(option, short = 'e', default = "default_endpoint()")]
-    pub endpoint: String,
+    /// socket endpoint
+    #[argh(option, short = 'e', default = "default_socket_endpoint()")]
+    pub socket_endpoint: String,
+
+    /// web socket endpoint
+    #[argh(option, short = 'w', default = "default_web_socket_endpoint()")]
+    pub web_socket_endpoint: String,
 
     /// use tls
     #[argh(switch, short = 't')]

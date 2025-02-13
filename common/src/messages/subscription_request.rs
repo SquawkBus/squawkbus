@@ -1,9 +1,6 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
@@ -17,17 +14,23 @@ impl SubscriptionRequest {
     pub fn message_type(&self) -> MessageType {
         MessageType::SubscriptionRequest
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<SubscriptionRequest> {
+impl Serializable for SubscriptionRequest {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(SubscriptionRequest {
             topic: String::deserialize(reader)?,
             is_add: bool::deserialize(reader)?,
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.topic).serialize(writer)?;
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.topic.serialize(writer)?;
         self.is_add.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.topic.size() + self.is_add.size()
     }
 }

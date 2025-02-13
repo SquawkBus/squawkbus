@@ -1,9 +1,6 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
@@ -20,8 +17,10 @@ impl ForwardedSubscriptionRequest {
     pub fn message_type(&self) -> MessageType {
         MessageType::ForwardedSubscriptionRequest
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<ForwardedSubscriptionRequest> {
+impl Serializable for ForwardedSubscriptionRequest {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
         Ok(ForwardedSubscriptionRequest {
             host: String::deserialize(reader)?,
             user: String::deserialize(reader)?,
@@ -31,12 +30,20 @@ impl ForwardedSubscriptionRequest {
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.host).serialize(writer)?;
-        (&self.user).serialize(writer)?;
-        (&self.client_id).serialize(writer)?;
-        (&self.topic).serialize(writer)?;
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.host.serialize(writer)?;
+        self.user.serialize(writer)?;
+        self.client_id.serialize(writer)?;
+        self.topic.serialize(writer)?;
         self.is_add.serialize(writer)?;
         Ok(())
+    }
+
+    fn size(&self) -> usize {
+        self.host.size()
+            + self.user.size()
+            + self.client_id.size()
+            + self.topic.size()
+            + self.is_add.size()
     }
 }

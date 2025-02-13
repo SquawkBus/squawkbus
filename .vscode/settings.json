@@ -22,7 +22,8 @@
         "roundtrip",
         "rustls",
         "serde",
-        "trustno"
+        "trustno",
+        "tungstenite"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
     "[rust]": {

@@ -1,9 +1,6 @@
-use std::io;
+use std::io::{self, Cursor};
 
-use crate::{
-    frame::{FrameReader, FrameWriter},
-    io::Serializable,
-};
+use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
@@ -16,15 +13,21 @@ impl AuthenticationResponse {
     pub fn message_type(&self) -> MessageType {
         MessageType::AuthenticationResponse
     }
+}
 
-    pub fn read(reader: &mut FrameReader) -> io::Result<AuthenticationResponse> {
+impl Serializable for AuthenticationResponse {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        self.client_id.serialize(writer)?;
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<AuthenticationResponse> {
         Ok(AuthenticationResponse {
             client_id: String::deserialize(reader)?,
         })
     }
 
-    pub fn write(&self, writer: &mut FrameWriter) -> io::Result<()> {
-        (&self.client_id).serialize(writer)?;
-        Ok(())
+    fn size(&self) -> usize {
+        self.client_id.size()
     }
 }

@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use authentication::AuthenticationManager;
+use message_socket::MessageSocket;
+use message_web_socket::MessageWebSocket;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
@@ -30,12 +32,17 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
+mod message_stream;
+
 mod options;
 use options::Options;
 
 mod notifications;
 
 mod publishing;
+
+mod message_socket;
+mod message_web_socket;
 
 mod subscriptions;
 
@@ -74,20 +81,49 @@ async fn main() -> io::Result<()> {
     )
     .await;
 
-    // If using TLS create an acceptor.
     let tls_acceptor = match options.tls {
         true => Some(create_acceptor(options.certfile, options.keyfile)?),
         false => None,
     };
 
-    let addr = options
-        .endpoint
+    let socket_addr = options
+        .socket_endpoint
         .to_socket_addrs()?
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
+    let socket_tls_acceptor = tls_acceptor.clone();
+    let socket_client_tx = client_tx.clone();
+    let socket_authentication_manager = authentication_manager.clone();
 
     join_set.spawn(async move {
-        start_listener(addr, tls_acceptor, client_tx, authentication_manager).await
+        start_listener(
+            false,
+            socket_addr,
+            socket_tls_acceptor,
+            socket_client_tx,
+            socket_authentication_manager,
+        )
+        .await
+    });
+
+    let web_socket_addr = options
+        .web_socket_endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
+    let web_socket_tls_acceptor = tls_acceptor.clone();
+    let web_socket_client_tx = client_tx.clone();
+    let web_socket_authentication_manager = authentication_manager.clone();
+
+    join_set.spawn(async move {
+        start_listener(
+            true,
+            web_socket_addr,
+            web_socket_tls_acceptor,
+            web_socket_client_tx,
+            web_socket_authentication_manager,
+        )
+        .await
     });
 
     join_set.join_all().await;
@@ -96,14 +132,19 @@ async fn main() -> io::Result<()> {
 }
 
 async fn start_listener(
+    is_web_socket: bool,
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) -> io::Result<()> {
     log::info!(
-        "Listening on {}{}",
+        "Listening on {} for {}{}",
         &addr,
+        match is_web_socket {
+            true => "web sockets",
+            false => "sockets",
+        },
         match tls_acceptor {
             Some(_) => " using TLS",
             None => "",
@@ -118,6 +159,7 @@ async fn start_listener(
 
         // Start an interactor.
         spawn_interactor(
+            is_web_socket,
             stream,
             addr,
             tls_acceptor.clone(),
@@ -156,6 +198,7 @@ async fn handle_config_reset(
 }
 
 async fn spawn_interactor(
+    is_web_socket: bool,
     stream: TcpStream,
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
@@ -164,6 +207,7 @@ async fn spawn_interactor(
 ) {
     tokio::spawn(async move {
         let result = start_interactor(
+            is_web_socket,
             stream,
             addr,
             tls_acceptor,
@@ -186,6 +230,7 @@ async fn spawn_interactor(
 }
 
 async fn start_interactor(
+    is_web_socket: bool,
     stream: TcpStream,
     addr: SocketAddr,
     tls_acceptor: Option<TlsAcceptor>,
@@ -196,16 +241,51 @@ async fn start_interactor(
 
     match tls_acceptor {
         Some(acceptor) => {
-            let tls_stream = acceptor.accept(stream).await?;
-            interactor
-                .run(tls_stream, addr, client_tx, authentication_manager)
-                .await
+            let stream = acceptor.accept(stream).await?;
+            match is_web_socket {
+                true => {
+                    println!("accepting web socket connection on {} over TLS", addr);
+                    let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("failed to accept websocket: {}", e),
+                        )
+                    })?;
+                    let mut stream = MessageWebSocket::new(stream);
+                    interactor
+                        .run(&mut stream, addr, client_tx, authentication_manager)
+                        .await
+                }
+                false => {
+                    println!("accepting socket connection on {} over TLS", addr);
+                    let mut stream = MessageSocket::new(stream);
+                    interactor
+                        .run(&mut stream, addr, client_tx, authentication_manager)
+                        .await
+                }
+            }
         }
-        None => {
-            println!("Connecting client {}", &interactor.id);
-            interactor
-                .run(stream, addr, client_tx, authentication_manager)
-                .await
-        }
+        None => match is_web_socket {
+            true => {
+                println!("accepting web socket connection on {}", addr);
+                let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("failed to accept websocket: {}", e),
+                    )
+                })?;
+                let mut stream = MessageWebSocket::new(stream);
+                interactor
+                    .run(&mut stream, addr, client_tx, authentication_manager)
+                    .await
+            }
+            false => {
+                println!("accepting socket connection on {}", addr);
+                let mut stream = MessageSocket::new(stream);
+                interactor
+                    .run(&mut stream, addr, client_tx, authentication_manager)
+                    .await
+            }
+        },
     }
 }

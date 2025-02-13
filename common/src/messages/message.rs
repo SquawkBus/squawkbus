@@ -1,6 +1,5 @@
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use std::io::{self, Cursor};
 
-use crate::frame::{FrameReader, FrameWriter};
 use crate::io::Serializable;
 
 use super::message_type::MessageType;
@@ -42,44 +41,58 @@ impl Message {
             Message::UnicastData(message) => message.message_type(),
         }
     }
+}
 
-    pub fn deserialize(reader: &mut FrameReader) -> io::Result<Message> {
+impl Serializable for Message {
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Message> {
         match MessageType::deserialize(reader) {
-            Ok(MessageType::AuthenticationRequest) => match AuthenticationRequest::read(reader) {
-                Ok(message) => Ok(Message::AuthenticationRequest(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::AuthenticationResponse) => match AuthenticationResponse::read(reader) {
-                Ok(message) => Ok(Message::AuthenticationResponse(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::ForwardedMulticastData) => match ForwardedMulticastData::read(reader) {
-                Ok(message) => Ok(Message::ForwardedMulticastData(message)),
-                Err(error) => Err(error),
-            },
+            Ok(MessageType::AuthenticationRequest) => {
+                match AuthenticationRequest::deserialize(reader) {
+                    Ok(message) => Ok(Message::AuthenticationRequest(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::AuthenticationResponse) => {
+                match AuthenticationResponse::deserialize(reader) {
+                    Ok(message) => Ok(Message::AuthenticationResponse(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::ForwardedMulticastData) => {
+                match ForwardedMulticastData::deserialize(reader) {
+                    Ok(message) => Ok(Message::ForwardedMulticastData(message)),
+                    Err(error) => Err(error),
+                }
+            }
             Ok(MessageType::ForwardedSubscriptionRequest) => {
-                match ForwardedSubscriptionRequest::read(reader) {
+                match ForwardedSubscriptionRequest::deserialize(reader) {
                     Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
                     Err(error) => Err(error),
                 }
             }
-            Ok(MessageType::ForwardedUnicastData) => match ForwardedUnicastData::read(reader) {
-                Ok(message) => Ok(Message::ForwardedUnicastData(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::MulticastData) => match MulticastData::read(reader) {
+            Ok(MessageType::ForwardedUnicastData) => {
+                match ForwardedUnicastData::deserialize(reader) {
+                    Ok(message) => Ok(Message::ForwardedUnicastData(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::MulticastData) => match MulticastData::deserialize(reader) {
                 Ok(message) => Ok(Message::MulticastData(message)),
                 Err(error) => Err(error),
             },
-            Ok(MessageType::NotificationRequest) => match NotificationRequest::read(reader) {
-                Ok(message) => Ok(Message::NotificationRequest(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::SubscriptionRequest) => match SubscriptionRequest::read(reader) {
-                Ok(message) => Ok(Message::SubscriptionRequest(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::UnicastData) => match UnicastData::read(reader) {
+            Ok(MessageType::NotificationRequest) => {
+                match NotificationRequest::deserialize(reader) {
+                    Ok(message) => Ok(Message::NotificationRequest(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::SubscriptionRequest) => {
+                match SubscriptionRequest::deserialize(reader) {
+                    Ok(message) => Ok(Message::SubscriptionRequest(message)),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(MessageType::UnicastData) => match UnicastData::deserialize(reader) {
                 Ok(message) => Ok(Message::UnicastData(message)),
                 Err(error) => Err(error),
             },
@@ -87,46 +100,42 @@ impl Message {
         }
     }
 
-    pub fn serialize(&self, writer: &mut FrameWriter) -> io::Result<()> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         self.message_type().serialize(writer)?;
         match self {
-            Message::AuthenticationRequest(message) => message.write(writer),
-            Message::AuthenticationResponse(message) => message.write(writer),
-            Message::ForwardedMulticastData(message) => message.write(writer),
-            Message::ForwardedSubscriptionRequest(message) => message.write(writer),
-            Message::ForwardedUnicastData(message) => message.write(writer),
-            Message::MulticastData(message) => message.write(writer),
-            Message::NotificationRequest(message) => message.write(writer),
-            Message::SubscriptionRequest(message) => message.write(writer),
-            Message::UnicastData(message) => message.write(writer),
+            Message::AuthenticationRequest(message) => message.serialize(writer),
+            Message::AuthenticationResponse(message) => message.serialize(writer),
+            Message::ForwardedMulticastData(message) => message.serialize(writer),
+            Message::ForwardedSubscriptionRequest(message) => message.serialize(writer),
+            Message::ForwardedUnicastData(message) => message.serialize(writer),
+            Message::MulticastData(message) => message.serialize(writer),
+            Message::NotificationRequest(message) => message.serialize(writer),
+            Message::SubscriptionRequest(message) => message.serialize(writer),
+            Message::UnicastData(message) => message.serialize(writer),
         }
     }
 
-    pub async fn read<R>(reader: &mut R) -> io::Result<Message>
-    where
-        R: AsyncReadExt + Unpin,
-    {
-        let mut frame = FrameReader::read(reader).await?;
-        Message::deserialize(&mut frame)
-    }
-
-    pub async fn write<W>(&self, writer: &mut W) -> io::Result<()>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        let mut frame = FrameWriter::new();
-        self.serialize(&mut frame)?;
-        frame.write(writer).await?;
-
-        Ok(())
+    fn size(&self) -> usize {
+        self.message_type().size()
+            + match self {
+                Message::AuthenticationRequest(message) => message.size(),
+                Message::AuthenticationResponse(message) => message.size(),
+                Message::ForwardedMulticastData(message) => message.size(),
+                Message::ForwardedSubscriptionRequest(message) => message.size(),
+                Message::ForwardedUnicastData(message) => message.size(),
+                Message::MulticastData(message) => message.size(),
+                Message::NotificationRequest(message) => message.size(),
+                Message::SubscriptionRequest(message) => message.size(),
+                Message::UnicastData(message) => message.size(),
+            }
     }
 }
 
 #[cfg(test)]
 mod test_message {
     use super::super::data_packet::DataPacket;
-
     use super::*;
+    use std::io::Seek;
 
     #[test]
     fn should_round_trip_authentication_request() {
@@ -135,11 +144,11 @@ mod test_message {
             credentials: "mary".into(),
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).expect("should deserialize");
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
@@ -149,11 +158,11 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).expect("should deserialize");
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).expect("should deserialize");
         assert_eq!(initial, round_trip);
     }
 
@@ -171,11 +180,11 @@ mod test_message {
             }],
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -189,11 +198,11 @@ mod test_message {
             is_add: true,
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -212,11 +221,11 @@ mod test_message {
             }],
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -232,11 +241,11 @@ mod test_message {
             }],
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -247,11 +256,11 @@ mod test_message {
             is_add: true,
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -262,11 +271,11 @@ mod test_message {
             is_add: true,
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 
@@ -283,11 +292,11 @@ mod test_message {
             }],
         });
 
-        let mut writer = FrameWriter::new();
-        initial.serialize(&mut writer).expect("should serialize");
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
 
-        let mut reader = FrameReader::from(&writer);
-        let round_trip = Message::deserialize(&mut reader).unwrap();
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
         assert_eq!(initial, round_trip);
     }
 }
