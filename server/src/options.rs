@@ -84,6 +84,10 @@ pub struct Options {
     /// htpasswd file
     #[argh(option, short = 'p')]
     pub pwfile: Option<PathBuf>,
+
+    /// LDAP url
+    #[argh(option, short = 'l')]
+    pub ldap_url: Option<String>,
 }
 
 impl Options {
