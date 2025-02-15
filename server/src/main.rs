@@ -35,7 +35,7 @@ use interactor::Interactor;
 mod message_stream;
 
 mod options;
-use options::{AuthenticationOption, Options};
+use options::Options;
 
 mod notifications;
 
@@ -77,7 +77,6 @@ async fn main() -> io::Result<()> {
     handle_config_reset(
         options.authorizations_file.clone(),
         options.authorizations.clone(),
-        options.authentication,
         authentication_manager.clone(),
         client_tx.clone(),
     )
@@ -175,7 +174,6 @@ async fn start_listener(
 async fn handle_config_reset(
     authorizations_file: Option<PathBuf>,
     authorizations: Vec<AuthorizationSpec>,
-    authentication_options: AuthenticationOption,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
     client_tx: Sender<ClientEvent>,
 ) {
@@ -185,13 +183,7 @@ async fn handle_config_reset(
             // Wait for SIGHUP.
             hangup_stream.recv().await.unwrap();
 
-            match &authentication_options {
-                AuthenticationOption::Basic(path) => {
-                    log::info!("Reloading authentication");
-                    authentication_manager.write().await.reset(path).unwrap();
-                }
-                _ => {}
-            }
+            authentication_manager.write().await.reset().unwrap();
 
             log::info!("Reloading authorizations");
             let authorizations =
