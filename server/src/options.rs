@@ -179,7 +179,10 @@ impl Options {
                     io::ErrorKind::Other,
                     Self::usage(args.get(0).unwrap()),
                 ))?,
-                _ => Err(io::Error::new(io::ErrorKind::Other, "invalid argument"))?,
+                _ => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("invalid argument {}", arg_name),
+                ))?,
             }
 
             arg_index += 1
@@ -208,16 +211,16 @@ impl Options {
 
     pub fn usage(prog_name: &str) -> String {
         format!(
-            "usage:\n\
-            {prog_name} [<options>]\n
-            \n
-            options:\n
-            \t--socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_SOCKET_ENDPOINT}\n
-            \t--web-socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_WEB_SOCKET_ENDPOINT}\n
-            \t--tls <certfile> <keyfile>\n
-            \t--authorization none # the default\n
-            \t--authorization basic <passwd-file>\n
-            \t--authorization ldap <url>\n
+            "usage:
+            \t{prog_name} [<options>]
+            
+            options:
+            \t--socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_SOCKET_ENDPOINT}
+            \t--web-socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_WEB_SOCKET_ENDPOINT}
+            \t--tls <certfile> <keyfile>
+            \t--authorization none # the default
+            \t--authorization basic <passwd-file>
+            \t--authorization ldap <url>
             \t--authorization-file <filename>
             \t--authorization <user:topic:entitlements:roles>
             "
@@ -231,10 +234,8 @@ impl Options {
             Err(error) => {
                 let prog_name = args.get(0).unwrap();
                 let s = Self::usage(&prog_name);
-                Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("error: {error}\n{s}"),
-                ))
+                println!("error: {error}\n{s}");
+                Err(error)
             }
         }
     }

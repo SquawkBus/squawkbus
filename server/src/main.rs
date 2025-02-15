@@ -1,6 +1,6 @@
 //! A real time message bus.
 
-use std::io;
+use std::io::{self, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::Arc;
