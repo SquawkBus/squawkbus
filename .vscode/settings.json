@@ -23,6 +23,7 @@
         "roundtrip",
         "rustls",
         "serde",
+        "starttls",
         "trustno",
         "tungstenite"
     ],
