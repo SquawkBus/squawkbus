@@ -10,6 +10,7 @@ use htpasswd_verify::Htpasswd;
 use ldap3::{LdapConnAsync, LdapConnSettings};
 
 use crate::message_stream::MessageStream;
+use crate::options::AuthenticationOption;
 
 #[derive(Clone)]
 pub struct HtpasswdAuthenticationManager {
@@ -135,20 +136,21 @@ pub struct AuthenticationManager {
 }
 
 impl AuthenticationManager {
-    pub fn new(pwfile: Option<PathBuf>, ldap_url: Option<String>) -> Self {
-        let htpasswd: Option<HtpasswdAuthenticationManager> = match &pwfile {
-            Some(path) => {
-                // TODO: Fix unwrap
-                let authentication_manager = HtpasswdAuthenticationManager::new(path).unwrap();
-                Some(authentication_manager)
-            }
-            None => None,
-        };
-        let ldap = match ldap_url {
-            Some(url) => Some(LdapAuthenticationManager::new(url)),
-            None => None,
-        };
-        AuthenticationManager { htpasswd, ldap }
+    pub fn new(option: &AuthenticationOption) -> Result<Self> {
+        Ok(match option {
+            AuthenticationOption::None => AuthenticationManager {
+                htpasswd: None,
+                ldap: None,
+            },
+            AuthenticationOption::Basic(path) => AuthenticationManager {
+                htpasswd: Some(HtpasswdAuthenticationManager::new(&path)?),
+                ldap: None,
+            },
+            AuthenticationOption::Ldap(url) => AuthenticationManager {
+                htpasswd: None,
+                ldap: Some(LdapAuthenticationManager::new(url.clone())),
+            },
+        })
     }
 
     pub async fn authenticate(&self, stream: &mut impl MessageStream) -> Result<String> {
@@ -186,12 +188,9 @@ impl AuthenticationManager {
         }
     }
 
-    pub fn reset(&mut self, pwfile: &Option<PathBuf>) -> Result<()> {
+    pub fn reset(&mut self, path: &PathBuf) -> Result<()> {
         return match self.htpasswd {
-            Some(ref mut auth) => match &pwfile {
-                Some(path) => auth.reset(path),
-                None => Ok(()),
-            },
+            Some(ref mut auth) => auth.reset(path),
             None => Ok(()),
         };
     }
