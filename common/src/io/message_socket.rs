@@ -24,7 +24,7 @@ where
 
 impl<T> MessageStream for MessageSocket<T>
 where
-    T: AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin + Send,
 {
     async fn read(&mut self) -> io::Result<Message> {
         let mut len_buf = [0_u8; 4];

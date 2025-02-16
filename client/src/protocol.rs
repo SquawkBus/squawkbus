@@ -13,7 +13,7 @@ pub async fn communicate<S>(
     username: &Option<String>,
     password: &Option<String>,
 ) where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     println!("connected");
 
