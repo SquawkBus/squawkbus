@@ -2,6 +2,8 @@ use std::io;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 
+use common::MessageSocket;
+use common::MessageStream;
 use futures::future::BoxFuture;
 
 use common::messages::DataPacket;
@@ -10,7 +12,7 @@ use common::messages::MulticastData;
 use common::messages::NotificationRequest;
 use common::messages::SubscriptionRequest;
 use common::messages::UnicastData;
-use tokio::io::{split, AsyncRead, AsyncWrite, BufReader, ReadHalf, WriteHalf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio_rustls::client;
@@ -53,13 +55,12 @@ where
     callbacks: Box<dyn ClientCallbacks + Send>,
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    reader: BufReader<ReadHalf<S>>,
-    writer: WriteHalf<S>,
+    stream: MessageSocket<S>,
 }
 
 impl<S> Client<S>
 where
-    S: AsyncRead + AsyncWrite + Send,
+    S: AsyncRead + AsyncWrite + Send + Unpin,
 {
     pub async fn start(
         stream: S,
@@ -68,18 +69,18 @@ where
         username: &Option<String>,
         password: &Option<String>,
     ) -> io::Result<Self> {
-        let (reader, mut writer) = split(stream);
+        let mut stream = MessageSocket::new(stream);
+
         //let mut skt_reader = BufReader::new(skt_read_half);
         let (tx, rx) = mpsc::channel::<Message>(32);
 
-        authenticate(&mut writer, mode, username, password).await?;
+        authenticate(&mut stream, mode, username, password).await?;
 
         let mut client = Client {
             callbacks,
             tx,
             rx,
-            reader: BufReader::new(reader),
-            writer,
+            stream,
         };
 
         Ok(client)
@@ -152,9 +153,9 @@ where
                 result = self.rx.recv() => {
                     // Send a message to the server.
                     let message = result.unwrap();
-                    message.write(&mut self.writer).await.unwrap();
+                    self.stream.write(&message).await.unwrap();
                 }
-                result = Message::read(&mut self.reader) => {
+                result = self.stream.read() => {
                     let message = result.unwrap();
                     self.handle_message(message).await;
                 }
@@ -165,7 +166,7 @@ where
 
 impl<S> ClientProtocol for Client<S>
 where
-    S: AsyncRead + AsyncWrite + Send,
+    S: AsyncRead + AsyncWrite + Send + Unpin,
 {
     fn send(
         &mut self,
@@ -215,7 +216,7 @@ pub async fn connect<S>(
     callbacks: Box<dyn ClientCallbacks + Send>,
 ) -> io::Result<Box<dyn ClientProtocol>>
 where
-    S: AsyncRead + AsyncWrite + Send,
+    S: AsyncRead + AsyncWrite + Send + Unpin,
 {
     let endpoint = format!("{}:{}", host, port);
 

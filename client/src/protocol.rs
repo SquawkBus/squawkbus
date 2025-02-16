@@ -1,7 +1,8 @@
-use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
 
-use common::messages::{
-    DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest,
+use common::{
+    messages::{DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest},
+    MessageSocket, MessageStream,
 };
 
 use crate::authentication::authenticate;
@@ -12,21 +13,19 @@ pub async fn communicate<S>(
     username: &Option<String>,
     password: &Option<String>,
 ) where
-    S: AsyncRead + AsyncWrite,
+    S: AsyncRead + AsyncWrite + Unpin,
 {
     println!("connected");
 
-    let stream = MessageSocket::new(stream);
-
-    let (skt_read_half, mut skt_write_half) = split(stream);
-    let mut skt_reader = BufReader::new(skt_read_half);
+    let mut stream = MessageSocket::new(stream);
 
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);
 
-    authenticate(&mut skt_write_half, mode, username, password)
+    let client_id = authenticate(&mut stream, mode, username, password)
         .await
         .unwrap();
+    println!("Authenticted as {client_id}");
 
     loop {
         let mut request_line = String::new();
@@ -42,7 +41,7 @@ pub async fn communicate<S>(
                 result.unwrap();
                 match parse_message(request_line.as_str()) {
                     Ok(message) => {
-                        message.write(&mut skt_write_half).await.unwrap();
+                        stream.write(&message).await.unwrap();
                     },
                     Err(message) => {
                         println!("{message}");
@@ -50,7 +49,7 @@ pub async fn communicate<S>(
                 }
             }
             // response
-            result = Message::read(&mut skt_reader) => {
+            result = stream.read() => {
                 let message = result.unwrap();
                 println!("Received message {message:?}");
             }
