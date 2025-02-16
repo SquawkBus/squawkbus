@@ -21,7 +21,7 @@ where
 
 impl<T> MessageStream for MessageWebSocket<T>
 where
-    T: AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin + Send,
 {
     async fn read(&mut self) -> io::Result<Message> {
         let Some(result) = self.stream.next().await else {
