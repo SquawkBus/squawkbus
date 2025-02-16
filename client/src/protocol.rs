@@ -1,7 +1,7 @@
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
 
 use common::{
-    messages::{DataPacket, Message, MulticastData, NotificationRequest, SubscriptionRequest},
+    messages::{DataPacket, Message},
     MessageSocket, MessageStream,
 };
 
@@ -88,11 +88,8 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
         ));
         i += 1;
     }
-    let message = MulticastData {
-        topic: topic.to_string(),
-        data_packets,
-    };
-    Ok(Message::MulticastData(message))
+    let message = Message::MulticastData(topic.to_string(), data_packets);
+    Ok(message)
 }
 
 fn handle_subscribe(args: Vec<&str>) -> Result<Message, &'static str> {
@@ -100,11 +97,8 @@ fn handle_subscribe(args: Vec<&str>) -> Result<Message, &'static str> {
         return Err("usage: subscribe <topic>");
     }
     let topic = args[1].to_string();
-    let message = SubscriptionRequest {
-        topic,
-        is_add: true,
-    };
-    Ok(Message::SubscriptionRequest(message))
+    let message = Message::SubscriptionRequest(topic, true);
+    Ok(message)
 }
 
 fn handle_notify(args: Vec<&str>) -> Result<Message, &'static str> {
@@ -112,9 +106,6 @@ fn handle_notify(args: Vec<&str>) -> Result<Message, &'static str> {
         return Err("usage: subscribe <topic>");
     }
     let pattern = args[1].to_string();
-    let message = NotificationRequest {
-        pattern: pattern.to_string(),
-        is_add: true,
-    };
-    Ok(Message::NotificationRequest(message))
+    let message = Message::NotificationRequest(pattern.to_string(), true);
+    Ok(message)
 }

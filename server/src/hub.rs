@@ -85,48 +85,47 @@ impl Hub {
         log::debug!("Received message from {client_id}: \"{msg:?}\"");
 
         match msg {
-            Message::ForwardedMulticastData(_) => todo!(),
-            Message::ForwardedSubscriptionRequest(_) => todo!(),
-            Message::ForwardedUnicastData(_) => todo!(),
-            Message::MulticastData(msg) => {
+            Message::MulticastData(topic, data_packets) => {
                 self.publisher_manager
                     .send_multicast_data(
                         client_id,
-                        msg.topic.as_str(),
-                        msg.data_packets,
+                        topic.as_str(),
+                        data_packets,
                         &self.subscription_manager,
                         &self.client_manager,
                         &self.authorization_manager,
                     )
                     .await
             }
-            Message::NotificationRequest(msg) => {
+            Message::NotificationRequest(pattern, is_add) => {
                 self.notification_manager
                     .handle_notification_request(
                         client_id,
-                        msg,
+                        pattern,
+                        is_add,
                         &self.client_manager,
                         &self.subscription_manager,
                     )
                     .await
             }
-            Message::SubscriptionRequest(msg) => {
+            Message::SubscriptionRequest(topic, is_add) => {
                 self.subscription_manager
                     .handle_subscription_request(
                         &client_id,
-                        msg,
+                        topic,
+                        is_add,
                         &self.client_manager,
                         &self.notification_manager,
                     )
                     .await
             }
-            Message::UnicastData(msg) => {
+            Message::UnicastData(destination_id, topic, data_packets) => {
                 self.publisher_manager
                     .send_unicast_data(
                         client_id,
-                        msg.client_id.as_str(),
-                        msg.topic.as_str(),
-                        msg.data_packets,
+                        &destination_id,
+                        topic.as_str(),
+                        data_packets,
                         &self.client_manager,
                         &self.authorization_manager,
                     )

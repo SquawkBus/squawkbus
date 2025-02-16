@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use uuid::Uuid;
 
-use common::messages::{AuthenticationResponse, Message};
+use common::messages::Message;
 use common::MessageStream;
 
 use crate::authentication::AuthenticationManager;
@@ -76,9 +76,7 @@ impl Interactor {
             .await?;
 
         // The id is returned to the client.
-        let response = Message::AuthenticationResponse(AuthenticationResponse {
-            client_id: self.id.clone(),
-        });
+        let response = Message::AuthenticationResponse(self.id.clone());
         stream.write(&response).await?;
 
         Ok(user)

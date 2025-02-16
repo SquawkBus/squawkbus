@@ -3,7 +3,7 @@ use std::{
     io,
 };
 
-use common::messages::{DataPacket, ForwardedMulticastData, ForwardedUnicastData, Message};
+use common::messages::{DataPacket, Message};
 
 use crate::{
     authorization::{AuthorizationManager, Role},
@@ -94,17 +94,17 @@ impl PublisherManager {
 
         self.add_as_topic_publisher(sender_id, topic);
 
-        let message = ForwardedUnicastData {
-            client_id: sender_id.into(),
-            host: sender.host.clone(),
-            user: sender.user.clone(),
-            topic: topic.into(),
-            data_packets: auth_data_packets,
-        };
+        let message = Message::ForwardedUnicastData(
+            sender_id.into(),
+            sender.host.clone(),
+            sender.user.clone(),
+            topic.into(),
+            auth_data_packets,
+        );
 
         log::debug!("send_unicast_data: sending to client {receiver_id} message {message:?}");
 
-        let event = ServerEvent::OnMessage(Message::ForwardedUnicastData(message));
+        let event = ServerEvent::OnMessage(message);
 
         receiver
             .tx
@@ -181,18 +181,18 @@ impl PublisherManager {
                     continue;
                 }
 
-                let message = ForwardedMulticastData {
-                    host: publisher.host.clone(),
-                    user: publisher.user.clone(),
-                    topic: topic.into(),
-                    data_packets: auth_data_packets,
-                };
+                let message = Message::ForwardedMulticastData(
+                    publisher.host.clone(),
+                    publisher.user.clone(),
+                    topic.into(),
+                    auth_data_packets,
+                );
 
                 log::debug!(
                     "send_multicast_data: sending message {message:?} to client {subscriber_id}"
                 );
 
-                let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(message));
+                let event = ServerEvent::OnMessage(message);
 
                 subscriber
                     .tx
@@ -289,21 +289,19 @@ async fn notify_subscribers_of_stale_topics(
     };
 
     for topic in topics_without_publishers {
-        let stale_data_message = ForwardedMulticastData {
-            host: publisher.host.clone(),
-            user: publisher.user.clone(),
-            topic: topic.clone(),
-            data_packets: Vec::new(),
-        };
+        let stale_data_message = Message::ForwardedMulticastData(
+            publisher.host.clone(),
+            publisher.user.clone(),
+            topic.clone(),
+            Vec::new(),
+        );
 
         let subscribers = subscription_manager.subscribers_for_topic(topic.as_str());
         for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("handle_close: sending stale to {subscriber_id}");
 
-                let event = ServerEvent::OnMessage(Message::ForwardedMulticastData(
-                    stale_data_message.clone(),
-                ));
+                let event = ServerEvent::OnMessage(stale_data_message.clone());
 
                 subscriber
                     .tx

@@ -4,41 +4,40 @@ use crate::io::Serializable;
 
 use super::message_type::MessageType;
 
-use super::authentication_request::AuthenticationRequest;
-use super::authentication_response::AuthenticationResponse;
-use super::forwarded_multicast_data::ForwardedMulticastData;
-use super::forwarded_subscription_request::ForwardedSubscriptionRequest;
-use super::forwarded_unicast_data::ForwardedUnicastData;
-use super::multicast_data::MulticastData;
-use super::notification_request::NotificationRequest;
-use super::subscription_request::SubscriptionRequest;
-use super::unicast_data::UnicastData;
+use super::DataPacket;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Message {
-    AuthenticationRequest(AuthenticationRequest),
-    AuthenticationResponse(AuthenticationResponse),
-    ForwardedMulticastData(ForwardedMulticastData),
-    ForwardedSubscriptionRequest(ForwardedSubscriptionRequest),
-    ForwardedUnicastData(ForwardedUnicastData),
-    MulticastData(MulticastData),
-    NotificationRequest(NotificationRequest),
-    SubscriptionRequest(SubscriptionRequest),
-    UnicastData(UnicastData),
+    AuthenticationRequest(String, Vec<u8>),
+    AuthenticationResponse(String),
+    ForwardedMulticastData(String, String, String, Vec<DataPacket>),
+    ForwardedSubscriptionRequest(String, String, String, String, bool),
+    // host, user, client_id, topic, data_packets.
+    ForwardedUnicastData(String, String, String, String, Vec<DataPacket>),
+    // topic, data_packets
+    MulticastData(String, Vec<DataPacket>),
+    // pattern, is_add
+    NotificationRequest(String, bool),
+    // topic, is_add
+    SubscriptionRequest(String, bool),
+    // client_id, topic, data_packets.
+    UnicastData(String, String, Vec<DataPacket>),
 }
 
 impl Message {
     pub fn message_type(&self) -> MessageType {
         match self {
-            Message::AuthenticationRequest(message) => message.message_type(),
-            Message::AuthenticationResponse(message) => message.message_type(),
-            Message::ForwardedMulticastData(message) => message.message_type(),
-            Message::ForwardedSubscriptionRequest(message) => message.message_type(),
-            Message::ForwardedUnicastData(message) => message.message_type(),
-            Message::MulticastData(message) => message.message_type(),
-            Message::NotificationRequest(message) => message.message_type(),
-            Message::SubscriptionRequest(message) => message.message_type(),
-            Message::UnicastData(message) => message.message_type(),
+            Message::AuthenticationRequest(_, _) => MessageType::AUTHENTICATION_REQUEST,
+            Message::AuthenticationResponse(_) => MessageType::AUTHENTICATION_RESPONSE,
+            Message::ForwardedMulticastData(_, _, _, _) => MessageType::FORWARDED_MULTICAST_DATA,
+            Message::ForwardedSubscriptionRequest(_, _, _, _, _) => {
+                MessageType::FORWARDED_SUBSCRIPTION_REQUEST
+            }
+            Message::ForwardedUnicastData(_, _, _, _, _) => MessageType::FORWARDED_UNICAST_DATA,
+            Message::MulticastData(_, _) => MessageType::MULTICAST_DATA,
+            Message::NotificationRequest(_, _) => MessageType::NOTIFICATION_REQUEST,
+            Message::SubscriptionRequest(_, _) => MessageType::SUBSCRIPTION_REQUEST,
+            Message::UnicastData(_, _, _) => MessageType::UNICAST_DATA,
         }
     }
 }
@@ -46,56 +45,52 @@ impl Message {
 impl Serializable for Message {
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Message> {
         match MessageType::deserialize(reader) {
-            Ok(MessageType::AuthenticationRequest) => {
-                match AuthenticationRequest::deserialize(reader) {
-                    Ok(message) => Ok(Message::AuthenticationRequest(message)),
-                    Err(error) => Err(error),
-                }
+            Ok(MessageType::AUTHENTICATION_REQUEST) => Ok(Message::AuthenticationRequest(
+                String::deserialize(reader)?,
+                Vec::deserialize(reader)?,
+            )),
+            Ok(MessageType::AUTHENTICATION_RESPONSE) => Ok(Message::AuthenticationResponse(
+                String::deserialize(reader)?,
+            )),
+            Ok(MessageType::FORWARDED_MULTICAST_DATA) => Ok(Message::ForwardedMulticastData(
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                Vec::<DataPacket>::deserialize(reader)?,
+            )),
+            Ok(MessageType::FORWARDED_SUBSCRIPTION_REQUEST) => {
+                Ok(Message::ForwardedSubscriptionRequest(
+                    String::deserialize(reader)?,
+                    String::deserialize(reader)?,
+                    String::deserialize(reader)?,
+                    String::deserialize(reader)?,
+                    bool::deserialize(reader)?,
+                ))
             }
-            Ok(MessageType::AuthenticationResponse) => {
-                match AuthenticationResponse::deserialize(reader) {
-                    Ok(message) => Ok(Message::AuthenticationResponse(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::ForwardedMulticastData) => {
-                match ForwardedMulticastData::deserialize(reader) {
-                    Ok(message) => Ok(Message::ForwardedMulticastData(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::ForwardedSubscriptionRequest) => {
-                match ForwardedSubscriptionRequest::deserialize(reader) {
-                    Ok(message) => Ok(Message::ForwardedSubscriptionRequest(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::ForwardedUnicastData) => {
-                match ForwardedUnicastData::deserialize(reader) {
-                    Ok(message) => Ok(Message::ForwardedUnicastData(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::MulticastData) => match MulticastData::deserialize(reader) {
-                Ok(message) => Ok(Message::MulticastData(message)),
-                Err(error) => Err(error),
-            },
-            Ok(MessageType::NotificationRequest) => {
-                match NotificationRequest::deserialize(reader) {
-                    Ok(message) => Ok(Message::NotificationRequest(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::SubscriptionRequest) => {
-                match SubscriptionRequest::deserialize(reader) {
-                    Ok(message) => Ok(Message::SubscriptionRequest(message)),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(MessageType::UnicastData) => match UnicastData::deserialize(reader) {
-                Ok(message) => Ok(Message::UnicastData(message)),
-                Err(error) => Err(error),
-            },
+            Ok(MessageType::FORWARDED_UNICAST_DATA) => Ok(Message::ForwardedUnicastData(
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                Vec::<DataPacket>::deserialize(reader)?,
+            )),
+            Ok(MessageType::MULTICAST_DATA) => Ok(Message::MulticastData(
+                String::deserialize(reader)?,
+                Vec::<DataPacket>::deserialize(reader)?,
+            )),
+            Ok(MessageType::NOTIFICATION_REQUEST) => Ok(Message::NotificationRequest(
+                String::deserialize(reader)?,
+                bool::deserialize(reader)?,
+            )),
+            Ok(MessageType::SUBSCRIPTION_REQUEST) => Ok(Message::SubscriptionRequest(
+                String::deserialize(reader)?,
+                bool::deserialize(reader)?,
+            )),
+            Ok(MessageType::UNICAST_DATA) => Ok(Message::UnicastData(
+                String::deserialize(reader)?,
+                String::deserialize(reader)?,
+                Vec::<DataPacket>::deserialize(reader)?,
+            )),
             Err(error) => Err(error),
         }
     }
@@ -103,30 +98,88 @@ impl Serializable for Message {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         self.message_type().serialize(writer)?;
         match self {
-            Message::AuthenticationRequest(message) => message.serialize(writer),
-            Message::AuthenticationResponse(message) => message.serialize(writer),
-            Message::ForwardedMulticastData(message) => message.serialize(writer),
-            Message::ForwardedSubscriptionRequest(message) => message.serialize(writer),
-            Message::ForwardedUnicastData(message) => message.serialize(writer),
-            Message::MulticastData(message) => message.serialize(writer),
-            Message::NotificationRequest(message) => message.serialize(writer),
-            Message::SubscriptionRequest(message) => message.serialize(writer),
-            Message::UnicastData(message) => message.serialize(writer),
+            Message::AuthenticationRequest(method, credentials) => {
+                method.serialize(writer)?;
+                credentials.serialize(writer)?;
+                Ok(())
+            }
+            Message::AuthenticationResponse(client_id) => {
+                client_id.serialize(writer)?;
+                Ok(())
+            }
+            Message::ForwardedMulticastData(host, user, topic, data_packets) => {
+                host.serialize(writer)?;
+                user.serialize(writer)?;
+                topic.serialize(writer)?;
+                data_packets.serialize(writer)?;
+                Ok(())
+            }
+            Message::ForwardedSubscriptionRequest(host, user, client_id, topic, is_add) => {
+                host.serialize(writer)?;
+                user.serialize(writer)?;
+                client_id.serialize(writer)?;
+                topic.serialize(writer)?;
+                is_add.serialize(writer)?;
+                Ok(())
+            }
+            Message::ForwardedUnicastData(host, user, client_id, topic, data_packets) => {
+                host.serialize(writer)?;
+                user.serialize(writer)?;
+                client_id.serialize(writer)?;
+                topic.serialize(writer)?;
+                data_packets.serialize(writer)?;
+                Ok(())
+            }
+            Message::MulticastData(topic, data_packets) => {
+                topic.serialize(writer)?;
+                data_packets.serialize(writer)?;
+                Ok(())
+            }
+            Message::NotificationRequest(pattern, is_add) => {
+                pattern.serialize(writer)?;
+                is_add.serialize(writer)?;
+                Ok(())
+            }
+            Message::SubscriptionRequest(topic, is_add) => {
+                topic.serialize(writer)?;
+                is_add.serialize(writer)?;
+                Ok(())
+            }
+            Message::UnicastData(client_id, topic, data_packets) => {
+                client_id.serialize(writer)?;
+                topic.serialize(writer)?;
+                data_packets.serialize(writer)?;
+                Ok(())
+            }
         }
     }
 
     fn size(&self) -> usize {
         self.message_type().size()
             + match self {
-                Message::AuthenticationRequest(message) => message.size(),
-                Message::AuthenticationResponse(message) => message.size(),
-                Message::ForwardedMulticastData(message) => message.size(),
-                Message::ForwardedSubscriptionRequest(message) => message.size(),
-                Message::ForwardedUnicastData(message) => message.size(),
-                Message::MulticastData(message) => message.size(),
-                Message::NotificationRequest(message) => message.size(),
-                Message::SubscriptionRequest(message) => message.size(),
-                Message::UnicastData(message) => message.size(),
+                Message::AuthenticationRequest(method, credentials) => {
+                    method.size() + credentials.size()
+                }
+                Message::AuthenticationResponse(client_id) => client_id.size(),
+                Message::ForwardedMulticastData(host, user, topic, data_packets) => {
+                    host.size() + user.size() + topic.size() + data_packets.size()
+                }
+                Message::ForwardedSubscriptionRequest(host, user, client_id, topic, is_add) => {
+                    host.size() + user.size() + client_id.size() + topic.size() + is_add.size()
+                }
+                Message::ForwardedUnicastData(host, user, client_id, topic, data_packets) => {
+                    host.size()
+                        + user.size()
+                        + client_id.size()
+                        + topic.size()
+                        + data_packets.size()
+                }
+                Message::MulticastData(topic, data_packets) => topic.size() + data_packets.size(),
+                Message::NotificationRequest(pattern, is_add) => pattern.size() + is_add.size(),
+                Message::SubscriptionRequest(topic, is_add) => topic.size() + is_add.size(),
+                Message::UnicastData(client_id, topic, data_packets) => {
+                    client_id.size() + topic.size() + data_packets.size()
+                }
             }
     }
 }
@@ -139,10 +192,7 @@ mod test_message {
 
     #[test]
     fn should_round_trip_authentication_request() {
-        let initial = Message::AuthenticationRequest(AuthenticationRequest {
-            method: "basic".into(),
-            credentials: "mary".into(),
-        });
+        let initial = Message::AuthenticationRequest("basic".into(), "mary".into());
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -154,9 +204,8 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_authentication_response() {
-        let initial = Message::AuthenticationResponse(AuthenticationResponse {
-            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-        });
+        let initial =
+            Message::AuthenticationResponse("67e55044-10b1-426f-9247-bb680e5fe0c8".into());
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -168,17 +217,17 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_forwarded_multicast_data() {
-        let initial = Message::ForwardedMulticastData(ForwardedMulticastData {
-            host: "host1".into(),
-            user: "mary".into(),
-            topic: "VOD LSE".into(),
-            data_packets: vec![DataPacket {
+        let initial = Message::ForwardedMulticastData(
+            "host1".into(),
+            "mary".into(),
+            "VOD LSE".into(),
+            vec![DataPacket {
                 name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
             }],
-        });
+        );
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -190,13 +239,13 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_forwarded_subscription_request() {
-        let initial = Message::ForwardedSubscriptionRequest(ForwardedSubscriptionRequest {
-            host: "host1".into(),
-            user: "mary".into(),
-            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-            topic: "VOD LSE".into(),
-            is_add: true,
-        });
+        let initial = Message::ForwardedSubscriptionRequest(
+            "host1".into(),
+            "mary".into(),
+            "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            "VOD LSE".into(),
+            true,
+        );
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -208,18 +257,18 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_forwarded_unicast_data() {
-        let initial = Message::ForwardedUnicastData(ForwardedUnicastData {
-            host: "host1".into(),
-            user: "mary".into(),
-            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-            topic: "VOD LSE".into(),
-            data_packets: vec![DataPacket {
+        let initial = Message::ForwardedUnicastData(
+            "host1".into(),
+            "mary".into(),
+            "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            "VOD LSE".into(),
+            vec![DataPacket {
                 name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
             }],
-        });
+        );
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -231,15 +280,15 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_multicast_data() {
-        let initial = Message::MulticastData(MulticastData {
-            topic: "VOD LSE".into(),
-            data_packets: vec![DataPacket {
+        let initial = Message::MulticastData(
+            "VOD LSE".into(),
+            vec![DataPacket {
                 name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
             }],
-        });
+        );
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -251,10 +300,7 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_notification_request() {
-        let initial = Message::NotificationRequest(NotificationRequest {
-            pattern: ".* LSE".into(),
-            is_add: true,
-        });
+        let initial = Message::NotificationRequest(".* LSE".into(), true);
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -266,10 +312,7 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_subscription_request() {
-        let initial = Message::SubscriptionRequest(SubscriptionRequest {
-            topic: "VOD LSE".into(),
-            is_add: true,
-        });
+        let initial = Message::SubscriptionRequest("VOD LSE".into(), true);
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");
@@ -281,16 +324,16 @@ mod test_message {
 
     #[test]
     fn should_roundtrip_unicast_data() {
-        let initial = Message::UnicastData(UnicastData {
-            client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
-            topic: "VOD LSE".into(),
-            data_packets: vec![DataPacket {
+        let initial = Message::UnicastData(
+            "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
+            "VOD LSE".into(),
+            vec![DataPacket {
                 name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
             }],
-        });
+        );
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");

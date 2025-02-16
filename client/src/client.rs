@@ -9,10 +9,6 @@ use futures::future::BoxFuture;
 
 use common::messages::DataPacket;
 use common::messages::Message;
-use common::messages::MulticastData;
-use common::messages::NotificationRequest;
-use common::messages::SubscriptionRequest;
-use common::messages::UnicastData;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -102,11 +98,7 @@ where
         topic: String,
         data_packets: Vec<DataPacket>,
     ) -> io::Result<()> {
-        let message = Message::UnicastData(UnicastData {
-            client_id,
-            topic,
-            data_packets,
-        });
+        let message = Message::UnicastData(client_id, topic, data_packets);
         self.send_message(message).await
     }
 
@@ -115,32 +107,31 @@ where
         topic: String,
         data_packets: Vec<DataPacket>,
     ) -> io::Result<()> {
-        let message = Message::MulticastData(MulticastData {
-            topic,
-            data_packets,
-        });
+        let message = Message::MulticastData(topic, data_packets);
         self.send_message(message).await
     }
 
     async fn send_subscription_request(&mut self, topic: String, is_add: bool) -> io::Result<()> {
-        let message = Message::SubscriptionRequest(SubscriptionRequest { topic, is_add });
+        let message = Message::SubscriptionRequest(topic, is_add);
         self.send_message(message).await
     }
 
     async fn send_notification_request(&mut self, pattern: String, is_add: bool) -> io::Result<()> {
-        let message = Message::NotificationRequest(NotificationRequest { pattern, is_add });
+        let message = Message::NotificationRequest(pattern, is_add);
         self.send_message(message).await
     }
 
     async fn handle_message(&mut self, message: Message) {
         match message {
-            Message::UnicastData(msg) => self.callbacks.on_data(msg.topic, msg.data_packets).await,
-            Message::MulticastData(msg) => {
-                self.callbacks.on_data(msg.topic, msg.data_packets).await
+            Message::UnicastData(_, topic, data_packets) => {
+                self.callbacks.on_data(topic, data_packets).await
             }
-            Message::ForwardedSubscriptionRequest(msg) => {
+            Message::MulticastData(topic, data_packets) => {
+                self.callbacks.on_data(topic, data_packets).await
+            }
+            Message::ForwardedSubscriptionRequest(_host, _user, client_id, topic, is_add) => {
                 self.callbacks
-                    .on_forwarded_subscription(msg.client_id, msg.topic, msg.is_add)
+                    .on_forwarded_subscription(client_id, topic, is_add)
                     .await
             }
             _ => todo!(),
