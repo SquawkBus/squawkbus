@@ -8,9 +8,13 @@ use super::DataPacket;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Message {
+    // method, credentials.
     AuthenticationRequest(String, Vec<u8>),
+    // client_id.
     AuthenticationResponse(String),
+    // host, user, topic, data_packets
     ForwardedMulticastData(String, String, String, Vec<DataPacket>),
+    // host, user, client_id, topic, is_add.
     ForwardedSubscriptionRequest(String, String, String, String, bool),
     // host, user, client_id, topic, data_packets.
     ForwardedUnicastData(String, String, String, String, Vec<DataPacket>),
@@ -27,17 +31,15 @@ pub enum Message {
 impl Message {
     pub fn message_type(&self) -> MessageType {
         match self {
-            Message::AuthenticationRequest(_, _) => MessageType::AUTHENTICATION_REQUEST,
-            Message::AuthenticationResponse(_) => MessageType::AUTHENTICATION_RESPONSE,
-            Message::ForwardedMulticastData(_, _, _, _) => MessageType::FORWARDED_MULTICAST_DATA,
-            Message::ForwardedSubscriptionRequest(_, _, _, _, _) => {
-                MessageType::FORWARDED_SUBSCRIPTION_REQUEST
-            }
-            Message::ForwardedUnicastData(_, _, _, _, _) => MessageType::FORWARDED_UNICAST_DATA,
-            Message::MulticastData(_, _) => MessageType::MULTICAST_DATA,
-            Message::NotificationRequest(_, _) => MessageType::NOTIFICATION_REQUEST,
-            Message::SubscriptionRequest(_, _) => MessageType::SUBSCRIPTION_REQUEST,
-            Message::UnicastData(_, _, _) => MessageType::UNICAST_DATA,
+            Message::AuthenticationRequest(..) => MessageType::AuthenticationRequest,
+            Message::AuthenticationResponse(..) => MessageType::AuthenticationResponse,
+            Message::ForwardedMulticastData(..) => MessageType::ForwardedMulticastData,
+            Message::ForwardedSubscriptionRequest(..) => MessageType::ForwardedSubscriptionRequest,
+            Message::ForwardedUnicastData(..) => MessageType::ForwardedUnicastData,
+            Message::MulticastData(..) => MessageType::MulticastData,
+            Message::NotificationRequest(..) => MessageType::NotificationRequest,
+            Message::SubscriptionRequest(..) => MessageType::SubscriptionRequest,
+            Message::UnicastData(..) => MessageType::UnicastData,
         }
     }
 }
@@ -45,20 +47,20 @@ impl Message {
 impl Serializable for Message {
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Message> {
         match MessageType::deserialize(reader) {
-            Ok(MessageType::AUTHENTICATION_REQUEST) => Ok(Message::AuthenticationRequest(
+            Ok(MessageType::AuthenticationRequest) => Ok(Message::AuthenticationRequest(
                 String::deserialize(reader)?,
                 Vec::deserialize(reader)?,
             )),
-            Ok(MessageType::AUTHENTICATION_RESPONSE) => Ok(Message::AuthenticationResponse(
+            Ok(MessageType::AuthenticationResponse) => Ok(Message::AuthenticationResponse(
                 String::deserialize(reader)?,
             )),
-            Ok(MessageType::FORWARDED_MULTICAST_DATA) => Ok(Message::ForwardedMulticastData(
+            Ok(MessageType::ForwardedMulticastData) => Ok(Message::ForwardedMulticastData(
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 Vec::<DataPacket>::deserialize(reader)?,
             )),
-            Ok(MessageType::FORWARDED_SUBSCRIPTION_REQUEST) => {
+            Ok(MessageType::ForwardedSubscriptionRequest) => {
                 Ok(Message::ForwardedSubscriptionRequest(
                     String::deserialize(reader)?,
                     String::deserialize(reader)?,
@@ -67,26 +69,26 @@ impl Serializable for Message {
                     bool::deserialize(reader)?,
                 ))
             }
-            Ok(MessageType::FORWARDED_UNICAST_DATA) => Ok(Message::ForwardedUnicastData(
+            Ok(MessageType::ForwardedUnicastData) => Ok(Message::ForwardedUnicastData(
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 Vec::<DataPacket>::deserialize(reader)?,
             )),
-            Ok(MessageType::MULTICAST_DATA) => Ok(Message::MulticastData(
+            Ok(MessageType::MulticastData) => Ok(Message::MulticastData(
                 String::deserialize(reader)?,
                 Vec::<DataPacket>::deserialize(reader)?,
             )),
-            Ok(MessageType::NOTIFICATION_REQUEST) => Ok(Message::NotificationRequest(
+            Ok(MessageType::NotificationRequest) => Ok(Message::NotificationRequest(
                 String::deserialize(reader)?,
                 bool::deserialize(reader)?,
             )),
-            Ok(MessageType::SUBSCRIPTION_REQUEST) => Ok(Message::SubscriptionRequest(
+            Ok(MessageType::SubscriptionRequest) => Ok(Message::SubscriptionRequest(
                 String::deserialize(reader)?,
                 bool::deserialize(reader)?,
             )),
-            Ok(MessageType::UNICAST_DATA) => Ok(Message::UnicastData(
+            Ok(MessageType::UnicastData) => Ok(Message::UnicastData(
                 String::deserialize(reader)?,
                 String::deserialize(reader)?,
                 Vec::<DataPacket>::deserialize(reader)?,
