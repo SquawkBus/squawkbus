@@ -88,7 +88,10 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
         ));
         i += 1;
     }
-    let message = Message::MulticastData(topic.to_string(), data_packets);
+    let message = Message::MulticastData {
+        topic: topic.to_string(),
+        data_packets,
+    };
     Ok(message)
 }
 
@@ -97,7 +100,10 @@ fn handle_subscribe(args: Vec<&str>) -> Result<Message, &'static str> {
         return Err("usage: subscribe <topic>");
     }
     let topic = args[1].to_string();
-    let message = Message::SubscriptionRequest(topic, true);
+    let message = Message::SubscriptionRequest {
+        topic,
+        is_add: true,
+    };
     Ok(message)
 }
 
@@ -106,6 +112,9 @@ fn handle_notify(args: Vec<&str>) -> Result<Message, &'static str> {
         return Err("usage: subscribe <topic>");
     }
     let pattern = args[1].to_string();
-    let message = Message::NotificationRequest(pattern.to_string(), true);
+    let message = Message::NotificationRequest {
+        pattern,
+        is_add: true,
+    };
     Ok(message)
 }

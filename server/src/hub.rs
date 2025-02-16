@@ -85,7 +85,10 @@ impl Hub {
         log::debug!("Received message from {client_id}: \"{msg:?}\"");
 
         match msg {
-            Message::MulticastData(topic, data_packets) => {
+            Message::MulticastData {
+                topic,
+                data_packets,
+            } => {
                 self.publisher_manager
                     .send_multicast_data(
                         client_id,
@@ -97,7 +100,7 @@ impl Hub {
                     )
                     .await
             }
-            Message::NotificationRequest(pattern, is_add) => {
+            Message::NotificationRequest { pattern, is_add } => {
                 self.notification_manager
                     .handle_notification_request(
                         client_id,
@@ -108,7 +111,7 @@ impl Hub {
                     )
                     .await
             }
-            Message::SubscriptionRequest(topic, is_add) => {
+            Message::SubscriptionRequest { topic, is_add } => {
                 self.subscription_manager
                     .handle_subscription_request(
                         &client_id,
@@ -119,7 +122,11 @@ impl Hub {
                     )
                     .await
             }
-            Message::UnicastData(destination_id, topic, data_packets) => {
+            Message::UnicastData {
+                client_id: destination_id,
+                topic,
+                data_packets,
+            } => {
                 self.publisher_manager
                     .send_unicast_data(
                         client_id,

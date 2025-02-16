@@ -76,7 +76,9 @@ impl Interactor {
             .await?;
 
         // The id is returned to the client.
-        let response = Message::AuthenticationResponse(self.id.clone());
+        let response = Message::AuthenticationResponse {
+            client_id: self.id.clone(),
+        };
         stream.write(&response).await?;
 
         Ok(user)

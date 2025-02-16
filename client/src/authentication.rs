@@ -10,7 +10,10 @@ pub async fn authenticate(
     password: &Option<String>,
 ) -> io::Result<String> {
     let request = match mode.as_str() {
-        "none" => Ok(Message::AuthenticationRequest("none".into(), Vec::new())),
+        "none" => Ok(Message::AuthenticationRequest {
+            method: "none".into(),
+            credentials: Vec::new(),
+        }),
         "basic" | "ldap" => {
             let Some(username) = username else {
                 return Err(Error::new(ErrorKind::Other, "missing username"));
@@ -21,10 +24,10 @@ pub async fn authenticate(
 
             let credentials = Credentials::new(username, password);
 
-            Ok(Message::AuthenticationRequest(
-                "none".into(),
-                credentials.encode().into(),
-            ))
+            Ok(Message::AuthenticationRequest {
+                method: "none".into(),
+                credentials: credentials.encode().into(),
+            })
         }
         _ => Err(Error::new(ErrorKind::Other, "invalid method")),
     }?;
@@ -33,7 +36,7 @@ pub async fn authenticate(
     let response = stream.read().await?;
 
     match response {
-        Message::AuthenticationResponse(client_id) => Ok(client_id.clone()),
+        Message::AuthenticationResponse { client_id } => Ok(client_id.clone()),
         _ => Err(Error::new(ErrorKind::Other, "invalid message")),
     }
 }

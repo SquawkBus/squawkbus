@@ -81,13 +81,13 @@ impl NotificationManager {
                         io::ErrorKind::Other,
                         format!("unknown client {subscriber_id}"),
                     ))?;
-                    let message = Message::ForwardedSubscriptionRequest(
-                        subscriber_id.clone(),
-                        client.host.clone(),
-                        client.user.clone(),
-                        topic.clone(),
-                        true,
-                    );
+                    let message = Message::ForwardedSubscriptionRequest {
+                        client_id: subscriber_id.clone(),
+                        host: client.host.clone(),
+                        user: client.user.clone(),
+                        topic: topic.clone(),
+                        is_add: true,
+                    };
                     let event = ServerEvent::OnMessage(message);
                     client
                         .tx
@@ -153,13 +153,13 @@ impl NotificationManager {
                     format!("unknown client {subscriber_id}"),
                 ))?;
 
-                let message = Message::ForwardedSubscriptionRequest(
-                    subscriber_id.into(),
-                    subscriber.host.clone(),
-                    subscriber.user.clone(),
-                    topic.to_string(),
+                let message = Message::ForwardedSubscriptionRequest {
+                    host: subscriber.host.clone(),
+                    user: subscriber.user.clone(),
+                    client_id: subscriber_id.into(),
+                    topic: topic.to_string(),
                     is_add,
-                );
+                };
 
                 for listener_id in notification.listeners.keys() {
                     if let Some(listener) = client_manager.get(listener_id) {

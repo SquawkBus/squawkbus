@@ -157,7 +157,11 @@ impl AuthenticationManager {
 
     pub async fn authenticate(&self, stream: &mut impl MessageStream) -> Result<String> {
         let message = stream.read().await?;
-        let Message::AuthenticationRequest(method, credentials) = message else {
+        let Message::AuthenticationRequest {
+            method,
+            credentials,
+        } = message
+        else {
             return Err(Error::new(
                 ErrorKind::Other,
                 "expected authentication request",
