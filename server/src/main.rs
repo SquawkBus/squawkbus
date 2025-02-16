@@ -5,18 +5,17 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use authentication::AuthenticationManager;
-use message_socket::MessageSocket;
-use message_web_socket::MessageWebSocket;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
-
 use tokio::task::JoinSet;
 use tokio_rustls::TlsAcceptor;
 
+use common::{MessageSocket, MessageWebSocket};
+
 mod authentication;
+use authentication::AuthenticationManager;
 
 mod authorization;
 use authorization::{load_authorizations, AuthorizationSpec};
@@ -32,17 +31,12 @@ use hub::Hub;
 mod interactor;
 use interactor::Interactor;
 
-mod message_stream;
-
 mod options;
 use options::Options;
 
 mod notifications;
 
 mod publishing;
-
-mod message_socket;
-mod message_web_socket;
 
 mod subscriptions;
 

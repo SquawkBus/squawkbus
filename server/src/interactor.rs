@@ -8,10 +8,10 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use common::messages::{AuthenticationResponse, Message};
+use common::MessageStream;
 
 use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
-use crate::message_stream::MessageStream;
 
 #[derive(Debug)]
 pub struct Interactor {

@@ -16,6 +16,8 @@ pub async fn communicate<S>(
 {
     println!("connected");
 
+    let stream = MessageSocket::new(stream);
+
     let (skt_read_half, mut skt_write_half) = split(stream);
     let mut skt_reader = BufReader::new(skt_read_half);
 

@@ -1,12 +1,10 @@
 use std::io::Cursor;
 
-use common::messages::Message;
-use common::Serializable;
 use tokio::io::{
     self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf, WriteHalf,
 };
 
-use crate::message_stream::MessageStream;
+use crate::{message_stream::MessageStream, messages::Message, Serializable};
 
 pub struct MessageSocket<T> {
     reader: BufReader<ReadHalf<T>>,
