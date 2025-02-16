@@ -218,10 +218,10 @@ impl Options {
             \t--socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_SOCKET_ENDPOINT}
             \t--web-socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_WEB_SOCKET_ENDPOINT}
             \t--tls <certfile> <keyfile>
-            \t--authorization none # the default
-            \t--authorization basic <passwd-file>
-            \t--authorization ldap <url>
-            \t--authorization-file <filename>
+            \t--authentication none # the default
+            \t--authentication basic <passwd-file>
+            \t--authentication ldap <url>
+            \t--authorizations-file <filename>
             \t--authorization <user:topic:entitlements:roles>
             "
         )
