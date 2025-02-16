@@ -3,13 +3,13 @@ use std::fs::read_to_string;
 use std::io::{Error, ErrorKind, Result};
 use std::path::PathBuf;
 
-use common::messages::Message;
-use http_auth_basic::Credentials;
-
 use htpasswd_verify::Htpasswd;
+use http_auth_basic::Credentials;
 use ldap3::{LdapConnAsync, LdapConnSettings};
 
-use crate::message_stream::MessageStream;
+use common::messages::Message;
+use common::MessageStream;
+
 use crate::options::AuthenticationOption;
 
 #[derive(Clone)]

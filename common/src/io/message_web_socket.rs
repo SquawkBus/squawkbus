@@ -1,12 +1,10 @@
 use std::io::Cursor;
 
-use common::messages::Message;
-use common::Serializable;
 use futures_util::{SinkExt, StreamExt};
 use tokio::io::{self, AsyncRead, AsyncWrite};
 use tokio_tungstenite::{tungstenite, WebSocketStream};
 
-use crate::message_stream::MessageStream;
+use crate::{message_stream::MessageStream, messages::Message, Serializable};
 
 pub struct MessageWebSocket<T> {
     stream: WebSocketStream<T>,

@@ -1,43 +1,45 @@
 use std::io::{self, Error, ErrorKind};
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf};
+use common::{
+    messages::{AuthenticationRequest, Message},
+    MessageStream,
+};
+use http_auth_basic::Credentials;
 
-pub async fn authenticate<S>(
-    skt_write_half: &mut WriteHalf<S>,
+pub async fn authenticate(
+    stream: &mut impl MessageStream,
     mode: &String,
     username: &Option<String>,
     password: &Option<String>,
-) -> io::Result<()>
-where
-    S: AsyncRead + AsyncWrite,
-{
-    // Mode
-    skt_write_half.write(mode.as_bytes()).await?;
-    skt_write_half.write("\n".as_bytes()).await?;
+) -> io::Result<String> {
+    let request = Message::AuthenticationRequest(match mode.as_str() {
+        "none" => Ok(AuthenticationRequest {
+            method: "none".into(),
+            credentials: Vec::new(),
+        }),
+        "basic" | "ldap" => {
+            let Some(username) = username else {
+                return Err(Error::new(ErrorKind::Other, "missing username"));
+            };
+            let Some(password) = password else {
+                return Err(Error::new(ErrorKind::Other, "missing password"));
+            };
 
-    if mode == "none" {
-        log::info!("Authenticate with {}", mode.as_str());
-    } else if mode == "htpasswd" {
-        log::info!("Authenticate with {}", mode.as_str());
-        let Some(username) = username else {
-            return Err(Error::new(ErrorKind::Other, "missing username"));
-        };
-        let Some(password) = password else {
-            return Err(Error::new(ErrorKind::Other, "missing password"));
-        };
-        // User
-        skt_write_half.write(username.as_bytes()).await?;
-        skt_write_half.write("\n".as_bytes()).await?;
+            let credentials = Credentials::new(username, password);
 
-        // Password
-        skt_write_half.write(password.as_bytes()).await?;
-        skt_write_half.write("\n".as_bytes()).await?;
-    } else {
-        log::error!("Invalid mode {}", mode.as_str());
-        return Err(Error::new(ErrorKind::Other, "invalid mode"));
+            Ok(AuthenticationRequest {
+                method: "none".into(),
+                credentials: credentials.encode().into(),
+            })
+        }
+        _ => Err(Error::new(ErrorKind::Other, "invalid method")),
+    }?);
+    stream.write(&request).await?;
+
+    let response = stream.read().await?;
+
+    match response {
+        Message::AuthenticationResponse(msg) => Ok(msg.client_id.clone()),
+        _ => Err(Error::new(ErrorKind::Other, "invalid message")),
     }
-
-    skt_write_half.flush().await?;
-
-    Ok(())
 }
