@@ -5,8 +5,6 @@ use std::{
 
 use regex::Regex;
 
-use common::messages::SubscriptionRequest;
-
 use crate::{clients::ClientManager, notifications::NotificationManager};
 
 struct Subscription {
@@ -52,17 +50,18 @@ impl SubscriptionManager {
     pub async fn handle_subscription_request(
         &mut self,
         id: &str,
-        msg: SubscriptionRequest,
+        topic: String,
+        is_add: bool,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
     ) -> io::Result<()> {
-        if msg.is_add {
-            self.add_subscription(id, msg.topic.as_str(), client_manager, notification_manager)
+        if is_add {
+            self.add_subscription(id, topic.as_str(), client_manager, notification_manager)
                 .await
         } else {
             self.remove_subscription(
                 id,
-                msg.topic.as_str(),
+                topic.as_str(),
                 client_manager,
                 notification_manager,
                 false,

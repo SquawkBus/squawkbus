@@ -157,14 +157,18 @@ impl AuthenticationManager {
 
     pub async fn authenticate(&self, stream: &mut impl MessageStream) -> Result<String> {
         let message = stream.read().await?;
-        let Message::AuthenticationRequest(request) = message else {
+        let Message::AuthenticationRequest {
+            method,
+            credentials,
+        } = message
+        else {
             return Err(Error::new(
                 ErrorKind::Other,
                 "expected authentication request",
             ));
         };
 
-        match request.method.as_str() {
+        match method.as_str() {
             "none" => {
                 log::debug!("Authenticating with \"none\"");
                 return Ok("nobody".into());
@@ -172,14 +176,14 @@ impl AuthenticationManager {
             "basic" => {
                 log::debug!("Authenticating with \"basic\"");
                 return match &self.basic {
-                    Some(auth) => auth.authenticate(&request.credentials),
+                    Some(auth) => auth.authenticate(&credentials),
                     None => Err(Error::new(ErrorKind::Other, "no basic auth")),
                 };
             }
             "ldap" => {
                 log::debug!("Authenticating with \"ldap\"");
                 return match &self.ldap {
-                    Some(auth) => auth.authenticate(&request.credentials).await,
+                    Some(auth) => auth.authenticate(&credentials).await,
                     None => Err(Error::new(ErrorKind::Other, "no ldap auth")),
                 };
             }

@@ -1,9 +1,6 @@
 use std::io::{self, Error, ErrorKind};
 
-use common::{
-    messages::{AuthenticationRequest, Message},
-    MessageStream,
-};
+use common::{messages::Message, MessageStream};
 use http_auth_basic::Credentials;
 
 pub async fn authenticate(
@@ -12,8 +9,8 @@ pub async fn authenticate(
     username: &Option<String>,
     password: &Option<String>,
 ) -> io::Result<String> {
-    let request = Message::AuthenticationRequest(match mode.as_str() {
-        "none" => Ok(AuthenticationRequest {
+    let request = match mode.as_str() {
+        "none" => Ok(Message::AuthenticationRequest {
             method: "none".into(),
             credentials: Vec::new(),
         }),
@@ -27,19 +24,19 @@ pub async fn authenticate(
 
             let credentials = Credentials::new(username, password);
 
-            Ok(AuthenticationRequest {
+            Ok(Message::AuthenticationRequest {
                 method: "none".into(),
                 credentials: credentials.encode().into(),
             })
         }
         _ => Err(Error::new(ErrorKind::Other, "invalid method")),
-    }?);
+    }?;
     stream.write(&request).await?;
 
     let response = stream.read().await?;
 
     match response {
-        Message::AuthenticationResponse(msg) => Ok(msg.client_id.clone()),
+        Message::AuthenticationResponse { client_id } => Ok(client_id.clone()),
         _ => Err(Error::new(ErrorKind::Other, "invalid message")),
     }
 }

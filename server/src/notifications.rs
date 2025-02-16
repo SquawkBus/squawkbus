@@ -2,7 +2,7 @@ use std::{collections::HashMap, io};
 
 use regex::Regex;
 
-use common::messages::{ForwardedSubscriptionRequest, Message, NotificationRequest};
+use common::messages::Message;
 
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
 
@@ -35,20 +35,21 @@ impl NotificationManager {
     pub async fn handle_notification_request(
         &mut self,
         client_id: &str,
-        msg: NotificationRequest,
+        pattern: String,
+        is_add: bool,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
     ) -> io::Result<()> {
-        if msg.is_add {
+        if is_add {
             self.add_notification(
                 client_id,
-                msg.pattern.as_str(),
+                pattern.as_str(),
                 client_manager,
                 subscription_manager,
             )
             .await
         } else {
-            self.remove_notification(client_id, msg.pattern.as_str(), false)
+            self.remove_notification(client_id, pattern.as_str(), false)
                 .await
         }
     }
@@ -80,15 +81,14 @@ impl NotificationManager {
                         io::ErrorKind::Other,
                         format!("unknown client {subscriber_id}"),
                     ))?;
-                    let message = ForwardedSubscriptionRequest {
+                    let message = Message::ForwardedSubscriptionRequest {
                         client_id: subscriber_id.clone(),
                         host: client.host.clone(),
                         user: client.user.clone(),
                         topic: topic.clone(),
                         is_add: true,
                     };
-                    let event =
-                        ServerEvent::OnMessage(Message::ForwardedSubscriptionRequest(message));
+                    let event = ServerEvent::OnMessage(message);
                     client
                         .tx
                         .send(event)
@@ -153,19 +153,17 @@ impl NotificationManager {
                     format!("unknown client {subscriber_id}"),
                 ))?;
 
-                let message = ForwardedSubscriptionRequest {
-                    client_id: subscriber_id.into(),
+                let message = Message::ForwardedSubscriptionRequest {
                     host: subscriber.host.clone(),
                     user: subscriber.user.clone(),
+                    client_id: subscriber_id.into(),
                     topic: topic.to_string(),
                     is_add,
                 };
 
                 for listener_id in notification.listeners.keys() {
                     if let Some(listener) = client_manager.get(listener_id) {
-                        let event = ServerEvent::OnMessage(Message::ForwardedSubscriptionRequest(
-                            message.clone(),
-                        ));
+                        let event = ServerEvent::OnMessage(message.clone());
 
                         listener
                             .tx
