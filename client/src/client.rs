@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::io;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -15,7 +16,6 @@ use common::messages::UnicastData;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio_rustls::client;
 
 use crate::authentication::authenticate;
 use crate::tls::create_tls_stream;
@@ -76,7 +76,7 @@ where
 
         authenticate(&mut stream, mode, username, password).await?;
 
-        let mut client = Client {
+        let client = Client {
             callbacks,
             tx,
             rx,
