@@ -10,21 +10,24 @@ use htpasswd_verify::Htpasswd;
 use ldap3::{LdapConnAsync, LdapConnSettings};
 
 use crate::message_stream::MessageStream;
+use crate::options::AuthenticationOption;
 
 #[derive(Clone)]
-pub struct HtpasswdAuthenticationManager {
+pub struct BasicAuthenticationManager {
+    path: PathBuf,
     data: HashMap<String, String>,
 }
 
-impl HtpasswdAuthenticationManager {
+impl BasicAuthenticationManager {
     pub fn new(path: &PathBuf) -> Result<Self> {
-        Ok(HtpasswdAuthenticationManager {
+        Ok(BasicAuthenticationManager {
+            path: path.clone(),
             data: load_htpasswd(path)?,
         })
     }
 
-    pub fn reset(&mut self, path: &PathBuf) -> Result<()> {
-        self.data = load_htpasswd(path)?;
+    pub fn reset(&mut self) -> Result<()> {
+        self.data = load_htpasswd(&self.path)?;
         Ok(())
     }
 
@@ -130,25 +133,26 @@ impl LdapAuthenticationManager {
 
 #[derive(Clone)]
 pub struct AuthenticationManager {
-    pub htpasswd: Option<HtpasswdAuthenticationManager>,
+    pub basic: Option<BasicAuthenticationManager>,
     pub ldap: Option<LdapAuthenticationManager>,
 }
 
 impl AuthenticationManager {
-    pub fn new(pwfile: Option<PathBuf>, ldap_url: Option<String>) -> Self {
-        let htpasswd: Option<HtpasswdAuthenticationManager> = match &pwfile {
-            Some(path) => {
-                // TODO: Fix unwrap
-                let authentication_manager = HtpasswdAuthenticationManager::new(path).unwrap();
-                Some(authentication_manager)
-            }
-            None => None,
-        };
-        let ldap = match ldap_url {
-            Some(url) => Some(LdapAuthenticationManager::new(url)),
-            None => None,
-        };
-        AuthenticationManager { htpasswd, ldap }
+    pub fn new(option: &AuthenticationOption) -> Result<Self> {
+        Ok(match option {
+            AuthenticationOption::None => AuthenticationManager {
+                basic: None,
+                ldap: None,
+            },
+            AuthenticationOption::Basic(path) => AuthenticationManager {
+                basic: Some(BasicAuthenticationManager::new(&path)?),
+                ldap: None,
+            },
+            AuthenticationOption::Ldap(url) => AuthenticationManager {
+                basic: None,
+                ldap: Some(LdapAuthenticationManager::new(url.clone())),
+            },
+        })
     }
 
     pub async fn authenticate(&self, stream: &mut impl MessageStream) -> Result<String> {
@@ -167,9 +171,9 @@ impl AuthenticationManager {
             }
             "basic" => {
                 log::debug!("Authenticating with \"basic\"");
-                return match &self.htpasswd {
+                return match &self.basic {
                     Some(auth) => auth.authenticate(&request.credentials),
-                    None => Err(Error::new(ErrorKind::Other, "no htpasswd auth")),
+                    None => Err(Error::new(ErrorKind::Other, "no basic auth")),
                 };
             }
             "ldap" => {
@@ -186,12 +190,9 @@ impl AuthenticationManager {
         }
     }
 
-    pub fn reset(&mut self, pwfile: &Option<PathBuf>) -> Result<()> {
-        return match self.htpasswd {
-            Some(ref mut auth) => match &pwfile {
-                Some(path) => auth.reset(path),
-                None => Ok(()),
-            },
+    pub fn reset(&mut self) -> Result<()> {
+        return match self.basic {
+            Some(ref mut auth) => auth.reset(),
             None => Ok(()),
         };
     }

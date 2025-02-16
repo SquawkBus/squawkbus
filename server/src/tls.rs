@@ -9,18 +9,10 @@ use rustls_pemfile::{certs, private_key};
 
 use tokio_rustls::{rustls, TlsAcceptor};
 
-pub fn create_acceptor(
-    certfile: Option<PathBuf>,
-    keyfile: Option<PathBuf>,
-) -> io::Result<TlsAcceptor> {
+pub fn create_acceptor(certfile: &PathBuf, keyfile: &PathBuf) -> io::Result<TlsAcceptor> {
     // Ensure we have all the arguments.
-    let certfile =
-        certfile.ok_or_else(|| io::Error::new(ErrorKind::Other, "certfile not specified"))?;
-    let keyfile =
-        keyfile.ok_or_else(|| io::Error::new(ErrorKind::Other, "keyfile not specified"))?;
-
-    let certs = load_certs(&certfile)?;
-    let key = load_key(&keyfile)?;
+    let certs = load_certs(certfile)?;
+    let key = load_key(keyfile)?;
 
     let config = rustls::ServerConfig::builder()
         .with_no_client_auth()

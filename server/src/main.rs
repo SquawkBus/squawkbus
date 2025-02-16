@@ -57,14 +57,13 @@ async fn main() -> io::Result<()> {
     env_logger::init();
 
     // Command line options.
-    let options = Options::load();
+    let options = Options::load()?;
 
     let authorizations =
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
     let authentication_manager = Arc::new(RwLock::new(AuthenticationManager::new(
-        options.pwfile.clone(),
-        options.ldap_url,
-    )));
+        &options.authentication,
+    )?));
 
     // Make the channel for the client-to-server communication.
     let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
@@ -78,15 +77,14 @@ async fn main() -> io::Result<()> {
     handle_config_reset(
         options.authorizations_file.clone(),
         options.authorizations.clone(),
-        options.pwfile.clone(),
         authentication_manager.clone(),
         client_tx.clone(),
     )
     .await;
 
     let tls_acceptor = match options.tls {
-        true => Some(create_acceptor(options.certfile, options.keyfile)?),
-        false => None,
+        Some(option) => Some(create_acceptor(&option.certfile, &option.keyfile)?),
+        None => None,
     };
 
     let socket_addr = options
@@ -176,7 +174,6 @@ async fn start_listener(
 async fn handle_config_reset(
     authorizations_file: Option<PathBuf>,
     authorizations: Vec<AuthorizationSpec>,
-    pwfile: Option<PathBuf>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
     client_tx: Sender<ClientEvent>,
 ) {
@@ -186,8 +183,7 @@ async fn handle_config_reset(
             // Wait for SIGHUP.
             hangup_stream.recv().await.unwrap();
 
-            log::info!("Reloading authentication");
-            authentication_manager.write().await.reset(&pwfile).unwrap();
+            authentication_manager.write().await.reset().unwrap();
 
             log::info!("Reloading authorizations");
             let authorizations =

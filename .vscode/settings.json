@@ -6,6 +6,7 @@
         "bitflags",
         "cafile",
         "certfile",
+        "Conn",
         "datapacket",
         "Deque",
         "fbuf",
@@ -22,6 +23,7 @@
         "roundtrip",
         "rustls",
         "serde",
+        "starttls",
         "trustno",
         "tungstenite"
     ],
