@@ -7,7 +7,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "server - no args",
+            "name": "server",
             "cargo": {
                 "args": [
                     "build",
@@ -29,7 +29,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "client - no args",
+            "name": "client",
             "cargo": {
                 "args": [
                     "build",
@@ -47,7 +47,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "server - args",
+            "name": "server: TLS",
             "cargo": {
                 "args": [
                     "build",
@@ -63,9 +63,32 @@
                 "RUST_LOG": "debug"
             },
             "args": [
-                "--pwfile", "etc/ht.passwd",
-                "-a", "A\\..*:tom:1:Subscriber",
-                "-a", "A\\..*:dick:1:Publisher"
+                "--tls", "~/.keys/server.crt", "~/.keys/server.ke"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "server: basic+auth",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=server",
+                    "--package=server"
+                ],
+                "filter": {
+                    "name": "server",
+                    "kind": "bin"
+                }
+            },
+            "env": {
+                "RUST_LOG": "debug"
+            },
+            "args": [
+                "--authentication", "basic", "etc/ht.passwd",
+                "--authorization", "LSE\\..*:tom:1:Subscriber",
+                "--authorization", "LSE\\..*:dick:1:Publisher"
             ],
             "cwd": "${workspaceFolder}"
         },
