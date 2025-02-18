@@ -54,7 +54,7 @@ impl Interactor {
                 }
                 // forward hub to client
                 result = rx.recv() => {
-                    forward_hub_to_client(result, stream).await
+                    self.forward_hub_to_client(result, stream).await
                 }
             }?
         }
@@ -104,18 +104,21 @@ impl Interactor {
             }
         }
     }
-}
 
-async fn forward_hub_to_client(
-    event: Option<ServerEvent>,
-    stream: &mut impl MessageStream,
-) -> io::Result<()> {
-    let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
-    match event {
-        ServerEvent::OnMessage(message) => {
-            stream.write(&message).await?;
+    async fn forward_hub_to_client(
+        &self,
+        event: Option<ServerEvent>,
+        stream: &mut impl MessageStream,
+    ) -> io::Result<()> {
+        let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
+        match event {
+            ServerEvent::OnMessage(message) => {
+                let client_id = self.id.as_str();
+                log::debug!("Sent message to {client_id}: \"{message:?}\"");
+                stream.write(&message).await?;
+            }
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
