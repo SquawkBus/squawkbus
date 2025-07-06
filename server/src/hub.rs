@@ -15,7 +15,7 @@ use crate::{
     subscriptions::SubscriptionManager,
 };
 
-pub struct Hub {
+struct HubManager {
     client_manager: ClientManager,
     subscription_manager: SubscriptionManager,
     notification_manager: NotificationManager,
@@ -23,9 +23,9 @@ pub struct Hub {
     authorization_manager: AuthorizationManager,
 }
 
-impl Hub {
-    pub fn new(entitlement_manager: AuthorizationManager) -> Hub {
-        Hub {
+impl HubManager {
+    pub fn new(entitlement_manager: AuthorizationManager) -> Self {
+        HubManager {
             client_manager: ClientManager::new(),
             subscription_manager: SubscriptionManager::new(),
             notification_manager: NotificationManager::new(),
@@ -134,14 +134,14 @@ impl Hub {
     }
 }
 
-pub struct HubRunner {
-    state: Arc<Mutex<Hub>>,
+pub struct Hub {
+    state: Arc<Mutex<HubManager>>,
 }
 
-impl HubRunner {
-    pub fn new(entitlement_manager: AuthorizationManager) -> HubRunner {
-        HubRunner {
-            state: Arc::new(Mutex::new(Hub::new(entitlement_manager))),
+impl Hub {
+    pub fn new(entitlement_manager: AuthorizationManager) -> Self {
+        Hub {
+            state: Arc::new(Mutex::new(HubManager::new(entitlement_manager))),
         }
     }
     pub async fn run(

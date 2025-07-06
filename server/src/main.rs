@@ -26,7 +26,7 @@ mod events;
 use events::ClientEvent;
 
 mod hub;
-use hub::HubRunner;
+use hub::Hub;
 
 mod interactor;
 use interactor::Interactor;
@@ -66,7 +66,7 @@ async fn main() -> io::Result<()> {
 
     // Start the hub message processor. Note that is takes the receive end of
     // the mpsc channel.
-    join_set.spawn(async move { HubRunner::run(authorizations, server_rx).await });
+    join_set.spawn(async move { Hub::run(authorizations, server_rx).await });
 
     handle_config_reset(
         options.authorizations_file.clone(),
