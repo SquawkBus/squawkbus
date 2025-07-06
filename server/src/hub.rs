@@ -43,14 +43,18 @@ impl Hub {
     async fn start(&mut self, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
         loop {
             let msg = server_rx.recv().await.unwrap();
-            match msg {
-                ClientEvent::OnMessage(id, msg) => self.handle_message(&id, msg).await?,
-                ClientEvent::OnConnect(id, host, user, server_tx) => {
-                    self.handle_connect(&id, host, user, server_tx)
-                }
-                ClientEvent::OnClose(id) => self.handle_close(&id).await?,
-                ClientEvent::OnReset(specs) => self.handle_reset(specs),
+            self.handle_event(msg).await?
+        }
+    }
+
+    async fn handle_event(&mut self, event: ClientEvent) -> io::Result<()> {
+        match event {
+            ClientEvent::OnMessage(id, msg) => self.handle_message(&id, msg).await,
+            ClientEvent::OnConnect(id, host, user, server_tx) => {
+                Ok(self.handle_connect(&id, host, user, server_tx))
             }
+            ClientEvent::OnClose(id) => self.handle_close(&id).await,
+            ClientEvent::OnReset(specs) => Ok(self.handle_reset(specs)),
         }
     }
 
