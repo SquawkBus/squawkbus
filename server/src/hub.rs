@@ -1,6 +1,8 @@
 use std::io;
+use std::sync::Arc;
 
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::Mutex;
 
 use common::messages::Message;
 
@@ -32,22 +34,7 @@ impl Hub {
         }
     }
 
-    pub async fn run(
-        authorizations: Vec<AuthorizationSpec>,
-        server_rx: Receiver<ClientEvent>,
-    ) -> io::Result<()> {
-        let mut hub = Self::new(AuthorizationManager::new(authorizations));
-        hub.start(server_rx).await
-    }
-
-    async fn start(&mut self, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
-        loop {
-            let msg = server_rx.recv().await.unwrap();
-            self.handle_event(msg).await?
-        }
-    }
-
-    async fn handle_event(&mut self, event: ClientEvent) -> io::Result<()> {
+    pub async fn handle_event(&mut self, event: ClientEvent) -> io::Result<()> {
         match event {
             ClientEvent::OnMessage(id, msg) => self.handle_message(&id, msg).await,
             ClientEvent::OnConnect(id, host, user, server_tx) => {
@@ -143,6 +130,34 @@ impl Hub {
                     .await
             }
             _ => Err(io::Error::new(io::ErrorKind::Other, "unhandled message")),
+        }
+    }
+}
+
+pub struct HubRunner {
+    state: Arc<Mutex<Hub>>,
+}
+
+impl HubRunner {
+    pub fn new(entitlement_manager: AuthorizationManager) -> HubRunner {
+        HubRunner {
+            state: Arc::new(Mutex::new(Hub::new(entitlement_manager))),
+        }
+    }
+    pub async fn run(
+        authorizations: Vec<AuthorizationSpec>,
+        server_rx: Receiver<ClientEvent>,
+    ) -> io::Result<()> {
+        let mut hub_runner = Self::new(AuthorizationManager::new(authorizations));
+        hub_runner.start(server_rx).await
+    }
+
+    async fn start(&mut self, mut server_rx: Receiver<ClientEvent>) -> io::Result<()> {
+        loop {
+            let msg = server_rx.recv().await.unwrap();
+            let state = self.state.clone();
+            let mut state = state.lock().await;
+            state.handle_event(msg).await?
         }
     }
 }
