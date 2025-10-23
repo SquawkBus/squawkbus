@@ -68,6 +68,7 @@ impl HubManager {
                 &mut self.subscription_manager,
                 &mut self.notification_manager,
                 &mut self.publisher_manager,
+                &self.authorization_manager,
             )
             .await
     }
@@ -110,6 +111,8 @@ impl HubManager {
                         is_add,
                         &self.client_manager,
                         &self.notification_manager,
+                        &mut self.publisher_manager,
+                        &self.authorization_manager,
                     )
                     .await
             }

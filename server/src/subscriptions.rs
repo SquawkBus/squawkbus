@@ -1,11 +1,20 @@
 use std::{
     collections::{HashMap, HashSet},
-    io,
+    io::{self, Cursor},
 };
 
+use common::{
+    io::Serializable,
+    messages::{DataPacket, Message},
+};
 use regex::Regex;
 
-use crate::{clients::ClientManager, notifications::NotificationManager};
+use crate::{
+    authorization::AuthorizationManager, clients::ClientManager,
+    notifications::NotificationManager, publishing::PublisherManager,
+};
+
+const SUBSCRIPTION_TOPIC: &str = "__subscription__";
 
 struct Subscription {
     regex: Regex,
@@ -54,16 +63,27 @@ impl SubscriptionManager {
         is_add: bool,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        publisher_manager: &mut PublisherManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         if is_add {
-            self.add_subscription(id, topic.as_str(), client_manager, notification_manager)
-                .await
+            self.add_subscription(
+                id,
+                topic.as_str(),
+                client_manager,
+                notification_manager,
+                publisher_manager,
+                entitlements_manager,
+            )
+            .await
         } else {
             self.remove_subscription(
                 id,
                 topic.as_str(),
                 client_manager,
                 notification_manager,
+                publisher_manager,
+                entitlements_manager,
                 false,
             )
             .await
@@ -76,6 +96,8 @@ impl SubscriptionManager {
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        publisher_manager: &mut PublisherManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         // Add or get the subscription.
         if !self.subscriptions.contains_key(topic) {
@@ -94,7 +116,71 @@ impl SubscriptionManager {
             notification_manager
                 .notify_listeners(subscriber_id, topic, true, client_manager)
                 .await?;
+
+            self.notify_subscription(
+                subscriber_id,
+                topic,
+                true,
+                client_manager,
+                publisher_manager,
+                entitlements_manager,
+            )
+            .await?;
         }
+
+        Ok(())
+    }
+
+    async fn notify_subscription(
+        &mut self,
+        subscriber_id: &str,
+        topic: &str,
+        is_add: bool,
+        client_manager: &ClientManager,
+        publisher_manager: &mut PublisherManager,
+        entitlements_manager: &AuthorizationManager,
+    ) -> io::Result<()> {
+        if topic == SUBSCRIPTION_TOPIC {
+            return Ok(());
+        }
+
+        let subscriber = client_manager.get(&subscriber_id).ok_or(io::Error::new(
+            io::ErrorKind::Other,
+            format!("unknown client {subscriber_id}"),
+        ))?;
+
+        let forwarded_subscription_request = Message::ForwardedSubscriptionRequest {
+            host: subscriber.host.clone(),
+            user: subscriber.user.clone(),
+            client_id: subscriber_id.into(),
+            topic: topic.to_string(),
+            is_add,
+        };
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        forwarded_subscription_request
+            .serialize(&mut cursor)
+            .expect("should serialize");
+
+        let data = cursor.into_inner();
+
+        let data_packet = DataPacket {
+            name: "forwarded_subscription_request".to_string(),
+            entitlement: 0,
+            content_type: "internal".to_string(),
+            data,
+        };
+
+        publisher_manager
+            .send_multicast_data(
+                subscriber_id,
+                SUBSCRIPTION_TOPIC,
+                vec![data_packet],
+                self,
+                client_manager,
+                entitlements_manager,
+            )
+            .await?;
 
         Ok(())
     }
@@ -105,6 +191,8 @@ impl SubscriptionManager {
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        publisher_manager: &mut PublisherManager,
+        entitlements_manager: &AuthorizationManager,
         is_subscriber_closed: bool,
     ) -> io::Result<()> {
         let Some(subscription) = self.subscriptions.get_mut(topic) else {
@@ -134,7 +222,19 @@ impl SubscriptionManager {
 
         notification_manager
             .notify_listeners(subscriber_id, topic, false, client_manager)
-            .await
+            .await?;
+
+        self.notify_subscription(
+            subscriber_id,
+            topic,
+            true,
+            client_manager,
+            publisher_manager,
+            entitlements_manager,
+        )
+        .await?;
+
+        Ok(())
     }
 
     pub async fn handle_close(
@@ -142,6 +242,8 @@ impl SubscriptionManager {
         closed_client_id: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
+        publisher_manager: &mut PublisherManager,
+        entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         let closed_client_topic_subscriptions = self.find_client_topics(closed_client_id);
         for topic in closed_client_topic_subscriptions {
@@ -150,6 +252,8 @@ impl SubscriptionManager {
                 &topic,
                 client_manager,
                 notification_manager,
+                publisher_manager,
+                entitlements_manager,
                 true,
             )
             .await?;

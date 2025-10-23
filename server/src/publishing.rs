@@ -129,7 +129,7 @@ impl PublisherManager {
     ) -> io::Result<()> {
         let subscribers = subscription_manager.subscribers_for_topic(topic);
         if subscribers.is_empty() {
-            log::debug!("send_multicast_data: no topic {topic}");
+            log::debug!("send_multicast_data: no subscribers to {topic}");
             return Ok(());
         }
 
