@@ -256,17 +256,4 @@ impl SubscriptionManager {
         }
         topics
     }
-
-    pub fn find_subscriptions(&self, regex: &Regex) -> Vec<(String, Vec<String>)> {
-        let mut subscriptions: Vec<(String, Vec<String>)> = Vec::new();
-        for (topic, subscription) in &self.subscriptions {
-            if regex.is_match(topic.as_str()) {
-                subscriptions.push((
-                    topic.clone(),
-                    subscription.subscribers.keys().map(|x| x.clone()).collect(),
-                ));
-            }
-        }
-        subscriptions
-    }
 }

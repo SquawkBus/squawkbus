@@ -10,7 +10,6 @@ use crate::{
     authorization::{AuthorizationManager, AuthorizationSpec},
     clients::ClientManager,
     events::{ClientEvent, ServerEvent},
-    notifications::NotificationManager,
     publishing::PublisherManager,
     subscriptions::SubscriptionManager,
 };
@@ -18,7 +17,6 @@ use crate::{
 struct HubManager {
     client_manager: ClientManager,
     subscription_manager: SubscriptionManager,
-    notification_manager: NotificationManager,
     publisher_manager: PublisherManager,
     authorization_manager: AuthorizationManager,
 }
@@ -28,7 +26,6 @@ impl HubManager {
         HubManager {
             client_manager: ClientManager::new(),
             subscription_manager: SubscriptionManager::new(),
-            notification_manager: NotificationManager::new(),
             publisher_manager: PublisherManager::new(),
             authorization_manager: entitlement_manager,
         }
@@ -66,7 +63,6 @@ impl HubManager {
             .handle_close(
                 client_id,
                 &mut self.subscription_manager,
-                &mut self.notification_manager,
                 &mut self.publisher_manager,
                 &self.authorization_manager,
             )
@@ -89,17 +85,6 @@ impl HubManager {
                         &self.subscription_manager,
                         &self.client_manager,
                         &self.authorization_manager,
-                    )
-                    .await
-            }
-            Message::NotificationRequest { pattern, is_add } => {
-                self.notification_manager
-                    .handle_notification_request(
-                        client_id,
-                        pattern,
-                        is_add,
-                        &self.client_manager,
-                        &self.subscription_manager,
                     )
                     .await
             }

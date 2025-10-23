@@ -40,8 +40,6 @@ pub trait ClientProtocol {
     ) -> BoxFuture<'_, io::Result<()>>;
     fn add_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
     fn remove_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
-    fn remove_notification(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
-    fn add_notification(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>>;
 }
 
 pub struct Client<S>
@@ -123,11 +121,6 @@ where
         self.send_message(message).await
     }
 
-    async fn send_notification_request(&mut self, pattern: String, is_add: bool) -> io::Result<()> {
-        let message = Message::NotificationRequest { pattern, is_add };
-        self.send_message(message).await
-    }
-
     async fn handle_message(&mut self, message: Message) {
         match message {
             Message::UnicastData {
@@ -201,14 +194,6 @@ where
 
     fn remove_subscription(&mut self, topic: String) -> BoxFuture<'_, io::Result<()>> {
         Box::pin(async move { self.send_subscription_request(topic, false).await })
-    }
-
-    fn add_notification(&mut self, pattern: String) -> BoxFuture<'_, io::Result<()>> {
-        Box::pin(async move { self.send_notification_request(pattern, true).await })
-    }
-
-    fn remove_notification(&mut self, pattern: String) -> BoxFuture<'_, io::Result<()>> {
-        Box::pin(async move { self.send_notification_request(pattern, false).await })
     }
 }
 

@@ -39,10 +39,6 @@ pub enum Message {
         topic: String,
         data_packets: Vec<DataPacket>,
     },
-    NotificationRequest {
-        pattern: String,
-        is_add: bool,
-    },
     SubscriptionRequest {
         topic: String,
         is_add: bool,
@@ -65,7 +61,6 @@ impl Message {
             }
             Message::ForwardedUnicastData { .. } => MessageType::ForwardedUnicastData,
             Message::MulticastData { .. } => MessageType::MulticastData,
-            Message::NotificationRequest { .. } => MessageType::NotificationRequest,
             Message::SubscriptionRequest { .. } => MessageType::SubscriptionRequest,
             Message::UnicastData { .. } => MessageType::UnicastData,
         }
@@ -134,11 +129,6 @@ impl Serializable for Message {
                     topic,
                     data_packets,
                 })
-            }
-            Ok(MessageType::NotificationRequest) => {
-                let pattern = String::deserialize(reader)?;
-                let is_add = bool::deserialize(reader)?;
-                Ok(Message::NotificationRequest { pattern, is_add })
             }
             Ok(MessageType::SubscriptionRequest) => {
                 let topic = String::deserialize(reader)?;
@@ -222,11 +212,6 @@ impl Serializable for Message {
                 data_packets.serialize(writer)?;
                 Ok(())
             }
-            Message::NotificationRequest { pattern, is_add } => {
-                pattern.serialize(writer)?;
-                is_add.serialize(writer)?;
-                Ok(())
-            }
             Message::SubscriptionRequest { topic, is_add } => {
                 topic.serialize(writer)?;
                 is_add.serialize(writer)?;
@@ -283,7 +268,6 @@ impl Serializable for Message {
                     topic,
                     data_packets,
                 } => topic.size() + data_packets.size(),
-                Message::NotificationRequest { pattern, is_add } => pattern.size() + is_add.size(),
                 Message::SubscriptionRequest { topic, is_add } => topic.size() + is_add.size(),
                 Message::UnicastData {
                     client_id,
@@ -402,21 +386,6 @@ mod test_message {
                 entitlement: 1,
                 data: "Hello, World!".into(),
             }],
-        };
-
-        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        initial.serialize(&mut cursor).expect("should serialize");
-
-        cursor.rewind().expect("should rewind");
-        let round_trip = Message::deserialize(&mut cursor).unwrap();
-        assert_eq!(initial, round_trip);
-    }
-
-    #[test]
-    fn should_roundtrip_notification_request() {
-        let initial = Message::NotificationRequest {
-            pattern: ".* LSE".into(),
-            is_add: true,
         };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());

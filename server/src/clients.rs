@@ -5,7 +5,6 @@ use tokio::sync::mpsc::Sender;
 
 use crate::authorization::AuthorizationManager;
 use crate::events::ServerEvent;
-use crate::notifications::NotificationManager;
 use crate::publishing::PublisherManager;
 use crate::subscriptions::SubscriptionManager;
 
@@ -42,7 +41,6 @@ impl ClientManager {
         &mut self,
         client_id: &str,
         subscription_manager: &mut SubscriptionManager,
-        notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
         authorization_manager: &AuthorizationManager,
     ) -> io::Result<()> {
@@ -51,8 +49,6 @@ impl ClientManager {
         subscription_manager
             .handle_close(client_id, self, publisher_manager, authorization_manager)
             .await?;
-
-        notification_manager.handle_close(client_id).await?;
 
         publisher_manager
             .handle_close(client_id, self, subscription_manager)

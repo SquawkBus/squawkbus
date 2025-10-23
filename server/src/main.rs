@@ -34,8 +34,6 @@ use interactor::Interactor;
 mod options;
 use options::Options;
 
-mod notifications;
-
 mod publishing;
 
 mod subscriptions;

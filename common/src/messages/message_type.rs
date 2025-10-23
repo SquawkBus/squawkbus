@@ -10,10 +10,9 @@ pub enum MessageType {
     MulticastData = 3,
     UnicastData = 4,
     ForwardedSubscriptionRequest = 5,
-    NotificationRequest = 6,
-    SubscriptionRequest = 7,
-    ForwardedMulticastData = 8,
-    ForwardedUnicastData = 9,
+    SubscriptionRequest = 6,
+    ForwardedMulticastData = 7,
+    ForwardedUnicastData = 8,
 }
 
 impl TryFrom<u8> for MessageType {
@@ -26,7 +25,6 @@ impl TryFrom<u8> for MessageType {
             3 => Ok(MessageType::MulticastData),
             4 => Ok(MessageType::UnicastData),
             5 => Ok(MessageType::ForwardedSubscriptionRequest),
-            6 => Ok(MessageType::NotificationRequest),
             7 => Ok(MessageType::SubscriptionRequest),
             8 => Ok(MessageType::ForwardedMulticastData),
             9 => Ok(MessageType::ForwardedUnicastData),
@@ -43,10 +41,9 @@ impl Into<u8> for MessageType {
             MessageType::MulticastData => 3,
             MessageType::UnicastData => 4,
             MessageType::ForwardedSubscriptionRequest => 5,
-            MessageType::NotificationRequest => 6,
-            MessageType::SubscriptionRequest => 7,
-            MessageType::ForwardedMulticastData => 8,
-            MessageType::ForwardedUnicastData => 9,
+            MessageType::SubscriptionRequest => 6,
+            MessageType::ForwardedMulticastData => 7,
+            MessageType::ForwardedUnicastData => 8,
         }
     }
 }

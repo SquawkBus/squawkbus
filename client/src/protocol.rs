@@ -62,7 +62,6 @@ fn parse_message(line: &str) -> Result<Message, &'static str> {
     match args[0] {
         "publish" => handle_publish(args),
         "subscribe" => handle_subscribe(args),
-        "notify" => handle_notify(args),
         _ => Err("usage: publish/subscribe/notify"),
     }
 }
@@ -102,18 +101,6 @@ fn handle_subscribe(args: Vec<&str>) -> Result<Message, &'static str> {
     let topic = args[1].to_string();
     let message = Message::SubscriptionRequest {
         topic,
-        is_add: true,
-    };
-    Ok(message)
-}
-
-fn handle_notify(args: Vec<&str>) -> Result<Message, &'static str> {
-    if args.len() != 2 {
-        return Err("usage: subscribe <topic>");
-    }
-    let pattern = args[1].to_string();
-    let message = Message::NotificationRequest {
-        pattern,
         is_add: true,
     };
     Ok(message)
