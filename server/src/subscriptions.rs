@@ -10,8 +10,7 @@ use common::{
 use regex::Regex;
 
 use crate::{
-    authorization::AuthorizationManager, clients::ClientManager,
-    notifications::NotificationManager, publishing::PublisherManager,
+    authorization::AuthorizationManager, clients::ClientManager, publishing::PublisherManager,
 };
 
 const SUBSCRIPTION_TOPIC: &str = "__subscription__";
@@ -62,7 +61,6 @@ impl SubscriptionManager {
         topic: String,
         is_add: bool,
         client_manager: &ClientManager,
-        notification_manager: &NotificationManager,
         publisher_manager: &mut PublisherManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
@@ -71,7 +69,6 @@ impl SubscriptionManager {
                 id,
                 topic.as_str(),
                 client_manager,
-                notification_manager,
                 publisher_manager,
                 entitlements_manager,
             )
@@ -81,7 +78,6 @@ impl SubscriptionManager {
                 id,
                 topic.as_str(),
                 client_manager,
-                notification_manager,
                 publisher_manager,
                 entitlements_manager,
                 false,
@@ -95,7 +91,6 @@ impl SubscriptionManager {
         subscriber_id: &str,
         topic: &str,
         client_manager: &ClientManager,
-        notification_manager: &NotificationManager,
         publisher_manager: &mut PublisherManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
@@ -113,9 +108,6 @@ impl SubscriptionManager {
         } else {
             log::debug!("add_subscription: creating new {topic}");
             subscription.subscribers.insert(subscriber_id.into(), 1);
-            notification_manager
-                .notify_listeners(subscriber_id, topic, true, client_manager)
-                .await?;
 
             self.notify_subscription(
                 subscriber_id,
@@ -190,7 +182,6 @@ impl SubscriptionManager {
         subscriber_id: &str,
         topic: &str,
         client_manager: &ClientManager,
-        notification_manager: &NotificationManager,
         publisher_manager: &mut PublisherManager,
         entitlements_manager: &AuthorizationManager,
         is_subscriber_closed: bool,
@@ -220,14 +211,10 @@ impl SubscriptionManager {
             self.subscriptions.remove(topic);
         }
 
-        notification_manager
-            .notify_listeners(subscriber_id, topic, false, client_manager)
-            .await?;
-
         self.notify_subscription(
             subscriber_id,
             topic,
-            true,
+            false,
             client_manager,
             publisher_manager,
             entitlements_manager,
@@ -241,7 +228,6 @@ impl SubscriptionManager {
         &mut self,
         closed_client_id: &str,
         client_manager: &ClientManager,
-        notification_manager: &NotificationManager,
         publisher_manager: &mut PublisherManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
@@ -251,7 +237,6 @@ impl SubscriptionManager {
                 closed_client_id,
                 &topic,
                 client_manager,
-                notification_manager,
                 publisher_manager,
                 entitlements_manager,
                 true,

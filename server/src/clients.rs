@@ -49,13 +49,7 @@ impl ClientManager {
         log::debug!("ClientManager::handle_close: closing {client_id}");
 
         subscription_manager
-            .handle_close(
-                client_id,
-                self,
-                notification_manager,
-                publisher_manager,
-                authorization_manager,
-            )
+            .handle_close(client_id, self, publisher_manager, authorization_manager)
             .await?;
 
         notification_manager.handle_close(client_id).await?;

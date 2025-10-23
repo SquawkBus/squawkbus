@@ -110,7 +110,6 @@ impl HubManager {
                         topic,
                         is_add,
                         &self.client_manager,
-                        &self.notification_manager,
                         &mut self.publisher_manager,
                         &self.authorization_manager,
                     )
