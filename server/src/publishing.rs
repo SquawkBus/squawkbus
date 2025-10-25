@@ -73,8 +73,8 @@ impl PublisherManager {
             // Entitlements only operate if the sender has entitlements.
             log::debug!(
                 "send_unicast_data: no entitlements from {} to {} for {}",
-                sender.user,
-                receiver.user,
+                &sender.user,
+                &receiver.user,
                 topic
             );
             return Ok(());
@@ -85,8 +85,8 @@ impl PublisherManager {
         if auth_data_packets.is_empty() {
             log::debug!(
                 "send_unicast_data: empty message from {} to {} for {} - skipping",
-                sender.user,
-                receiver.user,
+                &sender.user,
+                &receiver.user,
                 topic
             );
             return Ok(());
@@ -189,11 +189,9 @@ impl PublisherManager {
                     "send_multicast_data: sending message {message:?} to client {subscriber_id}"
                 );
 
-                let event = ServerEvent::OnMessage(message);
-
                 subscriber
                     .tx
-                    .send(event)
+                    .send(ServerEvent::OnMessage(message))
                     .await
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             }

@@ -25,7 +25,7 @@ impl Interactor {
         }
     }
 
-    pub async fn run<'a>(
+    pub async fn run(
         &self,
         stream: &mut impl MessageStream,
         addr: SocketAddr,
