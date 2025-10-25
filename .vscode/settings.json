@@ -23,6 +23,7 @@
         "roundtrip",
         "rustls",
         "serde",
+        "squawkbus",
         "starttls",
         "trustno",
         "tungstenite"

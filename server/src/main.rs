@@ -41,6 +41,8 @@ mod subscriptions;
 mod tls;
 use tls::create_acceptor;
 
+mod topic_tree;
+
 /// The server starts by creating a `hub` task to process messages. It then
 /// listens for client connections. When a client connects an interactor is
 /// created.

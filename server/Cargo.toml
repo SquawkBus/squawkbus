@@ -25,3 +25,4 @@ http-auth-basic = "0.3.5"
 tokio-tungstenite = { version = "0.26.1", features = [ "rustls" ]}
 futures-util = { version = "0.3.28", default-features = false, features = [ "sink", "std" ]}
 ldap3 = { version = "0.11.5", default-features = false, features = [ "tls-rustls" ] }
+const-str = "0.7.0"

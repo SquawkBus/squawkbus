@@ -25,9 +25,9 @@ impl TryFrom<u8> for MessageType {
             3 => Ok(MessageType::MulticastData),
             4 => Ok(MessageType::UnicastData),
             5 => Ok(MessageType::ForwardedSubscriptionRequest),
-            7 => Ok(MessageType::SubscriptionRequest),
-            8 => Ok(MessageType::ForwardedMulticastData),
-            9 => Ok(MessageType::ForwardedUnicastData),
+            6 => Ok(MessageType::SubscriptionRequest),
+            7 => Ok(MessageType::ForwardedMulticastData),
+            8 => Ok(MessageType::ForwardedUnicastData),
             _ => Err(()),
         }
     }
