@@ -15,19 +15,11 @@ use crate::{
     topic_tree::{TopicTree, LEVEL_SEPARATOR},
 };
 
-const SYSTEM_WORD: &str = "$SYS";
-const BROKER_CATEGORY: &str = "broker";
+const SYSTEM_WORD: &str = "~";
 const SUBSCRIPTIONS_CATEGORY: &str = "subscriptions";
 
-const SUBSCRIPTION_TOPIC: &str = const_str::join!(
-    &[
-        SYSTEM_WORD,
-        BROKER_CATEGORY,
-        SUBSCRIPTIONS_CATEGORY,
-        "patterns"
-    ],
-    LEVEL_SEPARATOR
-);
+const SUBSCRIPTION_TOPIC: &str =
+    const_str::join!(&[SYSTEM_WORD, SUBSCRIPTIONS_CATEGORY], LEVEL_SEPARATOR);
 
 const SQUAWKBUS_CONTENT_TYPE: &str = "application/x-squawkbus";
 
@@ -94,19 +86,17 @@ impl SubscriptionManager {
             log::debug!("add_subscription: incrementing count for {pattern}");
         } else {
             log::debug!("add_subscription: creating new {pattern}");
-
-            self.notify_subscription(
-                subscriber_id,
-                pattern,
-                true,
-                client_manager,
-                publisher_manager,
-                entitlements_manager,
-            )
-            .await?;
         }
 
-        Ok(())
+        self.notify_subscription(
+            subscriber_id,
+            pattern,
+            count,
+            client_manager,
+            publisher_manager,
+            entitlements_manager,
+        )
+        .await
     }
 
     async fn remove_subscription(
@@ -129,19 +119,17 @@ impl SubscriptionManager {
             log::debug!("removed one subscription for {subscriber_id} on {pattern}");
         } else {
             log::debug!("removed all subscriptions for {subscriber_id} on {pattern}");
-
-            self.notify_subscription(
-                subscriber_id,
-                pattern,
-                false,
-                client_manager,
-                publisher_manager,
-                entitlements_manager,
-            )
-            .await?;
         }
 
-        Ok(())
+        self.notify_subscription(
+            subscriber_id,
+            pattern,
+            count,
+            client_manager,
+            publisher_manager,
+            entitlements_manager,
+        )
+        .await
     }
 
     pub async fn handle_close(
@@ -171,7 +159,7 @@ impl SubscriptionManager {
         &mut self,
         subscriber_id: &str,
         pattern: &str,
-        is_add: bool,
+        count: u32,
         client_manager: &ClientManager,
         publisher_manager: &mut PublisherManager,
         entitlements_manager: &AuthorizationManager,
@@ -191,7 +179,7 @@ impl SubscriptionManager {
             user: subscriber.user.clone(),
             client_id: subscriber_id.into(),
             topic: pattern.to_string(),
-            is_add,
+            count,
         };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
