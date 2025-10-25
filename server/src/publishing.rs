@@ -61,9 +61,9 @@ impl PublisherManager {
 
         // Get the entitlements.
         let sender_entitlements =
-            entitlements_manager.entitlements(sender.user.as_str(), topic, Role::Publisher);
+            entitlements_manager.entitlements(&sender.user, topic, Role::Publisher);
         let receiver_entitlements =
-            entitlements_manager.entitlements(receiver.user.as_str(), topic, Role::Subscriber);
+            entitlements_manager.entitlements(&receiver.user, topic, Role::Subscriber);
         let entitlements: HashSet<i32> = sender_entitlements
             .intersection(&receiver_entitlements)
             .cloned()
@@ -98,7 +98,7 @@ impl PublisherManager {
             host: sender.host.clone(),
             user: sender.user.clone(),
             client_id: sender_id.into(),
-            topic: topic.into(),
+            topic: topic.to_string(),
             data_packets: auth_data_packets,
         };
 
@@ -139,7 +139,7 @@ impl PublisherManager {
         };
 
         let publisher_entitlements =
-            entitlements_manager.entitlements(publisher.user.as_str(), topic, Role::Publisher);
+            entitlements_manager.entitlements(&publisher.user, topic, Role::Publisher);
 
         self.add_as_topic_publisher(publisher_id, topic);
 
@@ -147,11 +147,8 @@ impl PublisherManager {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("send_multicast_data: ... {subscriber_id}");
 
-                let subscriber_entitlements = entitlements_manager.entitlements(
-                    subscriber.user.as_str(),
-                    topic,
-                    Role::Subscriber,
-                );
+                let subscriber_entitlements =
+                    entitlements_manager.entitlements(&subscriber.user, topic, Role::Subscriber);
                 let entitlements: HashSet<i32> = publisher_entitlements
                     .intersection(&subscriber_entitlements)
                     .cloned()
@@ -184,7 +181,7 @@ impl PublisherManager {
                 let message = Message::ForwardedMulticastData {
                     host: publisher.host.clone(),
                     user: publisher.user.clone(),
-                    topic: topic.into(),
+                    topic: topic.to_string(),
                     data_packets: auth_data_packets,
                 };
 
@@ -210,7 +207,7 @@ impl PublisherManager {
     fn add_as_topic_publisher(&mut self, publisher_id: &str, topic: &str) {
         let topics = self
             .topics_by_publisher
-            .entry(publisher_id.into())
+            .entry(publisher_id.to_string())
             .or_default();
         if !topics.contains(topic) {
             topics.insert(topic.to_string());
@@ -221,7 +218,7 @@ impl PublisherManager {
             .entry(topic.to_string())
             .or_default();
         if !publishers.contains(publisher_id) {
-            publishers.insert(publisher_id.into());
+            publishers.insert(publisher_id.to_string());
         }
     }
 
@@ -261,7 +258,7 @@ fn remove_publisher(
     // Find all the topics for which this client has published.
     if let Some(publisher_topics) = topics_by_publisher.remove(closed_client_id) {
         for topic in publisher_topics {
-            if let Some(topic_publishers) = publishers_by_topic.get_mut(topic.as_str()) {
+            if let Some(topic_publishers) = publishers_by_topic.get_mut(&topic) {
                 topic_publishers.remove(closed_client_id);
                 if topic_publishers.len() == 0 {
                     topics_without_publishers.push(topic);

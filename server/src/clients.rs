@@ -34,7 +34,7 @@ impl ClientManager {
     ) {
         log::debug!("client {client_id} connected for {user}@{host}");
         self.clients
-            .insert(client_id.into(), Client { host, user, tx });
+            .insert(client_id.to_string(), Client { host, user, tx });
     }
 
     pub async fn handle_close(

@@ -21,7 +21,7 @@ pub struct Interactor {
 impl Interactor {
     pub fn new() -> Interactor {
         Interactor {
-            id: Uuid::new_v4().into(),
+            id: Uuid::new_v4().to_string(),
         }
     }
 
@@ -113,7 +113,7 @@ impl Interactor {
         let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
         match event {
             ServerEvent::OnMessage(message) => {
-                let client_id = self.id.as_str();
+                let client_id = &self.id;
                 log::debug!("Sent message to {client_id}: \"{message:?}\"");
                 stream.write(&message).await?;
             }

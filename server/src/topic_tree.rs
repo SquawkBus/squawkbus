@@ -4,12 +4,12 @@ pub const LEVEL_SEPARATOR: &str = ".";
 pub const MULTI_LEVEL_WILDCARD: &str = "*";
 pub const SINGLE_LEVEL_WILDCARD: &str = "?";
 
-struct LevelNode {
+struct Node {
     subscribers: HashMap<String, u32>,
-    children: HashMap<String, LevelNode>,
+    children: HashMap<String, Node>,
 }
 
-impl LevelNode {
+impl Node {
     pub fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
@@ -19,47 +19,47 @@ impl LevelNode {
 }
 
 pub struct TopicTree {
-    patterns: LevelNode,
+    root_node: Node,
 }
 
 impl TopicTree {
     pub fn new() -> Self {
         Self {
-            patterns: LevelNode::new(),
+            root_node: Node::new(),
         }
     }
 
-    pub fn add(&mut self, pattern: &str, subscriber: String) -> Result<u32, String> {
+    pub fn add(&mut self, pattern: &str, subscriber: &str) -> Result<u32, String> {
         if pattern.is_empty() {
             return Err("Pattern cannot be empty".to_string());
         }
 
-        let levels: Vec<&str> = pattern.split(LEVEL_SEPARATOR).collect();
-        if levels[0..levels.len() - 1]
+        let words: Vec<&str> = pattern.split(LEVEL_SEPARATOR).collect();
+        if words[0..words.len() - 1]
             .iter()
             .any(|&x| x == MULTI_LEVEL_WILDCARD)
         {
             return Err("Multi level wildcard must be last".to_string());
         }
 
-        let mut tree = &mut self.patterns;
-        for level in levels {
-            if !tree.children.contains_key(level) {
-                tree.children.insert(level.into(), LevelNode::new());
+        let mut node = &mut self.root_node;
+        for word in words {
+            if !node.children.contains_key(word) {
+                node.children.insert(word.into(), Node::new());
             }
-            tree = tree.children.get_mut(level).unwrap();
+            node = node.children.get_mut(word).unwrap();
         }
-        if let Some(count) = tree.subscribers.get_mut(&subscriber) {
+        if let Some(count) = node.subscribers.get_mut(subscriber) {
             *count += 1;
             Ok(*count)
         } else {
-            tree.subscribers.insert(subscriber, 1);
+            node.subscribers.insert(subscriber.to_string(), 1);
             Ok(1)
         }
     }
 
     pub fn remove(&mut self, pattern: &str, subscriber: &str, remove_all: bool) -> Option<u32> {
-        let mut tree = &mut self.patterns;
+        let mut tree = &mut self.root_node;
         for level in pattern.split(LEVEL_SEPARATOR) {
             let Some(child) = tree.children.get_mut(level) else {
                 return None;
@@ -97,10 +97,10 @@ impl TopicTree {
     // }
 
     pub fn subscribers(&self, topic: &str) -> Vec<&str> {
-        let mut trees = vec![&self.patterns];
+        let mut trees = vec![&self.root_node];
         let mut subscribers: Vec<&str> = Vec::new();
         for level in topic.split(LEVEL_SEPARATOR) {
-            let mut match_trees: Vec<&LevelNode> = Vec::new();
+            let mut match_trees: Vec<&Node> = Vec::new();
             for tree in trees {
                 if let Some(child) = tree.children.get(level) {
                     match_trees.push(child);
@@ -124,10 +124,10 @@ impl TopicTree {
 
     pub fn topics(&self, subscriber: &str) -> HashSet<String> {
         let mut subscribed_topics: HashSet<String> = HashSet::new();
-        let mut queue: VecDeque<(&LevelNode, Vec<&str>)> = VecDeque::new();
+        let mut queue: VecDeque<(&Node, Vec<&str>)> = VecDeque::new();
         let mut visited: HashSet<Vec<&str>> = HashSet::new();
 
-        for (key, node) in &self.patterns.children {
+        for (key, node) in &self.root_node.children {
             queue.push_back((node, vec![key.as_str()]));
         }
 

@@ -41,7 +41,7 @@ impl SubscriptionManager {
     pub async fn handle_subscription_request(
         &mut self,
         id: &str,
-        pattern: String,
+        pattern: &str,
         is_add: bool,
         client_manager: &ClientManager,
         publisher_manager: &mut PublisherManager,
@@ -50,7 +50,7 @@ impl SubscriptionManager {
         if is_add {
             self.add_subscription(
                 id,
-                pattern.as_str(),
+                pattern,
                 client_manager,
                 publisher_manager,
                 entitlements_manager,
@@ -59,7 +59,7 @@ impl SubscriptionManager {
         } else {
             self.remove_subscription(
                 id,
-                pattern.as_str(),
+                pattern,
                 client_manager,
                 publisher_manager,
                 entitlements_manager,
@@ -79,7 +79,7 @@ impl SubscriptionManager {
     ) -> io::Result<()> {
         let count = self
             .subscriptions
-            .add(pattern, subscriber_id.to_string())
+            .add(pattern, subscriber_id)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         if count > 1 {

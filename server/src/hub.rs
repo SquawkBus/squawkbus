@@ -92,7 +92,7 @@ impl HubManager {
                 self.subscription_manager
                     .handle_subscription_request(
                         &client_id,
-                        topic,
+                        &topic,
                         is_add,
                         &self.client_manager,
                         &mut self.publisher_manager,
