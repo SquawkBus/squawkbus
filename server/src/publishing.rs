@@ -8,6 +8,7 @@ use common::messages::{DataPacket, Message};
 use crate::{
     authorization::{AuthorizationManager, Role},
     clients::ClientManager,
+    constants::SYSTEM_WORD,
     events::ServerEvent,
     subscriptions::SubscriptionManager,
 };
@@ -127,6 +128,11 @@ impl PublisherManager {
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
+        if topic.starts_with(SYSTEM_WORD) {
+            log::debug!("send_multicast_data: rejected data sent to system topic {topic}");
+            return Ok(());
+        }
+
         let subscribers = subscription_manager.subscribers_for_topic(topic);
         if subscribers.is_empty() {
             log::debug!("send_multicast_data: no subscribers to {topic}");
@@ -143,6 +149,37 @@ impl PublisherManager {
 
         self.add_as_topic_publisher(publisher_id, topic);
 
+        self.send_multicast_data_from(
+            &publisher.user,
+            &publisher.host,
+            &publisher_entitlements,
+            topic,
+            data_packets,
+            subscription_manager,
+            client_manager,
+            entitlements_manager,
+        )
+        .await
+    }
+
+    /// Send data to subscribers from a known producer.
+    pub async fn send_multicast_data_from(
+        &mut self,
+        publisher_user: &str,
+        publisher_host: &str,
+        publisher_entitlements: &HashSet<i32>,
+        topic: &str,
+        data_packets: Vec<DataPacket>,
+        subscription_manager: &SubscriptionManager,
+        client_manager: &ClientManager,
+        entitlements_manager: &AuthorizationManager,
+    ) -> io::Result<()> {
+        let subscribers = subscription_manager.subscribers_for_topic(topic);
+        if subscribers.is_empty() {
+            log::debug!("send_multicast_data: no subscribers to {topic}");
+            return Ok(());
+        }
+
         for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("send_multicast_data: ... {subscriber_id}");
@@ -158,7 +195,7 @@ impl PublisherManager {
                     // Entitlements only operate if the publisher has entitlements.
                     log::debug!(
                         "send_multicast_data: no entitlements from {} to {} for {}",
-                        publisher.user,
+                        publisher_user,
                         subscriber.user,
                         topic
                     );
@@ -171,7 +208,7 @@ impl PublisherManager {
                 if auth_data_packets.is_empty() {
                     log::debug!(
                         "send_multicast_data: empty message from {} to {} for {}",
-                        publisher.user,
+                        publisher_user,
                         subscriber.user,
                         topic
                     );
@@ -179,8 +216,8 @@ impl PublisherManager {
                 }
 
                 let message = Message::ForwardedMulticastData {
-                    host: publisher.host.clone(),
-                    user: publisher.user.clone(),
+                    host: publisher_host.to_string(),
+                    user: publisher_user.to_string(),
                     topic: topic.to_string(),
                     data_packets: auth_data_packets,
                 };

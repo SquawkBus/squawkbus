@@ -22,6 +22,8 @@ use authorization::{load_authorizations, AuthorizationSpec};
 
 mod clients;
 
+mod constants;
+
 mod events;
 use events::ClientEvent;
 

@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-pub const LEVEL_SEPARATOR: &str = ".";
-pub const MULTI_LEVEL_WILDCARD: &str = "*";
-pub const SINGLE_LEVEL_WILDCARD: &str = "?";
+use crate::constants::{LEVEL_SEPARATOR, MULTI_LEVEL_WILDCARD, SINGLE_LEVEL_WILDCARD};
 
 struct Node {
     subscribers: HashMap<String, u32>,
