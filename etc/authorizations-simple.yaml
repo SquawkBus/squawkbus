@@ -3,4 +3,4 @@
   "PUB\\..*":
     entitlements:
     - 0
-    roles: Notifier | Publisher | Subscriber
+    roles: Publisher | Subscriber

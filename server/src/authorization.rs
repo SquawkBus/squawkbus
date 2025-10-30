@@ -11,8 +11,7 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub struct Role: u8 {
         const Subscriber = 0b00000001;
-        const Notifier = 0b00000010;
-        const Publisher = 0b00000100;
+        const Publisher = 0b00000010;
     }
 }
 
@@ -97,7 +96,7 @@ where
                 let user = ".*";
                 let topic = ".*";
                 let entitlements = HashSet::from([0]);
-                let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
+                let roles = Role::Subscriber | Role::Publisher;
 
                 let user_pattern =
                     Regex::new(user).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
@@ -129,13 +128,13 @@ mod test {
                 user_pattern: Regex::new(".*").unwrap(),
                 topic_pattern: Regex::new("PUB\\..*").unwrap(),
                 entitlements: HashSet::from([0]),
-                roles: Role::Subscriber | Role::Notifier | Role::Publisher,
+                roles: Role::Subscriber | Role::Publisher,
             },
             AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
                 topic_pattern: Regex::new(".*\\.LSE").unwrap(),
                 entitlements: HashSet::from([1, 2]),
-                roles: Role::Subscriber | Role::Notifier,
+                roles: Role::Subscriber,
             },
             AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
@@ -154,15 +153,7 @@ mod test {
         let expected: HashSet<i32> = HashSet::from([0]);
         assert_eq!(actual, expected);
 
-        let actual = entitlements_manager.entitlements("nobody", "PUB.foo", Role::Notifier);
-        let expected: HashSet<i32> = HashSet::from([0]);
-        assert_eq!(actual, expected);
-
         let actual = entitlements_manager.entitlements("joe", "TSCO.LSE", Role::Subscriber);
-        let expected: HashSet<i32> = HashSet::from([1, 2]);
-        assert_eq!(actual, expected);
-
-        let actual = entitlements_manager.entitlements("joe", "TSCO.LSE", Role::Notifier);
         let expected: HashSet<i32> = HashSet::from([1, 2]);
         assert_eq!(actual, expected);
 

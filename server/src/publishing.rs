@@ -8,7 +8,7 @@ use common::messages::{DataPacket, Message};
 use crate::{
     authorization::{AuthorizationManager, Role},
     clients::ClientManager,
-    constants::SYSTEM_WORD,
+    constants::{SUBSCRIPTION_TOPIC, SYSTEM_WORD},
     events::ServerEvent,
     subscriptions::SubscriptionManager,
 };
@@ -184,8 +184,15 @@ impl PublisherManager {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
                 log::debug!("send_multicast_data: ... {subscriber_id}");
 
+                let role = if topic != SUBSCRIPTION_TOPIC {
+                    Role::Subscriber
+                } else {
+                    // For the `SUBSCRIPTION_TOPIC` the role is inverted.
+                    Role::Publisher
+                };
+
                 let subscriber_entitlements =
-                    entitlements_manager.entitlements(&subscriber.user, topic, Role::Subscriber);
+                    entitlements_manager.entitlements(&subscriber.user, topic, role);
                 let entitlements: HashSet<i32> = publisher_entitlements
                     .intersection(&subscriber_entitlements)
                     .cloned()

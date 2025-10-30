@@ -167,10 +167,13 @@ impl SubscriptionManager {
             format!("unknown client {subscriber_id}"),
         ))?;
 
+        // Use the `Role::Subscriber` entitlements to publish on the subscriptions topic.
+        // This is because a subscriber may not be a publisher. A publisher will
+        // have the same rights.
         let subscriber_entitlements = entitlements_manager.entitlements(
             &subscriber.user,
             SUBSCRIPTION_TOPIC,
-            Role::Publisher,
+            Role::Subscriber,
         );
 
         let forwarded_subscription_request = Message::ForwardedSubscriptionRequest {
