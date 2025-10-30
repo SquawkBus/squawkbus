@@ -9,7 +9,7 @@ use common::{
 };
 
 use crate::{
-    authorization::AuthorizationManager,
+    authorization::{AuthorizationManager, Role},
     clients::ClientManager,
     constants::{SQUAWKBUS_CONTENT_TYPE, SUBSCRIPTION_TOPIC},
     publishing::PublisherManager,
@@ -18,14 +18,12 @@ use crate::{
 
 pub struct SubscriptionManager {
     subscriptions: TopicTree,
-    system_entitlements: HashSet<i32>,
 }
 
 impl SubscriptionManager {
     pub fn new() -> SubscriptionManager {
         SubscriptionManager {
             subscriptions: TopicTree::new(),
-            system_entitlements: HashSet::new(),
         }
     }
 
@@ -169,6 +167,12 @@ impl SubscriptionManager {
             format!("unknown client {subscriber_id}"),
         ))?;
 
+        let subscriber_entitlements = entitlements_manager.entitlements(
+            &subscriber.user,
+            SUBSCRIPTION_TOPIC,
+            Role::Publisher,
+        );
+
         let forwarded_subscription_request = Message::ForwardedSubscriptionRequest {
             host: subscriber.host.clone(),
             user: subscriber.user.clone(),
@@ -193,9 +197,9 @@ impl SubscriptionManager {
 
         publisher_manager
             .send_multicast_data_from(
-                "squawkbus",
-                "localhost",
-                &self.system_entitlements,
+                &subscriber.user,
+                &subscriber.host,
+                &subscriber_entitlements,
                 SUBSCRIPTION_TOPIC,
                 vec![data_packet],
                 self,
