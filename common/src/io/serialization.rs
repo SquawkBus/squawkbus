@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Read, Write};
+use std::{
+    collections::HashSet,
+    io::{self, Cursor, Read, Write},
+};
 
 pub trait Serializable: Sized + Send {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()>;
@@ -120,6 +123,34 @@ impl Serializable for Vec<u8> {
     }
 }
 
+impl Serializable for HashSet<i32> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for value in self {
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_set: HashSet<i32> = HashSet::with_capacity(capacity);
+        for _ in 0..len {
+            let value = i32::deserialize(reader)?;
+            hash_set.insert(value);
+        }
+        Ok(hash_set)
+    }
+
+    fn size(&self) -> usize {
+        let len = self.len();
+        (len as u32).size() + size_of::<i32>() * len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Seek;
@@ -196,17 +227,18 @@ mod tests {
     //     }
     // }
 
-    // #[test]
-    // fn should_roundtrip_i32_vec() {
-    //     let mut writer = FrameWriter::new();
+    #[test]
+    fn should_roundtrip_i32_hash_set() {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-    //     let actual: Vec<i32> = vec![-10000, -100, -10, -1, 0, 1, 10, 100, 1000, 10000];
-    //     actual.serialize(&mut writer).expect("should serialize");
+        let actual: HashSet<i32> =
+            HashSet::from([-10000, -100, -10, -1, 0, 1, 10, 100, 1000, 10000]);
+        actual.serialize(&mut cursor).expect("should serialize");
 
-    //     let mut reader = FrameReader::from(&writer);
-    //     match Vec::<i32>::deserialize(&mut reader) {
-    //         Ok(expected) => assert_eq!(actual, expected),
-    //         Err(error) => panic!("Failed to serialize: {:?}", error),
-    //     }
-    // }
+        cursor.rewind().expect("should rewind");
+        match HashSet::<i32>::deserialize(&mut cursor) {
+            Ok(expected) => assert_eq!(actual, expected),
+            Err(error) => panic!("Failed to serialize: {:?}", error),
+        }
+    }
 }

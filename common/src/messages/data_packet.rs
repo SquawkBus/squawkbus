@@ -5,42 +5,42 @@ use crate::io::Serializable;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
-    pub entitlement: i32,
+    pub entitlements: HashSet<i32>,
     pub content_type: String,
     pub data: Vec<u8>,
 }
 
 impl DataPacket {
-    pub fn new(entitlement: i32, content_type: String, data: Vec<u8>) -> DataPacket {
+    pub fn new(entitlements: HashSet<i32>, content_type: String, data: Vec<u8>) -> DataPacket {
         DataPacket {
-            entitlement,
+            entitlements,
             content_type,
             data,
         }
     }
 
     pub fn is_authorized(&self, all_entitlements: &HashSet<i32>) -> bool {
-        all_entitlements.contains(&self.entitlement)
+        all_entitlements.is_superset(&self.entitlements)
     }
 }
 
 impl Serializable for DataPacket {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
-        self.entitlement.serialize(writer)?;
+        self.entitlements.serialize(writer)?;
         self.content_type.serialize(writer)?;
         self.data.serialize(writer)?;
         Ok(())
     }
 
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<DataPacket> {
-        let entitlement = i32::deserialize(reader)?;
+        let entitlements = HashSet::<i32>::deserialize(reader)?;
         let content_type = String::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
-        Ok(DataPacket::new(entitlement, content_type, data))
+        Ok(DataPacket::new(entitlements, content_type, data))
     }
 
     fn size(&self) -> usize {
-        self.entitlement.size() + self.content_type.size() + self.data.size()
+        self.entitlements.size() + self.content_type.size() + self.data.size()
     }
 }
 
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn should_roundtrip_datapacket() {
         let actual = DataPacket {
-            entitlement: 1,
+            entitlements: HashSet::from([1]),
             content_type: "text/plain".into(),
             data: "Hello, World!".into(),
         };
@@ -100,12 +100,12 @@ mod tests {
     fn should_roundtrip_vec_datapacket() {
         let actual = vec![
             DataPacket {
-                entitlement: 1,
+                entitlements: HashSet::from([1]),
                 content_type: "text/plain".into(),
                 data: "Data 1".into(),
             },
             DataPacket {
-                entitlement: 2,
+                entitlements: HashSet::from([2]),
                 content_type: "text/plain".into(),
                 data: "Data 2".into(),
             },
@@ -125,7 +125,7 @@ mod tests {
     fn check_is_authorized() {
         // Same single entitlement.
         let data_packet = DataPacket {
-            entitlement: 1,
+            entitlements: HashSet::from([1]),
             content_type: "text/plain".into(),
             data: "Data 1".into(),
         };

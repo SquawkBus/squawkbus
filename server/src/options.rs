@@ -21,8 +21,8 @@ impl FromStr for AuthorizationSpec {
             return Err(format!("expected 4 parts, found {}", args.len()));
         }
 
-        let topic_pattern = args[0];
-        let user_pattern = args[1];
+        let user_pattern = args[0];
+        let topic_pattern = args[1];
         let entitlements = args[2];
         let roles = args[3];
 
