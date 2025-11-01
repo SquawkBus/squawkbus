@@ -192,7 +192,6 @@ impl SubscriptionManager {
         let data = cursor.into_inner();
 
         let data_packet = DataPacket {
-            name: "forwarded_subscription_request".to_string(),
             entitlement: 0,
             content_type: SQUAWKBUS_CONTENT_TYPE.to_string(),
             data,

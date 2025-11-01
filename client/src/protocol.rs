@@ -80,7 +80,6 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
 
         let message = args[i];
         data_packets.push(DataPacket::new(
-            "message".into(),
             entitlement,
             "text/plain".into(),
             Vec::from(message.as_bytes()),
