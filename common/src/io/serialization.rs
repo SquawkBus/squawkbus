@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{self, Cursor, Read, Write},
 };
 
@@ -151,6 +151,40 @@ impl Serializable for HashSet<i32> {
     }
 }
 
+impl Serializable for HashMap<String, String> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for (key, value) in self {
+            key.serialize(writer)?;
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_map: HashMap<String, String> = HashMap::with_capacity(capacity);
+        for _ in 0..len {
+            let key = String::deserialize(reader)?;
+            let value = String::deserialize(reader)?;
+            hash_map.insert(key, value);
+        }
+        Ok(hash_map)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = self.len();
+        for (key, value) in self {
+            len += key.size();
+            len += value.size();
+        }
+        len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Seek;
@@ -213,20 +247,6 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn should_roundtrip_u32_vec() {
-    //     let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-
-    //     let actual: Vec<u32> = vec![1, 10, 100, 1000, 10000];
-    //     actual.serialize(&mut cursor).expect("should serialize");
-
-    //     cursor.rewind().expect("should rewind");
-    //     match Vec::<u32>::deserialize(&mut cursor) {
-    //         Ok(expected) => assert_eq!(actual, expected),
-    //         Err(error) => panic!("Failed to serialize: {:?}", error),
-    //     }
-    // }
-
     #[test]
     fn should_roundtrip_i32_hash_set() {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -237,6 +257,23 @@ mod tests {
 
         cursor.rewind().expect("should rewind");
         match HashSet::<i32>::deserialize(&mut cursor) {
+            Ok(expected) => assert_eq!(actual, expected),
+            Err(error) => panic!("Failed to serialize: {:?}", error),
+        }
+    }
+
+    #[test]
+    fn should_roundtrip_i32_hash_map() {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        let actual: HashMap<String, String> = HashMap::from([
+            ("a".to_string(), "one".to_string()),
+            ("b".to_string(), "two".to_string()),
+        ]);
+        actual.serialize(&mut cursor).expect("should serialize");
+
+        cursor.rewind().expect("should rewind");
+        match HashMap::<String, String>::deserialize(&mut cursor) {
             Ok(expected) => assert_eq!(actual, expected),
             Err(error) => panic!("Failed to serialize: {:?}", error),
         }

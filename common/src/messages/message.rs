@@ -282,7 +282,7 @@ impl Serializable for Message {
 mod test_message {
     use super::super::data_packet::DataPacket;
     use super::*;
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use std::io::Seek;
 
     #[test]
@@ -321,7 +321,7 @@ mod test_message {
             user: "mary".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -361,7 +361,7 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -380,7 +380,7 @@ mod test_message {
         let initial = Message::MulticastData {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -415,7 +415,7 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{self, Cursor},
 };
 
@@ -11,7 +11,7 @@ use common::{
 use crate::{
     authorization::{AuthorizationManager, Role},
     clients::ClientManager,
-    constants::{SQUAWKBUS_CONTENT_TYPE, SUBSCRIPTION_TOPIC},
+    constants::{CONTENT_TYPE, SQUAWKBUS_CONTENT_TYPE, SUBSCRIPTION_TOPIC},
     publishing::PublisherManager,
     topic_tree::TopicTree,
 };
@@ -193,7 +193,10 @@ impl SubscriptionManager {
 
         let data_packet = DataPacket {
             entitlements: HashSet::from([0]),
-            content_type: SQUAWKBUS_CONTENT_TYPE.to_string(),
+            headers: HashMap::from([(
+                CONTENT_TYPE.to_string(),
+                SQUAWKBUS_CONTENT_TYPE.to_string(),
+            )]),
             data,
         };
 

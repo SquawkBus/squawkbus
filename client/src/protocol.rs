@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
 
@@ -89,7 +89,7 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
         let message = args[i];
         data_packets.push(DataPacket::new(
             entitlements,
-            "text/plain".into(),
+            HashMap::from([("content-type".to_string(), "text/plain".to_string())]),
             Vec::from(message.as_bytes()),
         ));
         i += 1;

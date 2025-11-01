@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Cursor};
 
 use crate::io::Serializable;
@@ -6,15 +6,19 @@ use crate::io::Serializable;
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
     pub entitlements: HashSet<i32>,
-    pub content_type: String,
+    pub headers: HashMap<String, String>,
     pub data: Vec<u8>,
 }
 
 impl DataPacket {
-    pub fn new(entitlements: HashSet<i32>, content_type: String, data: Vec<u8>) -> DataPacket {
+    pub fn new(
+        entitlements: HashSet<i32>,
+        headers: HashMap<String, String>,
+        data: Vec<u8>,
+    ) -> DataPacket {
         DataPacket {
             entitlements,
-            content_type,
+            headers,
             data,
         }
     }
@@ -27,20 +31,20 @@ impl DataPacket {
 impl Serializable for DataPacket {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         self.entitlements.serialize(writer)?;
-        self.content_type.serialize(writer)?;
+        self.headers.serialize(writer)?;
         self.data.serialize(writer)?;
         Ok(())
     }
 
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<DataPacket> {
         let entitlements = HashSet::<i32>::deserialize(reader)?;
-        let content_type = String::deserialize(reader)?;
+        let headers = HashMap::<String, String>::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
-        Ok(DataPacket::new(entitlements, content_type, data))
+        Ok(DataPacket::new(entitlements, headers, data))
     }
 
     fn size(&self) -> usize {
-        self.entitlements.size() + self.content_type.size() + self.data.size()
+        self.entitlements.size() + self.headers.size() + self.data.size()
     }
 }
 
@@ -82,7 +86,7 @@ mod tests {
     fn should_roundtrip_datapacket() {
         let actual = DataPacket {
             entitlements: HashSet::from([1]),
-            content_type: "text/plain".into(),
+            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             data: "Hello, World!".into(),
         };
 
@@ -101,12 +105,12 @@ mod tests {
         let actual = vec![
             DataPacket {
                 entitlements: HashSet::from([1]),
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 data: "Data 1".into(),
             },
             DataPacket {
                 entitlements: HashSet::from([2]),
-                content_type: "text/plain".into(),
+                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
                 data: "Data 2".into(),
             },
         ];
@@ -126,7 +130,7 @@ mod tests {
         // Same single entitlement.
         let data_packet = DataPacket {
             entitlements: HashSet::from([1]),
-            content_type: "text/plain".into(),
+            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             data: "Data 1".into(),
         };
 
