@@ -193,10 +193,7 @@ impl SubscriptionManager {
 
         let data_packet = DataPacket {
             entitlements: HashSet::from([0]),
-            headers: HashMap::from([(
-                CONTENT_TYPE.to_string(),
-                SQUAWKBUS_CONTENT_TYPE.to_string(),
-            )]),
+            headers: HashMap::from([(CONTENT_TYPE.into(), SQUAWKBUS_CONTENT_TYPE.into())]),
             data,
         };
 

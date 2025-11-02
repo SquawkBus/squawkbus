@@ -321,7 +321,7 @@ mod test_message {
             user: "mary".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -361,7 +361,7 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -380,7 +380,7 @@ mod test_message {
         let initial = Message::MulticastData {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
@@ -415,7 +415,7 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],

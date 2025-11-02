@@ -6,14 +6,14 @@ use crate::io::Serializable;
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
     pub entitlements: HashSet<i32>,
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<Vec<u8>, Vec<u8>>,
     pub data: Vec<u8>,
 }
 
 impl DataPacket {
     pub fn new(
         entitlements: HashSet<i32>,
-        headers: HashMap<String, String>,
+        headers: HashMap<Vec<u8>, Vec<u8>>,
         data: Vec<u8>,
     ) -> DataPacket {
         DataPacket {
@@ -38,7 +38,7 @@ impl Serializable for DataPacket {
 
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<DataPacket> {
         let entitlements = HashSet::<i32>::deserialize(reader)?;
-        let headers = HashMap::<String, String>::deserialize(reader)?;
+        let headers = HashMap::<Vec<u8>, Vec<u8>>::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
         Ok(DataPacket::new(entitlements, headers, data))
     }
@@ -86,12 +86,14 @@ mod tests {
     fn should_roundtrip_datapacket() {
         let actual = DataPacket {
             entitlements: HashSet::from([1]),
-            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+            headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
             data: "Hello, World!".into(),
         };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         actual.serialize(&mut cursor).expect("should serialize");
+
+        assert_eq!(actual.size(), cursor.position() as usize);
 
         cursor.rewind().expect("should rewind");
         match DataPacket::deserialize(&mut cursor) {
@@ -105,12 +107,12 @@ mod tests {
         let actual = vec![
             DataPacket {
                 entitlements: HashSet::from([1]),
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 data: "Data 1".into(),
             },
             DataPacket {
                 entitlements: HashSet::from([2]),
-                headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 data: "Data 2".into(),
             },
         ];
@@ -130,7 +132,7 @@ mod tests {
         // Same single entitlement.
         let data_packet = DataPacket {
             entitlements: HashSet::from([1]),
-            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+            headers: HashMap::from([(b"Content-Type".into(), b"text/plain".into())]),
             data: "Data 1".into(),
         };
 

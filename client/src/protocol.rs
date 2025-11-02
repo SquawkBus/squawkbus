@@ -89,7 +89,7 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
         let message = args[i];
         data_packets.push(DataPacket::new(
             entitlements,
-            HashMap::from([("content-type".to_string(), "text/plain".to_string())]),
+            HashMap::from([(b"content-type".into(), b"text/plain".into())]),
             Vec::from(message.as_bytes()),
         ));
         i += 1;

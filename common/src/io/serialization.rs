@@ -24,7 +24,8 @@ impl Serializable for u8 {
     }
 
     fn size(&self) -> usize {
-        1
+        let len = size_of::<u8>();
+        len
     }
 }
 
@@ -40,7 +41,8 @@ impl Serializable for bool {
     }
 
     fn size(&self) -> usize {
-        1
+        let len = size_of::<u8>();
+        len
     }
 }
 
@@ -58,7 +60,8 @@ impl Serializable for u32 {
     }
 
     fn size(&self) -> usize {
-        4
+        let len = size_of::<u32>();
+        len
     }
 }
 
@@ -76,7 +79,8 @@ impl Serializable for i32 {
     }
 
     fn size(&self) -> usize {
-        4
+        let len = size_of::<i32>();
+        len
     }
 }
 
@@ -98,8 +102,9 @@ impl Serializable for String {
     }
 
     fn size(&self) -> usize {
-        let len = self.len();
-        (len as u32).size() + len
+        let mut len = size_of::<u32>();
+        len += self.as_bytes().len() * size_of::<u8>();
+        len
     }
 }
 
@@ -118,8 +123,9 @@ impl Serializable for Vec<u8> {
     }
 
     fn size(&self) -> usize {
-        let len = self.len();
-        (len as u32).size() + len
+        let mut len = size_of::<u32>();
+        len += self.len() * size_of::<u8>();
+        len
     }
 }
 
@@ -146,8 +152,9 @@ impl Serializable for HashSet<i32> {
     }
 
     fn size(&self) -> usize {
-        let len = self.len();
-        (len as u32).size() + size_of::<i32>() * len
+        let mut len = size_of::<u32>();
+        len += self.len() * size_of::<i32>();
+        len
     }
 }
 
@@ -176,7 +183,41 @@ impl Serializable for HashMap<String, String> {
     }
 
     fn size(&self) -> usize {
-        let mut len = self.len();
+        let mut len = size_of::<u32>();
+        for (key, value) in self {
+            len += key.size();
+            len += value.size();
+        }
+        len
+    }
+}
+
+impl Serializable for HashMap<Vec<u8>, Vec<u8>> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for (key, value) in self {
+            key.serialize(writer)?;
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_map: HashMap<Vec<u8>, Vec<u8>> = HashMap::with_capacity(capacity);
+        for _ in 0..len {
+            let key = Vec::<u8>::deserialize(reader)?;
+            let value = Vec::<u8>::deserialize(reader)?;
+            hash_map.insert(key, value);
+        }
+        Ok(hash_map)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = size_of::<u32>();
         for (key, value) in self {
             len += key.size();
             len += value.size();
