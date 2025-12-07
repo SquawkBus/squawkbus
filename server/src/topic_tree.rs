@@ -8,7 +8,7 @@ struct Node {
 }
 
 impl Node {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
             children: HashMap::new(),

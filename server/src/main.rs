@@ -20,6 +20,8 @@ use authentication::AuthenticationManager;
 mod authorization;
 use authorization::{load_authorizations, AuthorizationSpec};
 
+mod match_tree;
+
 mod clients;
 
 mod constants;

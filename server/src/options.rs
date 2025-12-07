@@ -7,6 +7,7 @@ use std::{collections::HashSet, io};
 use regex::Regex;
 
 use crate::authorization::{AuthorizationSpec, Role};
+use crate::match_tree::MatchTree;
 
 const DEFAULT_SOCKET_ENDPOINT: &str = "0.0.0.0:8558";
 const DEFAULT_WEB_SOCKET_ENDPOINT: &str = "0.0.0.0:8559";
@@ -27,7 +28,7 @@ impl FromStr for AuthorizationSpec {
         let roles = args[3];
 
         let topic_pattern =
-            Regex::new(topic_pattern).map_err(|e| format!("invalid regex: {}", e))?;
+            MatchTree::create(topic_pattern).map_err(|e| format!("invalid roles: {}", e))?;
         let user_pattern = Regex::new(user_pattern).map_err(|e| format!("invalid regex: {}", e))?;
         let entitlements = entitlements
             .split(',')

@@ -1,41 +1,41 @@
 # All users can publish to PUB
 .*:
-  "PUB\\..*":
+  "PUB.*":
     entitlements:
     - &PUBLIC 0
     roles: Publisher | Subscriber
 # Harry is the publisher for LSE data.
 harry:
-  "LSE\\..*":
+  "LSE.*":
     entitlements:
     - &LSE_LEVEL1 1
     - &LSE_LEVEL2 2
     roles: Publisher
 # Harry is the publisher for LSE data.
 freddy:
-  "NYSE\\..*":
+  "NYSE.*":
     entitlements:
     - &NYSE_LEVEL1 3
     - &NYSE_LEVEL2 4
     roles: Publisher
 # Tom gets both level 1 and 2 data for LSE and NYSE.
 tom:
-  "LSE\\..*":
+  "LSE.*":
     entitlements:
     - *LSE_LEVEL1
     - *LSE_LEVEL2
     roles: Subscriber
-  "NYSE\\..*":
+  "NYSE.*":
     entitlements:
     - *NYSE_LEVEL1
     - *NYSE_LEVEL2
     roles: Subscriber
 dick:
-  "LSE\\..*":
+  "LSE.*":
     entitlements:
     - *LSE_LEVEL1
     roles: Subscriber
-  "NYSE\\..*":
+  "NYSE.*":
     entitlements:
     - *NYSE_LEVEL1
     roles: Subscriber

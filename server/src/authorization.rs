@@ -7,6 +7,8 @@ use bitflags::bitflags;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::match_tree::MatchTree;
+
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub struct Role: u8 {
@@ -24,7 +26,7 @@ pub struct Authorization {
 #[derive(Debug, Clone)]
 pub struct AuthorizationSpec {
     pub user_pattern: Regex,
-    pub topic_pattern: Regex,
+    pub topic_pattern: MatchTree,
     pub entitlements: HashSet<i32>,
     pub roles: Role,
 }
@@ -77,8 +79,7 @@ where
                 for (topic, authorization) in topic_authorization {
                     let user_pattern = Regex::new(user.as_str())
                         .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-                    let topic_pattern = Regex::new(topic.as_str())
-                        .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                    let topic_pattern = MatchTree::create(topic.as_str())?;
                     let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
                     let roles = authorization.roles;
                     specs.push(AuthorizationSpec {
@@ -94,14 +95,13 @@ where
             if specs.is_empty() {
                 // Allow anyone to send anything
                 let user = ".*";
-                let topic = ".*";
+                let topic = "*";
                 let entitlements = HashSet::from([0]);
                 let roles = Role::Subscriber | Role::Publisher;
 
                 let user_pattern =
                     Regex::new(user).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-                let topic_pattern =
-                    Regex::new(topic).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                let topic_pattern = MatchTree::create(topic)?;
 
                 let spec = AuthorizationSpec {
                     user_pattern,
@@ -126,19 +126,19 @@ mod test {
         let user_entitlements_spec = vec![
             AuthorizationSpec {
                 user_pattern: Regex::new(".*").unwrap(),
-                topic_pattern: Regex::new("PUB\\..*").unwrap(),
+                topic_pattern: MatchTree::create("PUB.*").unwrap(),
                 entitlements: HashSet::from([0]),
                 roles: Role::Subscriber | Role::Publisher,
             },
             AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
-                topic_pattern: Regex::new(".*\\.LSE").unwrap(),
+                topic_pattern: MatchTree::create("LSE.?").unwrap(),
                 entitlements: HashSet::from([1, 2]),
                 roles: Role::Subscriber,
             },
             AuthorizationSpec {
                 user_pattern: Regex::new("joe").unwrap(),
-                topic_pattern: Regex::new(".*\\.NSE").unwrap(),
+                topic_pattern: MatchTree::create("NYSE.*").unwrap(),
                 entitlements: HashSet::from([3, 4]),
                 roles: Role::Subscriber,
             },
@@ -153,18 +153,18 @@ mod test {
         let expected: HashSet<i32> = HashSet::from([0]);
         assert_eq!(actual, expected);
 
-        let actual = entitlements_manager.entitlements("joe", "TSCO.LSE", Role::Subscriber);
+        let actual = entitlements_manager.entitlements("joe", "LSE.TSCO", Role::Subscriber);
         let expected: HashSet<i32> = HashSet::from([1, 2]);
         assert_eq!(actual, expected);
 
-        let actual = entitlements_manager.entitlements("joe", "TSCO.LSE", Role::Publisher);
+        let actual = entitlements_manager.entitlements("joe", "LSE.TSCO", Role::Publisher);
         assert!(actual.is_empty());
 
-        let actual = entitlements_manager.entitlements("joe", "IBM.NSE", Role::Subscriber);
+        let actual = entitlements_manager.entitlements("joe", "NYSE.IBM", Role::Subscriber);
         let expected: HashSet<i32> = HashSet::from([3, 4]);
         assert_eq!(actual, expected);
 
-        let actual = entitlements_manager.entitlements("joe", "MSFT.NDAQ", Role::Subscriber);
+        let actual = entitlements_manager.entitlements("joe", "NASDAQ.MSFT", Role::Subscriber);
         let expected: HashSet<i32> = HashSet::from([]);
         assert_eq!(actual, expected);
     }

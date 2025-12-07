@@ -63,7 +63,7 @@
                 "RUST_LOG": "debug"
             },
             "args": [
-                "--tls", "~/.keys/server.crt", "~/.keys/server.ke"
+                "--tls", "/Users/rtb/.keys/server.crt", "/Users/rtb/.keys/server.key"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -87,8 +87,56 @@
             },
             "args": [
                 "--authentication", "basic", "etc/ht.passwd",
-                "--authorization", "LSE\\..*:tom:1:Subscriber",
-                "--authorization", "LSE\\..*:dick:1:Publisher"
+                "--authorization", "LSE.*:tom:1:Subscriber",
+                "--authorization", "LSE.*:dick:1:Publisher"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "server: basic+auth-file-simple",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=server",
+                    "--package=server"
+                ],
+                "filter": {
+                    "name": "server",
+                    "kind": "bin"
+                }
+            },
+            "env": {
+                "RUST_LOG": "debug"
+            },
+            "args": [
+                "--authentication", "basic", "etc/ht.passwd",
+                "--authorizations-file", "etc/authorizations-simple.yaml"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "server: basic+auth-file",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=server",
+                    "--package=server"
+                ],
+                "filter": {
+                    "name": "server",
+                    "kind": "bin"
+                }
+            },
+            "env": {
+                "RUST_LOG": "debug"
+            },
+            "args": [
+                "--authentication", "basic", "etc/ht.passwd",
+                "--authorizations-file", "etc/authorizations.yaml"
             ],
             "cwd": "${workspaceFolder}"
         },
