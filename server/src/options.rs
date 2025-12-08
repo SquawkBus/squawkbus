@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{collections::HashSet, io};
 
-use regex::Regex;
+use wildmatch::WildMatch;
 
 use crate::authorization::{AuthorizationSpec, Role};
 use crate::match_tree::MatchTree;
@@ -29,7 +29,7 @@ impl FromStr for AuthorizationSpec {
 
         let topic_pattern =
             MatchTree::create(topic_pattern).map_err(|e| format!("invalid roles: {}", e))?;
-        let user_pattern = Regex::new(user_pattern).map_err(|e| format!("invalid regex: {}", e))?;
+        let user_pattern = WildMatch::new(user_pattern);
         let entitlements = entitlements
             .split(',')
             .map(|x| x.parse().map_err(|e| format!("invalid entitlement {}", e)))

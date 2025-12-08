@@ -4,8 +4,8 @@ use std::io::{self, ErrorKind, Result};
 use std::path::Path;
 
 use bitflags::bitflags;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
+use wildmatch::WildMatch;
 
 use crate::match_tree::MatchTree;
 
@@ -25,7 +25,7 @@ pub struct Authorization {
 
 #[derive(Debug, Clone)]
 pub struct AuthorizationSpec {
-    pub user_pattern: Regex,
+    pub user_pattern: WildMatch,
     pub topic_pattern: MatchTree,
     pub entitlements: HashSet<i32>,
     pub roles: Role,
@@ -49,7 +49,7 @@ impl AuthorizationManager {
 
         for spec in &self.specs {
             if spec.roles.contains(role)
-                && spec.user_pattern.is_match(user_name)
+                && spec.user_pattern.matches(user_name)
                 && spec.topic_pattern.is_match(topic)
             {
                 entitlements.extend(spec.entitlements.iter());
@@ -77,8 +77,7 @@ where
                 serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
             for (user, topic_authorization) in authorizations {
                 for (topic, authorization) in topic_authorization {
-                    let user_pattern = Regex::new(user.as_str())
-                        .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                    let user_pattern = WildMatch::new(user.as_str());
                     let topic_pattern = MatchTree::create(topic.as_str())?;
                     let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
                     let roles = authorization.roles;
@@ -99,8 +98,7 @@ where
                 let entitlements = HashSet::from([0]);
                 let roles = Role::Subscriber | Role::Publisher;
 
-                let user_pattern =
-                    Regex::new(user).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                let user_pattern = WildMatch::new(user);
                 let topic_pattern = MatchTree::create(topic)?;
 
                 let spec = AuthorizationSpec {
@@ -125,19 +123,19 @@ mod test {
     fn smoke() {
         let user_entitlements_spec = vec![
             AuthorizationSpec {
-                user_pattern: Regex::new(".*").unwrap(),
+                user_pattern: WildMatch::new("*"),
                 topic_pattern: MatchTree::create("PUB.*").unwrap(),
                 entitlements: HashSet::from([0]),
                 roles: Role::Subscriber | Role::Publisher,
             },
             AuthorizationSpec {
-                user_pattern: Regex::new("joe").unwrap(),
+                user_pattern: WildMatch::new("joe"),
                 topic_pattern: MatchTree::create("LSE.?").unwrap(),
                 entitlements: HashSet::from([1, 2]),
                 roles: Role::Subscriber,
             },
             AuthorizationSpec {
-                user_pattern: Regex::new("joe").unwrap(),
+                user_pattern: WildMatch::new("joe"),
                 topic_pattern: MatchTree::create("NYSE.*").unwrap(),
                 entitlements: HashSet::from([3, 4]),
                 roles: Role::Subscriber,
