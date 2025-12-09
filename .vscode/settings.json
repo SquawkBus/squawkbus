@@ -25,7 +25,8 @@
         "serde",
         "starttls",
         "trustno",
-        "tungstenite"
+        "tungstenite",
+        "wildmatch"
     ],
     "editor.inlayHints.enabled": "offUnlessPressed",
     "[rust]": {

@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::{collections::HashSet, io};
 
 use regex::Regex;
+use wildmatch::WildMatch;
 
 use crate::authorization::{AuthorizationSpec, Role};
 
@@ -21,14 +22,14 @@ impl FromStr for AuthorizationSpec {
             return Err(format!("expected 4 parts, found {}", args.len()));
         }
 
-        let topic_pattern = args[0];
-        let user_pattern = args[1];
+        let user_pattern = args[0];
+        let topic_pattern = args[1];
         let entitlements = args[2];
         let roles = args[3];
 
+        let user_pattern = WildMatch::new(user_pattern);
         let topic_pattern =
             Regex::new(topic_pattern).map_err(|e| format!("invalid regex: {}", e))?;
-        let user_pattern = Regex::new(user_pattern).map_err(|e| format!("invalid regex: {}", e))?;
         let entitlements = entitlements
             .split(',')
             .map(|x| x.parse().map_err(|e| format!("invalid entitlement {}", e)))
@@ -250,7 +251,7 @@ mod test {
     #[test]
     fn parse() {
         let spec: AuthorizationSpec =
-            AuthorizationSpec::from_str(".*:PUB\\.*:1,2:Subscriber|Publisher").unwrap();
+            AuthorizationSpec::from_str("*:PUB\\.*:1,2:Subscriber|Publisher").unwrap();
         let user_entitlements_spec = vec![spec];
         let entitlements_manager = AuthorizationManager::new(user_entitlements_spec);
 
