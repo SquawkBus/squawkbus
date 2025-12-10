@@ -3,22 +3,21 @@ use std::{
     io,
 };
 
-use regex::Regex;
+use wildmatch::WildMatch;
 
 use crate::{clients::ClientManager, notifications::NotificationManager};
 
 struct Subscription {
-    regex: Regex,
+    pattern: WildMatch,
     subscribers: HashMap<String, u32>,
 }
 
 impl Subscription {
-    pub fn new(topic: &str) -> io::Result<Self> {
-        let regex = Regex::new(topic).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(Subscription {
-            regex,
+    pub fn new(topic: &str) -> Self {
+        Subscription {
+            pattern: WildMatch::new(topic),
             subscribers: HashMap::new(),
-        })
+        }
     }
 }
 
@@ -37,7 +36,7 @@ impl SubscriptionManager {
         let mut subscribers: HashSet<String> = HashSet::new();
 
         for subscription in self.subscriptions.values() {
-            if subscription.regex.is_match(topic) {
+            if subscription.pattern.matches(topic) {
                 for key in subscription.subscribers.keys() {
                     subscribers.insert(key.clone());
                 }
@@ -80,7 +79,7 @@ impl SubscriptionManager {
         // Add or get the subscription.
         if !self.subscriptions.contains_key(topic) {
             self.subscriptions
-                .insert(topic.to_owned(), Subscription::new(topic)?);
+                .insert(topic.to_owned(), Subscription::new(topic));
         }
         let subscription = self.subscriptions.get_mut(topic).unwrap();
 
@@ -168,10 +167,10 @@ impl SubscriptionManager {
         topics
     }
 
-    pub fn find_subscriptions(&self, regex: &Regex) -> Vec<(String, Vec<String>)> {
+    pub fn find_subscriptions(&self, pattern: &WildMatch) -> Vec<(String, Vec<String>)> {
         let mut subscriptions: Vec<(String, Vec<String>)> = Vec::new();
         for (topic, subscription) in &self.subscriptions {
-            if regex.is_match(topic.as_str()) {
+            if pattern.matches(topic.as_str()) {
                 subscriptions.push((
                     topic.clone(),
                     subscription.subscribers.keys().map(|x| x.clone()).collect(),

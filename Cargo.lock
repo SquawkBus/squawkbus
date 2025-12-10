@@ -1983,7 +1983,6 @@ dependencies = [
  "http-auth-basic",
  "ldap3",
  "log",
- "regex",
  "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "serde",
