@@ -336,7 +336,6 @@ mod test_message {
             user: "mary".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
@@ -377,7 +376,6 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
@@ -397,7 +395,6 @@ mod test_message {
         let initial = Message::MulticastData {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
@@ -448,7 +445,6 @@ mod test_message {
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
-                name: "greeting".into(),
                 content_type: "text/plain".into(),
                 entitlement: 1,
                 data: "Hello, World!".into(),
