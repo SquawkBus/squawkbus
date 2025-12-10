@@ -298,6 +298,7 @@ impl Serializable for Message {
 mod test_message {
     use super::super::data_packet::DataPacket;
     use super::*;
+    use std::collections::HashSet;
     use std::io::Seek;
 
     #[test]
@@ -337,7 +338,7 @@ mod test_message {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
                 content_type: "text/plain".into(),
-                entitlement: 1,
+                entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
         };
@@ -377,7 +378,7 @@ mod test_message {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
                 content_type: "text/plain".into(),
-                entitlement: 1,
+                entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
         };
@@ -396,7 +397,7 @@ mod test_message {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
                 content_type: "text/plain".into(),
-                entitlement: 1,
+                entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
         };
@@ -446,7 +447,7 @@ mod test_message {
             topic: "VOD LSE".into(),
             data_packets: vec![DataPacket {
                 content_type: "text/plain".into(),
-                entitlement: 1,
+                entitlements: HashSet::from([1]),
                 data: "Hello, World!".into(),
             }],
         };
