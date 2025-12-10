@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Read, Write};
+use std::{
+    collections::{HashMap, HashSet},
+    io::{self, Cursor, Read, Write},
+};
 
 pub trait Serializable: Sized + Send {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()>;
@@ -21,7 +24,8 @@ impl Serializable for u8 {
     }
 
     fn size(&self) -> usize {
-        1
+        let len = size_of::<u8>();
+        len
     }
 }
 
@@ -37,7 +41,8 @@ impl Serializable for bool {
     }
 
     fn size(&self) -> usize {
-        1
+        let len = size_of::<u8>();
+        len
     }
 }
 
@@ -55,7 +60,8 @@ impl Serializable for u32 {
     }
 
     fn size(&self) -> usize {
-        4
+        let len = size_of::<u32>();
+        len
     }
 }
 
@@ -73,7 +79,8 @@ impl Serializable for i32 {
     }
 
     fn size(&self) -> usize {
-        4
+        let len = size_of::<i32>();
+        len
     }
 }
 
@@ -95,8 +102,9 @@ impl Serializable for String {
     }
 
     fn size(&self) -> usize {
-        let len = self.len();
-        (len as u32).size() + len
+        let mut len = size_of::<u32>();
+        len += self.as_bytes().len() * size_of::<u8>();
+        len
     }
 }
 
@@ -115,8 +123,106 @@ impl Serializable for Vec<u8> {
     }
 
     fn size(&self) -> usize {
-        let len = self.len();
-        (len as u32).size() + len
+        let mut len = size_of::<u32>();
+        len += self.len() * size_of::<u8>();
+        len
+    }
+}
+
+impl Serializable for HashSet<i32> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for value in self {
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_set: HashSet<i32> = HashSet::with_capacity(capacity);
+        for _ in 0..len {
+            let value = i32::deserialize(reader)?;
+            hash_set.insert(value);
+        }
+        Ok(hash_set)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = size_of::<u32>();
+        len += self.len() * size_of::<i32>();
+        len
+    }
+}
+
+impl Serializable for HashMap<String, String> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for (key, value) in self {
+            key.serialize(writer)?;
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_map: HashMap<String, String> = HashMap::with_capacity(capacity);
+        for _ in 0..len {
+            let key = String::deserialize(reader)?;
+            let value = String::deserialize(reader)?;
+            hash_map.insert(key, value);
+        }
+        Ok(hash_map)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = size_of::<u32>();
+        for (key, value) in self {
+            len += key.size();
+            len += value.size();
+        }
+        len
+    }
+}
+
+impl Serializable for HashMap<Vec<u8>, Vec<u8>> {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        (self.len() as u32).serialize(writer)?;
+        for (key, value) in self {
+            key.serialize(writer)?;
+            value.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let len = u32::deserialize(reader)?;
+        let capacity: usize = len
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let mut hash_map: HashMap<Vec<u8>, Vec<u8>> = HashMap::with_capacity(capacity);
+        for _ in 0..len {
+            let key = Vec::<u8>::deserialize(reader)?;
+            let value = Vec::<u8>::deserialize(reader)?;
+            hash_map.insert(key, value);
+        }
+        Ok(hash_map)
+    }
+
+    fn size(&self) -> usize {
+        let mut len = size_of::<u32>();
+        for (key, value) in self {
+            len += key.size();
+            len += value.size();
+        }
+        len
     }
 }
 
@@ -182,31 +288,35 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn should_roundtrip_u32_vec() {
-    //     let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+    #[test]
+    fn should_roundtrip_i32_hash_set() {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-    //     let actual: Vec<u32> = vec![1, 10, 100, 1000, 10000];
-    //     actual.serialize(&mut cursor).expect("should serialize");
+        let actual: HashSet<i32> =
+            HashSet::from([-10000, -100, -10, -1, 0, 1, 10, 100, 1000, 10000]);
+        actual.serialize(&mut cursor).expect("should serialize");
 
-    //     cursor.rewind().expect("should rewind");
-    //     match Vec::<u32>::deserialize(&mut cursor) {
-    //         Ok(expected) => assert_eq!(actual, expected),
-    //         Err(error) => panic!("Failed to serialize: {:?}", error),
-    //     }
-    // }
+        cursor.rewind().expect("should rewind");
+        match HashSet::<i32>::deserialize(&mut cursor) {
+            Ok(expected) => assert_eq!(actual, expected),
+            Err(error) => panic!("Failed to serialize: {:?}", error),
+        }
+    }
 
-    // #[test]
-    // fn should_roundtrip_i32_vec() {
-    //     let mut writer = FrameWriter::new();
+    #[test]
+    fn should_roundtrip_i32_hash_map() {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-    //     let actual: Vec<i32> = vec![-10000, -100, -10, -1, 0, 1, 10, 100, 1000, 10000];
-    //     actual.serialize(&mut writer).expect("should serialize");
+        let actual: HashMap<String, String> = HashMap::from([
+            ("a".to_string(), "one".to_string()),
+            ("b".to_string(), "two".to_string()),
+        ]);
+        actual.serialize(&mut cursor).expect("should serialize");
 
-    //     let mut reader = FrameReader::from(&writer);
-    //     match Vec::<i32>::deserialize(&mut reader) {
-    //         Ok(expected) => assert_eq!(actual, expected),
-    //         Err(error) => panic!("Failed to serialize: {:?}", error),
-    //     }
-    // }
+        cursor.rewind().expect("should rewind");
+        match HashMap::<String, String>::deserialize(&mut cursor) {
+            Ok(expected) => assert_eq!(actual, expected),
+            Err(error) => panic!("Failed to serialize: {:?}", error),
+        }
+    }
 }

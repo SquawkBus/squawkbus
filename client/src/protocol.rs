@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader};
 
 use common::{
@@ -76,12 +78,18 @@ fn handle_publish(args: Vec<&str>) -> Result<Message, &'static str> {
     let mut i = 2;
     let mut data_packets: Vec<DataPacket> = Vec::new();
     while i < args.len() {
-        let entitlement: i32 = args[i].parse().expect("expected an integer");
+        let entitlements: HashSet<i32> = match args[i] {
+            "_" => HashSet::new(),
+            values => values
+                .split(',')
+                .map(|x| x.parse().expect("should be an integer"))
+                .collect(),
+        };
         i += 1;
 
         let message = args[i];
         data_packets.push(DataPacket::new(
-            entitlement,
+            entitlements,
             "text/plain".into(),
             Vec::from(message.as_bytes()),
         ));
