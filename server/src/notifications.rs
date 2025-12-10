@@ -1,23 +1,21 @@
 use std::{collections::HashMap, io};
 
-use regex::Regex;
-
 use common::messages::Message;
+use wildmatch::WildMatch;
 
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
 
 struct Notification {
-    regex: Regex,
+    pattern: WildMatch,
     listeners: HashMap<String, u32>,
 }
 
 impl Notification {
-    pub fn new(topic: &str) -> io::Result<Self> {
-        let regex = Regex::new(topic).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(Notification {
-            regex,
+    pub fn new(topic: &str) -> Self {
+        Notification {
+            pattern: WildMatch::new(topic),
             listeners: HashMap::new(),
-        })
+        }
     }
 }
 
@@ -64,7 +62,7 @@ impl NotificationManager {
         // Add or get the subscription.
         if !self.notifications.contains_key(pattern) {
             self.notifications
-                .insert(pattern.to_owned(), Notification::new(pattern)?);
+                .insert(pattern.to_owned(), Notification::new(pattern));
         }
         let notification = self.notifications.get_mut(pattern).unwrap();
 
@@ -74,8 +72,8 @@ impl NotificationManager {
             notification.listeners.insert(listener_id.into(), 1);
         }
 
-        for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.regex) {
-            if notification.regex.is_match(topic.as_str()) {
+        for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.pattern) {
+            if notification.pattern.matches(topic.as_str()) {
                 for subscriber_id in &subscribers {
                     let client = client_manager.get(subscriber_id).ok_or(io::Error::new(
                         io::ErrorKind::Other,
@@ -147,7 +145,7 @@ impl NotificationManager {
         );
 
         for (_pattern, notification) in &self.notifications {
-            if notification.regex.is_match(topic) {
+            if notification.pattern.matches(topic) {
                 let subscriber = client_manager.get(&subscriber_id).ok_or(io::Error::new(
                     io::ErrorKind::Other,
                     format!("unknown client {subscriber_id}"),

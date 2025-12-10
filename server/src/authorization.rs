@@ -4,7 +4,6 @@ use std::io::{self, ErrorKind, Result};
 use std::path::Path;
 
 use bitflags::bitflags;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use wildmatch::WildMatch;
 
@@ -26,7 +25,7 @@ pub struct Authorization {
 #[derive(Debug, Clone)]
 pub struct AuthorizationSpec {
     pub user_pattern: WildMatch,
-    pub topic_pattern: Regex,
+    pub topic_pattern: WildMatch,
     pub entitlements: HashSet<i32>,
     pub roles: Role,
 }
@@ -50,7 +49,7 @@ impl AuthorizationManager {
         for spec in &self.specs {
             if spec.roles.contains(role)
                 && spec.user_pattern.matches(user_name)
-                && spec.topic_pattern.is_match(topic)
+                && spec.topic_pattern.matches(topic)
             {
                 entitlements.extend(spec.entitlements.iter());
             }
@@ -78,8 +77,7 @@ where
             for (user, topic_authorization) in authorizations {
                 for (topic, authorization) in topic_authorization {
                     let user_pattern = WildMatch::new(user.as_str());
-                    let topic_pattern = Regex::new(topic.as_str())
-                        .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                    let topic_pattern = WildMatch::new(topic.as_str());
                     let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
                     let roles = authorization.roles;
                     specs.push(AuthorizationSpec {
@@ -94,14 +92,13 @@ where
         None => {
             if specs.is_empty() {
                 // Allow anyone to send anything
-                let user = ".*";
-                let topic = ".*";
+                let user = "*";
+                let topic = "*";
                 let entitlements = HashSet::from([0]);
                 let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
 
                 let user_pattern = WildMatch::new(user);
-                let topic_pattern =
-                    Regex::new(topic).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                let topic_pattern = WildMatch::new(topic);
 
                 let spec = AuthorizationSpec {
                     user_pattern,
@@ -126,19 +123,19 @@ mod test {
         let user_entitlements_spec = vec![
             AuthorizationSpec {
                 user_pattern: WildMatch::new("*"),
-                topic_pattern: Regex::new("PUB\\..*").unwrap(),
+                topic_pattern: WildMatch::new("PUB.*"),
                 entitlements: HashSet::from([0]),
                 roles: Role::Subscriber | Role::Notifier | Role::Publisher,
             },
             AuthorizationSpec {
                 user_pattern: WildMatch::new("joe"),
-                topic_pattern: Regex::new(".*\\.LSE").unwrap(),
+                topic_pattern: WildMatch::new("*.LSE"),
                 entitlements: HashSet::from([1, 2]),
                 roles: Role::Subscriber | Role::Notifier,
             },
             AuthorizationSpec {
                 user_pattern: WildMatch::new("joe"),
-                topic_pattern: Regex::new(".*\\.NSE").unwrap(),
+                topic_pattern: WildMatch::new("*.NSE"),
                 entitlements: HashSet::from([3, 4]),
                 roles: Role::Subscriber,
             },
