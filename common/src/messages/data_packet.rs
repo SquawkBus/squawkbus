@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Cursor};
 
 use crate::io::Serializable;
@@ -6,15 +6,19 @@ use crate::io::Serializable;
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataPacket {
     pub entitlements: HashSet<i32>,
-    pub content_type: String,
+    pub headers: HashMap<Vec<u8>, Vec<u8>>,
     pub data: Vec<u8>,
 }
 
 impl DataPacket {
-    pub fn new(entitlements: HashSet<i32>, content_type: String, data: Vec<u8>) -> DataPacket {
+    pub fn new(
+        entitlements: HashSet<i32>,
+        headers: HashMap<Vec<u8>, Vec<u8>>,
+        data: Vec<u8>,
+    ) -> DataPacket {
         DataPacket {
             entitlements,
-            content_type,
+            headers,
             data,
         }
     }
@@ -27,20 +31,20 @@ impl DataPacket {
 impl Serializable for DataPacket {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         self.entitlements.serialize(writer)?;
-        self.content_type.serialize(writer)?;
+        self.headers.serialize(writer)?;
         self.data.serialize(writer)?;
         Ok(())
     }
 
     fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<DataPacket> {
         let entitlements = HashSet::<i32>::deserialize(reader)?;
-        let content_type = String::deserialize(reader)?;
+        let headers = HashMap::<Vec<u8>, Vec<u8>>::deserialize(reader)?;
         let data = Vec::<u8>::deserialize(reader)?;
-        Ok(DataPacket::new(entitlements, content_type, data))
+        Ok(DataPacket::new(entitlements, headers, data))
     }
 
     fn size(&self) -> usize {
-        self.entitlements.size() + self.content_type.size() + self.data.size()
+        self.entitlements.size() + self.headers.size() + self.data.size()
     }
 }
 
@@ -82,12 +86,14 @@ mod tests {
     fn should_roundtrip_datapacket() {
         let actual = DataPacket {
             entitlements: HashSet::from([1]),
-            content_type: "text/plain".into(),
+            headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
             data: "Hello, World!".into(),
         };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         actual.serialize(&mut cursor).expect("should serialize");
+
+        assert_eq!(actual.size(), cursor.position() as usize);
 
         cursor.rewind().expect("should rewind");
         match DataPacket::deserialize(&mut cursor) {
@@ -101,12 +107,12 @@ mod tests {
         let actual = vec![
             DataPacket {
                 entitlements: HashSet::from([1]),
-                content_type: "text/plain".into(),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 data: "Data 1".into(),
             },
             DataPacket {
                 entitlements: HashSet::from([2]),
-                content_type: "text/plain".into(),
+                headers: HashMap::from([(b"content-type".into(), b"text/plain".into())]),
                 data: "Data 2".into(),
             },
         ];
@@ -126,7 +132,7 @@ mod tests {
         // Same single entitlement.
         let data_packet = DataPacket {
             entitlements: HashSet::from([1]),
-            content_type: "text/plain".into(),
+            headers: HashMap::from([(b"Content-Type".into(), b"text/plain".into())]),
             data: "Data 1".into(),
         };
 
