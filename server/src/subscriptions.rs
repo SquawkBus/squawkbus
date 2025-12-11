@@ -84,18 +84,20 @@ impl SubscriptionManager {
         let subscription = self.subscriptions.get_mut(topic).unwrap();
 
         // Keep a request count.
-        if let Some(count) = subscription.subscribers.get_mut(subscriber_id) {
+        let count = if let Some(count) = subscription.subscribers.get_mut(subscriber_id) {
             log::debug!("add_subscription: incrementing count for {topic}");
             *count += 1;
+            *count
         } else {
             log::debug!("add_subscription: creating new {topic}");
-            subscription.subscribers.insert(subscriber_id.into(), 1);
-            notification_manager
-                .notify_listeners(subscriber_id, topic, true, client_manager)
-                .await?;
-        }
+            let count = 1;
+            subscription.subscribers.insert(subscriber_id.into(), count);
+            count
+        };
 
-        Ok(())
+        notification_manager
+            .notify_listeners(subscriber_id, topic, true, count, client_manager)
+            .await
     }
 
     async fn remove_subscription(
@@ -120,7 +122,9 @@ impl SubscriptionManager {
             *count -= 1;
         }
 
-        if *count == 0 {
+        let count = *count;
+
+        if count == 0 {
             subscription.subscribers.remove(subscriber_id);
             log::debug!("removed all subscriptions for {subscriber_id} on {topic}");
         } else {
@@ -132,7 +136,7 @@ impl SubscriptionManager {
         }
 
         notification_manager
-            .notify_listeners(subscriber_id, topic, false, client_manager)
+            .notify_listeners(subscriber_id, topic, false, 0, client_manager)
             .await
     }
 
@@ -167,14 +171,11 @@ impl SubscriptionManager {
         topics
     }
 
-    pub fn find_subscriptions(&self, pattern: &WildMatch) -> Vec<(String, Vec<String>)> {
-        let mut subscriptions: Vec<(String, Vec<String>)> = Vec::new();
+    pub fn find_subscriptions(&self, pattern: &WildMatch) -> Vec<(String, &HashMap<String, u32>)> {
+        let mut subscriptions: Vec<(String, &HashMap<String, u32>)> = Vec::new();
         for (topic, subscription) in &self.subscriptions {
             if pattern.matches(topic.as_str()) {
-                subscriptions.push((
-                    topic.clone(),
-                    subscription.subscribers.keys().map(|x| x.clone()).collect(),
-                ));
+                subscriptions.push((topic.clone(), &subscription.subscribers));
             }
         }
         subscriptions

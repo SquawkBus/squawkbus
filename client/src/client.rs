@@ -22,7 +22,7 @@ pub trait ClientCallbacks {
         &mut self,
         user: String,
         topic: String,
-        is_add: bool,
+        count: u32,
     ) -> BoxFuture<'_, ()>;
 }
 
@@ -144,10 +144,10 @@ where
                 user: _,
                 client_id,
                 topic,
-                is_add,
+                count,
             } => {
                 self.callbacks
-                    .on_forwarded_subscription(client_id, topic, is_add)
+                    .on_forwarded_subscription(client_id, topic, count)
                     .await
             }
             _ => todo!(),

@@ -74,7 +74,7 @@ impl NotificationManager {
 
         for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.pattern) {
             if notification.pattern.matches(topic.as_str()) {
-                for subscriber_id in &subscribers {
+                for (subscriber_id, count) in subscribers {
                     let client = client_manager.get(subscriber_id).ok_or(io::Error::new(
                         io::ErrorKind::Other,
                         format!("unknown client {subscriber_id}"),
@@ -84,7 +84,7 @@ impl NotificationManager {
                         host: client.host.clone(),
                         user: client.user.clone(),
                         topic: topic.clone(),
-                        is_add: true,
+                        count: *count,
                     };
                     let event = ServerEvent::OnMessage(message);
                     client
@@ -138,6 +138,7 @@ impl NotificationManager {
         subscriber_id: &str,
         topic: &str,
         is_add: bool,
+        count: u32,
         client_manager: &ClientManager,
     ) -> io::Result<()> {
         log::debug!(
@@ -156,7 +157,7 @@ impl NotificationManager {
                     user: subscriber.user.clone(),
                     client_id: subscriber_id.into(),
                     topic: topic.to_string(),
-                    is_add,
+                    count,
                 };
 
                 for listener_id in notification.listeners.keys() {
