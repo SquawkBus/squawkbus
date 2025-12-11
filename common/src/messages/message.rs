@@ -26,7 +26,7 @@ pub enum Message {
         user: String,
         client_id: String,
         topic: String,
-        is_add: bool,
+        count: u32,
     },
     ForwardedUnicastData {
         host: String,
@@ -104,13 +104,13 @@ impl Serializable for Message {
                 let user = String::deserialize(reader)?;
                 let client_id = String::deserialize(reader)?;
                 let topic = String::deserialize(reader)?;
-                let is_add = bool::deserialize(reader)?;
+                let count = u32::deserialize(reader)?;
                 Ok(Message::ForwardedSubscriptionRequest {
                     host,
                     user,
                     client_id,
                     topic,
-                    is_add,
+                    count,
                 })
             }
             Ok(MessageType::ForwardedUnicastData) => {
@@ -191,13 +191,13 @@ impl Serializable for Message {
                 user,
                 client_id,
                 topic,
-                is_add,
+                count,
             } => {
                 host.serialize(writer)?;
                 user.serialize(writer)?;
                 client_id.serialize(writer)?;
                 topic.serialize(writer)?;
-                is_add.serialize(writer)?;
+                count.serialize(writer)?;
                 Ok(())
             }
             Message::ForwardedUnicastData {
@@ -264,8 +264,8 @@ impl Serializable for Message {
                     user,
                     client_id,
                     topic,
-                    is_add,
-                } => host.size() + user.size() + client_id.size() + topic.size() + is_add.size(),
+                    count,
+                } => host.size() + user.size() + client_id.size() + topic.size() + count.size(),
                 Message::ForwardedUnicastData {
                     host,
                     user,
@@ -358,7 +358,7 @@ mod test_message {
             user: "mary".into(),
             client_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".into(),
             topic: "VOD LSE".into(),
-            is_add: true,
+            count: 1,
         };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
