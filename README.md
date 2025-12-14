@@ -136,7 +136,7 @@ squawkbus \
 
 ### File authorization
 
-Authorizations are typically better specified in a file. Here is an example:
+It is common that there are many authorizations. They may be saved in a file.
 
 ```yaml
 # Harry is the publisher for LSE data.
