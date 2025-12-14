@@ -15,6 +15,22 @@ The broker follows a standard pub-sub pattern. Clients subscribe to topic patter
 Other clients publish to topics, which gets routed to the subscribers. The data
 is sent as *packets* of bytes, so any kind of message can be sent.
 
+### Data Packets
+
+Data is sent and received as a number of "packets". Each packets has:
+
+* Entitlements - a list of integers
+* Headers - key-value pairs
+* Data - an array of bytes
+
+When the data is received by the broker it will only forward packets which
+match the entitlements of the receiving client. This means that as long as the
+publisher tags each packet with it's entitlements, clients will only receive
+data to which they're entitled.
+
+The headers can hold meta data. This is often the content type (e.g. JSON),
+timestamps, etc.
+
 ### Notification
 
 Clients may request *notification* of subscriptions to a topic pattern. For example,
@@ -49,22 +65,6 @@ The broker supports:
 If authentication is enabled the feed can filter data sent to a client. For
 example if an authenticated user is entitled to see level 1 NYSE data, but not
 level 2, the broker will only send the level 1 data.
-
-### Data Packets
-
-Data is sent and received in "packets". Each packets has:
-
-* Entitlements - a list of integers
-* Headers - key-value pairs
-* Data - an array of bytes
-
-When data is sent to the broker it will only forward packets which
-match the entitlements of the receiving client. This means that if the publisher
-tags each packet with it's entitlements, the client will only receive data to
-which it is entitled.
-
-The headers can hold meta data. This is often the content type (e.g. JSON),
-timestamps, etc.
 
 ### Disconnection
 
