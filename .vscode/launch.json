@@ -63,7 +63,7 @@
                 "RUST_LOG": "debug"
             },
             "args": [
-                "--tls", "~/.keys/server.crt", "~/.keys/server.ke"
+                "--tls", "~/.keys/server.crt", "~/.keys/server.key"
             ],
             "cwd": "${workspaceFolder}"
         },

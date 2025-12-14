@@ -86,60 +86,95 @@ squawkbus
 
 Use the `RUST_LOG` environment variable to enable logging.
 
-The only argument is a the path to a configuration file.
-
-#### Start the server without TLS
-
-The only argument is the location of the config file.
-
 ```bash
-RUST_LOG=debug cargo run --bin squawkbus -- --authorizations-file /authorizations-simple.yaml
+RUST_LOG=debug squawkbus
 ```
 
-#### Start the server with TLS
+### TLS
 
-The only argument is the location of the config file.
-
-```bash
-RUST_LOG=debug cargo run --bin squawkbus -- \
-    --authorizations-file etc/authorizations-simple.yaml \
-    --tls $HOME/.keys/server.crt $HOME/.keys/server.key
-```
-
-### Clients
-
-#### Start the clients without TLS
+The data can be encrypted with TLS. An authenticated feed is typically encrypted
+to keep the password secret.
 
 ```bash
-cargo run --bin client -- -h localhost -p 8080
+squawkbus --tls server.crt server.key
 ```
 
-#### Start the clients with TLS
+### Password file authentication
 
-On Unix
+Simple password file encryption is provided as a basic authentication mechanism.
 
 ```bash
-cargo run --bin client -- -h beast.jetblack.net -p 8080 --tls --cafile /etc/ssl/certs/ca-certificates.crt
+squawkbus --tls server.crt server.key --authentication basic ht.passwd
 ```
 
-On Mac
+### LDAP authentication
+
+Simple password file encryption is provided as a basic authentication mechanism.
 
 ```bash
-cargo run --bin client -- -h brick.jetblack.net -p 8080 --tls --cafile /Users/rtb/.keys/ca-certificates.crt
+squawkbus --tls server.crt server.key --authentication ldap ldap::/ns1.example.com
 ```
 
-#### Using the client
+### Simple authorization
 
-With one client subscribe to a topic starting with `PUB.`.
+Authorizations can be made on the command line. Note that the server must 
+be authenticating for authorizations to know the user to authorize.
 
 ```bash
-subscribe PUB.foo
+squawkbus \
+    --tls server.crt server.key \
+    --authentication ldap ldap::/ns1.example.com \
+    --authorization "alex:NYSE.*:Subscriber" \
+    --authorization "kai:NYSE.*:Notifier,Publisher"
 ```
 
-With another client publish data on the topic. Note that the
-second argument is the "entitlements" which is a command separated list of integers.
+### File authorization
+
+Authorizations are typically better specified in a file. Here is an example:
+
+```yaml
+# Harry is the publisher for LSE data.
+harry:
+  "LSE.*":
+    entitlements:
+    - &LSE_LEVEL1 1
+    - &LSE_LEVEL2 2
+    roles: Notifier | Publisher
+# Freddy is the publisher for NYSE data.
+freddy:
+  "NYSE.*":
+    entitlements:
+    - &NYSE_LEVEL1 3
+    - &NYSE_LEVEL2 4
+    roles: Notifier | Publisher
+# Tom gets both level 1 and 2 data for LSE and NYSE.
+tom:
+  "LSE.*":
+    entitlements:
+    - *LSE_LEVEL1
+    - *LSE_LEVEL2
+    roles: Subscriber
+  "NYSE.*":
+    entitlements:
+    - *NYSE_LEVEL1
+    - *NYSE_LEVEL2
+    roles: Subscriber
+# Dick gets level 1 for NYSE and LSE.
+dick:
+  "LSE.*":
+    entitlements:
+    - *LSE_LEVEL1
+    roles: Subscriber
+  "NYSE.*":
+    entitlements:
+    - *NYSE_LEVEL1
+    roles: Subscriber
+```
+
 
 ```bash
-publish PUB.foo 0 hello
+squawkbus \
+    --tls server.crt server.key \
+    --authentication ldap ldap::/ns1.example.com \
+    --authorization-file "authorization.yaml"
 ```
-
