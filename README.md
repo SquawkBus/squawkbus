@@ -47,8 +47,8 @@ The selectfeed pattern is common in market data distribution systems. When a
 client subscribes to a ticker, it receives an initial "image". Subsequently this
 client (and other subscribers) received "deltas" as updates arrive.
 
-Combining "notification" and "sending" enables the "selectfeed" pattern.
-The publisher requests "notifications" on the topic for which it is publishing.
+Combining notification and sending enables the *selectfeed* pattern.
+The publisher requests notifications on the topic for which it is publishing.
 When a client subscribes, an initial "image" is sent. This is followed by deltas
 which and published to all subscribers.
 
