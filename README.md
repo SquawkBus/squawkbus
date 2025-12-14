@@ -96,7 +96,8 @@ The data can be encrypted with TLS. An authenticated feed is typically encrypted
 to keep the password secret.
 
 ```bash
-squawkbus --tls server.crt server.key
+squawkbus \
+    --tls server.crt server.key
 ```
 
 ### Password file authentication
