@@ -12,8 +12,7 @@ Common uses for this kind of message bus are:
 ### Publish / Subscribe
 
 The broker follows a standard pub-sub pattern. Publisher's send data to a "topic".
-Subscribers subscribe to "topic patterns" which may include wildcard characters
-(? for a single character, * for multiple characters).
+Subscribers subscribe to "topic patterns" which may include wildcard characters.
 
 The data is sent as *packets* of *bytes*, so any kind of message can be sent.
 
