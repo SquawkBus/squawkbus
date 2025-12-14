@@ -103,6 +103,7 @@ squawkbus \
 ### Password file authentication
 
 Simple password file encryption is provided as a basic authentication mechanism.
+This uses the apache http server `htpasswd` utilities.
 
 ```bash
 squawkbus \
