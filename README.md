@@ -50,7 +50,7 @@ client (and other subscribers) receive *deltas* (updates).
 Combining notification and sending enables the selectfeed pattern.
 The publisher requests notifications on the topic pattern for which it is publishing.
 When a client subscribes, an initial image is sent. This is followed by deltas
-which and published to all subscribers.
+which are published to all subscribers.
 
 ### Authentication
 
