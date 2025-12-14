@@ -1,9 +1,65 @@
-# A Prototype Message Bus
+# squawkbus
+
+A broker based message bus.
+
+## Features
+
+### Publish / Subscribe
+
+The broker follows a standard pub-sub pattern. Publisher's send data to a "topic". Subscribers subscribe to topic patterns which may include wildcard characters (? for a single character, * for multiple characters).
+
+The data is sent as "packets" of bytes, so any kind of message can be sent.
+
+### Notification
+
+Clients may request "notification" of subscriptions to a pattern. For example,
+if the pattern was "NASDAQ.*", and a second client subscribed to "NASDAQ.AMZN",
+the first client would be "notified" of this subscription.
+
+### Send (Peer to Peer)
+
+One client may send data directly to another.
+
+### Selectfeed
+
+Combining "notification" and "sending" enables a "selectfeed" pattern. This is
+where a client only provides streaming data, when it has been requested. This can be compared to the broadcast pattern when all data is sent to all clients.
+
+Typically the client will be sent an initial data set (image)
+via a "send" followed by changes (deltas) via a "publish".
+
+### Authentication
+
+The broker supports:
+
+* Anonymous (no authentication)
+* Password file
+* LDAP
+
+### Authorization
+
+If authentication is enabled the feed can filter data sent to a client. For
+example if an authenticated user is entitled to see level 1 NYSE data, but not
+level 2, the broker will only send the level 1 data.
+
+### Data Packets
+
+Data is sent and received in "packets". Each packets has:
+
+* Entitlements - a list of integers
+* Headers - key-value pairs
+* Data - an array of bytes
+
+When data is sent to the broker it will only forward packets which
+match the entitlements of the receiving client. This means that if the publisher tags each packet with it's entitlements, the client will only receive data to which it is entitled.
+
+The headers can hold meta data. This is often the content type (e.g. JSON), timestamps, etc.
 
 ## Usage
 
-For the system to work a server must be running, so the
-first step in using the system is to start the server.
+For the system to work a server must be running.
+
+
 
 ### Server
 
