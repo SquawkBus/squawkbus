@@ -1,6 +1,6 @@
 # squawkbus
 
-A broker based message bus supporting selectfeed, authentication and authorization.
+A broker based message bus supporting "selectfeed", authentication and authorization.
 
 Common uses for this kind of message bus are:
 
