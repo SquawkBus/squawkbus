@@ -11,16 +11,15 @@ Common uses for this kind of message bus are:
 
 ### Publish / Subscribe
 
-The broker follows a standard pub-sub pattern. Publisher's send data to a "topic".
-Subscribers subscribe to "topic patterns" which may include wildcard characters.
-
-The data is sent as *packets* of *bytes*, so any kind of message can be sent.
+The broker follows a standard pub-sub pattern. Clients subscribe to topic patterns.
+Other clients publish to topics, which gets routed to the subscribers. The data
+is sent as *packets* of bytes, so any kind of message can be sent.
 
 ### Notification
 
-Clients may request "notification" of subscriptions to a pattern. For example,
+Clients may request *notification* of subscriptions to a topic pattern. For example,
 if the pattern was "NASDAQ.*", and a second client subscribed to "NASDAQ.AMZN",
-the first client would be "notified" of this subscription.
+the first client would be notified of this subscription.
 
 ### Send (Peer to Peer)
 
