@@ -29,12 +29,14 @@ One client may send data directly to another.
 
 ### Selectfeed
 
-Combining "notification" and "sending" enables a "selectfeed" pattern. This is
-where a client only provides streaming data when it has been requested. This
-can be compared to the broadcast pattern when all data is sent to all clients.
+The selectfeed pattern is common in market data distribution systems. When a
+client subscribes to a ticker, it receives an initial "image". Subsequently this
+client (and other subscribers) received "deltas" as updates arrive.
 
-Typically the client will be sent an initial data set (image)
-via a "send" followed by changes (deltas) via a "publish".
+Combining "notification" and "sending" enables the "selectfeed" pattern.
+The publisher requests "notifications" on the topic for which it is publishing.
+When a client subscribes, an initial "image" is sent. This is followed by deltas
+which and published to all subscribers.
 
 ### Authentication
 
