@@ -48,7 +48,7 @@ client subscribes to a ticker, it receives an initial *image*. Subsequently this
 client (and other subscribers) receive *deltas* (updates).
 
 Combining notification and sending enables the selectfeed pattern.
-The publisher requests notifications on the topic for which it is publishing.
+The publisher requests notifications on the topic pattern for which it is publishing.
 When a client subscribes, an initial image is sent. This is followed by deltas
 which and published to all subscribers.
 
