@@ -104,7 +104,9 @@ squawkbus --tls server.crt server.key
 Simple password file encryption is provided as a basic authentication mechanism.
 
 ```bash
-squawkbus --tls server.crt server.key --authentication basic ht.passwd
+squawkbus \
+    --tls server.crt server.key \
+    --authentication basic ht.passwd
 ```
 
 ### LDAP authentication
@@ -112,7 +114,9 @@ squawkbus --tls server.crt server.key --authentication basic ht.passwd
 Simple password file encryption is provided as a basic authentication mechanism.
 
 ```bash
-squawkbus --tls server.crt server.key --authentication ldap ldap::/ns1.example.com
+squawkbus \
+    --tls server.crt server.key \
+    --authentication ldap ldap::/ns1.example.com
 ```
 
 ### Simple authorization
