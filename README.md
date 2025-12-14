@@ -1,12 +1,19 @@
 # squawkbus
 
-A broker based message bus.
+A broker based message bus supporting selectfeed, authentication and authorization.
+
+Common uses for this kind of message bus are:
+
+* Event driven calculation servers
+* Real time distribution of "permissioned" data
 
 ## Features
 
 ### Publish / Subscribe
 
-The broker follows a standard pub-sub pattern. Publisher's send data to a "topic". Subscribers subscribe to topic patterns which may include wildcard characters (? for a single character, * for multiple characters).
+The broker follows a standard pub-sub pattern. Publisher's send data to a "topic".
+Subscribers subscribe to topic patterns which may include wildcard characters
+(? for a single character, * for multiple characters).
 
 The data is sent as "packets" of bytes, so any kind of message can be sent.
 
@@ -23,7 +30,8 @@ One client may send data directly to another.
 ### Selectfeed
 
 Combining "notification" and "sending" enables a "selectfeed" pattern. This is
-where a client only provides streaming data, when it has been requested. This can be compared to the broadcast pattern when all data is sent to all clients.
+where a client only provides streaming data, when it has been requested. This
+can be compared to the broadcast pattern when all data is sent to all clients.
 
 Typically the client will be sent an initial data set (image)
 via a "send" followed by changes (deltas) via a "publish".
@@ -51,17 +59,30 @@ Data is sent and received in "packets". Each packets has:
 * Data - an array of bytes
 
 When data is sent to the broker it will only forward packets which
-match the entitlements of the receiving client. This means that if the publisher tags each packet with it's entitlements, the client will only receive data to which it is entitled.
+match the entitlements of the receiving client. This means that if the publisher
+tags each packet with it's entitlements, the client will only receive data to
+which it is entitled.
 
-The headers can hold meta data. This is often the content type (e.g. JSON), timestamps, etc.
+The headers can hold meta data. This is often the content type (e.g. JSON),
+timestamps, etc.
+
+### Disconnection
+
+When a client disconnects, other "interested" clients are informed.
+
+For example a client receiving notifications will be told when a subscriber has
+disconnected (as well as when they unsubscribe). A client that has subscribe to
+a topic will be informed when all publishers to the topic have disconnected.
 
 ## Usage
 
-For the system to work a server must be running.
+For the system to work a server must be running!
 
+```bash
+squawkbus
+```
 
-
-### Server
+### Logging
 
 Use the `RUST_LOG` environment variable to enable logging.
 
@@ -72,7 +93,7 @@ The only argument is a the path to a configuration file.
 The only argument is the location of the config file.
 
 ```bash
-RUST_LOG=debug cargo run --bin server -- --authorizations-file /authorizations-simple.yaml
+RUST_LOG=debug cargo run --bin squawkbus -- --authorizations-file /authorizations-simple.yaml
 ```
 
 #### Start the server with TLS
@@ -80,7 +101,7 @@ RUST_LOG=debug cargo run --bin server -- --authorizations-file /authorizations-s
 The only argument is the location of the config file.
 
 ```bash
-RUST_LOG=debug cargo run --bin server -- \
+RUST_LOG=debug cargo run --bin squawkbus -- \
     --authorizations-file etc/authorizations-simple.yaml \
     --tls $HOME/.keys/server.crt $HOME/.keys/server.key
 ```
@@ -122,82 +143,3 @@ second argument is the "entitlements" which is a command separated list of integ
 publish PUB.foo 0 hello
 ```
 
-## Design
-
-### Overview
-
-This is a real time message bus for publish/subscribe communication.
-
-Client applications connect to a single hub service. The clients send
-messages to the hub. The hub processes the messages and routes new messages to
-the appropriate clients.
-
-For example a client might send a message requesting a subscription to a topic.
-In the case of a subscription the server will simply remember the subscription.
-Another client may then publish data on the same topic. The hub will forward
-the data to the subscribing client.
-
-### Structure
-
-The server starts by creating a `hub` task to process messages, and then listens for clients connecting.
-
-When a client connects an "interactor" is created, and two
-tasks are started: one which reads messages from the client and forwards them to
-the message processor, and a second which receives messages from the message processor
-and forwards them to the client.
-
-The client read tasks communicate with the message processor task through a multi-producer
-single-consumer queue to  ensure synchronization.
-
-## Things to do
-
-### Timeouts
-
-Slow consumers and producers should be handled, as well as slow authenticators.
-
-On authentication a bad actor could simply never send the send of line token.
-If many clients had this behaviour this would create a task for each client
-that would never complete.
-
-### Large payloads
-
-Maximum sizes for payloads should be introduced.
-
-### Authentication
-
-This is currently hardcoded to a username/password (`nobody/trustno1`).
-
-Alternatives include:
-
-* Password file
-* LDAP
-* Pluggable authentication
-
-### Wild-carding
-
-This is currently regex, but it might be faster to use something more
-like RabbitMQ.
-
-### Entitlements
-
-This could be made more efficient with caching,
-however we might want to put in some code to prevent bad actors swamping
-the cache and crashing the host.
-
-A mechanism to reload entitlements (e.g. on SIGHUP).
-
-Maybe entitlements should be exposed as a pluggable module with dynamic
-access.
-
-### Serialization
-
-This was the first thing to be written and could do with reworking.
-
-We could wrap the packet in a length delimited frame to simplify the
-serialization of primitives (i.e. to make that part non-async).
-
-### Configuration and Command Line
-
-It would be nice to have to control over the configuration with command line params.
-
-Should entitlements be split into a separate file?

@@ -11,11 +11,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=squawkbus",
+                    "--package=squawkbus"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "squawkbus",
                     "kind": "bin"
                 }
             },
@@ -51,11 +51,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=squawkbus",
+                    "--package=squawkbus"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "squawkbus",
                     "kind": "bin"
                 }
             },
@@ -74,11 +74,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=squawkbus",
+                    "--package=squawkbus"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "squawkbus",
                     "kind": "bin"
                 }
             },
@@ -160,11 +160,11 @@
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=squawkbus",
+                    "--package=squawkbus"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "squawkbus",
                     "kind": "bin"
                 }
             },

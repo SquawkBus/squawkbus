@@ -1970,31 +1970,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server"
-version = "0.1.0"
-dependencies = [
- "argh",
- "bitflags",
- "common",
- "config",
- "env_logger",
- "futures-util",
- "htpasswd-verify",
- "http-auth-basic",
- "ldap3",
- "log",
- "rustls-pemfile 2.2.0",
- "rustls-pki-types",
- "serde",
- "serde_yaml",
- "tokio",
- "tokio-rustls 0.26.1",
- "tokio-tungstenite",
- "uuid",
- "wildmatch",
-]
-
-[[package]]
 name = "sha-1"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2093,6 +2068,31 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+
+[[package]]
+name = "squawkbus"
+version = "0.1.0"
+dependencies = [
+ "argh",
+ "bitflags",
+ "common",
+ "config",
+ "env_logger",
+ "futures-util",
+ "htpasswd-verify",
+ "http-auth-basic",
+ "ldap3",
+ "log",
+ "rustls-pemfile 2.2.0",
+ "rustls-pki-types",
+ "serde",
+ "serde_yaml",
+ "tokio",
+ "tokio-rustls 0.26.1",
+ "tokio-tungstenite",
+ "uuid",
+ "wildmatch",
+]
 
 [[package]]
 name = "stable_deref_trait"
