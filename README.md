@@ -30,7 +30,7 @@ One client may send data directly to another.
 ### Selectfeed
 
 Combining "notification" and "sending" enables a "selectfeed" pattern. This is
-where a client only provides streaming data, when it has been requested. This
+where a client only provides streaming data when it has been requested. This
 can be compared to the broadcast pattern when all data is sent to all clients.
 
 Typically the client will be sent an initial data set (image)
