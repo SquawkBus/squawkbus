@@ -70,8 +70,8 @@ level 2, the broker will only send the level 1 data.
 
 When a client disconnects, other "interested" clients are informed.
 
-For example a client receiving notifications will be told when a subscriber has
-disconnected (as well as when they unsubscribe). A client that has subscribe to
+For example a client receiving notifications will be informed when a subscriber has
+disconnected (as well as when they unsubscribe). A client that has subscribed to
 a topic will be informed when all publishers to the topic have disconnected.
 
 ## Usage
