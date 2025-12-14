@@ -182,5 +182,5 @@ dick:
 squawkbus \
     --tls server.crt server.key \
     --authentication ldap ldap::/ns1.example.com \
-    --authorization-file "authorization.yaml"
+    --authorizations-file "authorizations.yaml"
 ```
