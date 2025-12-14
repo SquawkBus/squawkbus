@@ -43,7 +43,7 @@ One client may send data directly to another.
 
 ### Selectfeed
 
-The selectfeed pattern is common in market data distribution systems. When a
+The *selectfeed* pattern is common in market data distribution systems. When a
 client subscribes to a ticker, it receives an initial "image". Subsequently this
 client (and other subscribers) received "deltas" as updates arrive.
 
