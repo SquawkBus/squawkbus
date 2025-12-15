@@ -74,6 +74,11 @@ For example a client receiving notifications will be informed when a subscriber 
 disconnected (as well as when they unsubscribe). A client that has subscribed to
 a topic will be informed when all publishers to the topic have disconnected.
 
+### WebSockets
+
+In addition to the standard socket interface the service supports connections
+with web sockets to allow simple browser access.
+
 ## Usage
 
 For the system to work a server must be running!
