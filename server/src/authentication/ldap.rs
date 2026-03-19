@@ -4,21 +4,21 @@ use async_trait::async_trait;
 use http_auth_basic::Credentials;
 use ldap3::{LdapConnAsync, LdapConnSettings};
 
-use crate::authentication::authenticatable::Authenticatable;
+use crate::authentication::traits::Authenticator;
 
 #[derive(Clone)]
-pub struct LdapAuthenticationManager {
+pub struct LdapAuthenticator {
     url: String,
 }
 
-impl LdapAuthenticationManager {
-    pub fn new(url: String) -> LdapAuthenticationManager {
-        LdapAuthenticationManager { url }
+impl LdapAuthenticator {
+    pub fn new(url: String) -> LdapAuthenticator {
+        LdapAuthenticator { url }
     }
 }
 
 #[async_trait]
-impl Authenticatable for LdapAuthenticationManager {
+impl Authenticator for LdapAuthenticator {
     fn name(&self) -> &str {
         "ldap"
     }

@@ -6,28 +6,28 @@ use tokio::sync::Mutex;
 use common::MessageStream;
 use common::messages::Message;
 
-use crate::authentication::authenticatable::Authenticatable;
-use crate::authentication::htpasswd_authenticator::HtpasswdAuthenticationManager;
-use crate::authentication::ldap_authenticator::LdapAuthenticationManager;
-use crate::authentication::null_authenticator::NullAuthenticationManager;
+use crate::authentication::htpasswd::HtpasswdAuthenticator;
+use crate::authentication::ldap::LdapAuthenticator;
+use crate::authentication::null::NullAuthenticator;
+use crate::authentication::traits::Authenticator;
 use crate::options::AuthenticationOption;
 
 #[derive(Clone)]
 pub struct AuthenticationManager {
-    pub auth: Arc<Mutex<dyn Authenticatable + Send>>,
+    pub authenticator: Arc<Mutex<dyn Authenticator + Send>>,
 }
 
 impl AuthenticationManager {
     pub fn new(option: &AuthenticationOption) -> Result<Self> {
         Ok(match option {
             AuthenticationOption::None => AuthenticationManager {
-                auth: Arc::new(Mutex::new(NullAuthenticationManager {})),
+                authenticator: Arc::new(Mutex::new(NullAuthenticator {})),
             },
             AuthenticationOption::Basic(path) => AuthenticationManager {
-                auth: Arc::new(Mutex::new(HtpasswdAuthenticationManager::new(&path)?)),
+                authenticator: Arc::new(Mutex::new(HtpasswdAuthenticator::new(&path)?)),
             },
             AuthenticationOption::Ldap(url) => AuthenticationManager {
-                auth: Arc::new(Mutex::new(LdapAuthenticationManager::new(url.clone()))),
+                authenticator: Arc::new(Mutex::new(LdapAuthenticator::new(url.clone()))),
             },
         })
     }
@@ -45,7 +45,7 @@ impl AuthenticationManager {
             ));
         };
 
-        let auth = self.auth.clone();
+        let auth = self.authenticator.clone();
         let auth = auth.lock().await;
 
         if method.as_str() != auth.name() {
@@ -57,7 +57,7 @@ impl AuthenticationManager {
     }
 
     pub async fn reset(&mut self) -> Result<()> {
-        let auth = self.auth.clone();
+        let auth = self.authenticator.clone();
         let mut auth = auth.lock().await;
         auth.reset().await
     }
