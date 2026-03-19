@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::io::Cursor;
 
 use tokio::io::{
@@ -22,6 +23,7 @@ where
     }
 }
 
+#[async_trait]
 impl<T> MessageStream for MessageSocket<T>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send,

@@ -1,10 +1,10 @@
-use std::future::Future;
-
+use async_trait::async_trait;
 use tokio::io::{self};
 
 use crate::messages::Message;
 
+#[async_trait]
 pub trait MessageStream {
-    fn read(&mut self) -> impl Future<Output = io::Result<Message>> + Send;
-    fn write(&mut self, message: &Message) -> impl Future<Output = io::Result<()>> + Send;
+    async fn read(&mut self) -> io::Result<Message>;
+    async fn write(&mut self, message: &Message) -> io::Result<()>;
 }
