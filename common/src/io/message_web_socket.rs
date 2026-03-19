@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::io::Cursor;
 
 use futures_util::{SinkExt, StreamExt};
@@ -19,6 +20,7 @@ where
     }
 }
 
+#[async_trait]
 impl<T> MessageStream for MessageWebSocket<T>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send,

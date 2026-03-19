@@ -73,7 +73,8 @@ where
         Some(path) => {
             let file = fs::File::open(path)?;
             let authorizations: HashMap<String, HashMap<String, Authorization>> =
-                serde_yaml::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+                serde_yaml_ng::from_reader(file)
+                    .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
             for (user, topic_authorization) in authorizations {
                 for (topic, authorization) in topic_authorization {
                     let user_pattern = WildMatch::new(user.as_str());

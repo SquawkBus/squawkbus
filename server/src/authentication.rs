@@ -3,14 +3,21 @@ use std::fs::read_to_string;
 use std::io::{Error, ErrorKind, Result};
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use htpasswd_verify::Htpasswd;
 use http_auth_basic::Credentials;
 use ldap3::{LdapConnAsync, LdapConnSettings};
 
-use common::messages::Message;
 use common::MessageStream;
+use common::messages::Message;
 
 use crate::options::AuthenticationOption;
+
+#[async_trait]
+pub trait Authenticatable {
+    async fn authenticate(&self, credentials: &[u8]) -> Result<String>;
+    async fn reset(&mut self) -> Result<()>;
+}
 
 #[derive(Clone)]
 pub struct BasicAuthenticationManager {
@@ -26,11 +33,6 @@ impl BasicAuthenticationManager {
         })
     }
 
-    pub fn reset(&mut self) -> Result<()> {
-        self.data = load_htpasswd(&self.path)?;
-        Ok(())
-    }
-
     pub fn check(&self, username: &str, password: &str) -> bool {
         let Some(value) = self.data.get(username) else {
             return false;
@@ -38,8 +40,26 @@ impl BasicAuthenticationManager {
         let encoded = Htpasswd::from(value.as_str());
         return encoded.check(username, password);
     }
+}
 
-    pub fn authenticate(&self, credentials: &[u8]) -> Result<String> {
+fn load_htpasswd(path: &PathBuf) -> Result<HashMap<String, String>> {
+    let contents = read_to_string(path)?;
+
+    let mut data = HashMap::new();
+
+    for line in contents.lines() {
+        let (username, _hash) = line
+            .split_once(':')
+            .ok_or_else(|| Error::new(ErrorKind::Other, "invalid_entry"))?;
+        data.insert(username.to_string(), line.to_owned());
+    }
+
+    Ok(data)
+}
+
+#[async_trait]
+impl Authenticatable for BasicAuthenticationManager {
+    async fn authenticate(&self, credentials: &[u8]) -> Result<String> {
         let credentials = String::from_utf8(credentials.into())
             .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
         let credentials = Credentials::decode(credentials)
@@ -63,21 +83,11 @@ impl BasicAuthenticationManager {
             }
         }
     }
-}
 
-fn load_htpasswd(path: &PathBuf) -> Result<HashMap<String, String>> {
-    let contents = read_to_string(path)?;
-
-    let mut data = HashMap::new();
-
-    for line in contents.lines() {
-        let (username, _hash) = line
-            .split_once(':')
-            .ok_or_else(|| Error::new(ErrorKind::Other, "invalid_entry"))?;
-        data.insert(username.to_string(), line.to_owned());
+    async fn reset(&mut self) -> Result<()> {
+        self.data = load_htpasswd(&self.path)?;
+        Ok(())
     }
-
-    Ok(data)
 }
 
 #[derive(Clone)]
@@ -89,8 +99,11 @@ impl LdapAuthenticationManager {
     pub fn new(url: String) -> LdapAuthenticationManager {
         LdapAuthenticationManager { url }
     }
+}
 
-    pub async fn authenticate(&self, credentials: &[u8]) -> Result<String> {
+#[async_trait]
+impl Authenticatable for LdapAuthenticationManager {
+    async fn authenticate(&self, credentials: &[u8]) -> Result<String> {
         let credentials = String::from_utf8(credentials.into())
             .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
         let credentials = Credentials::decode(credentials)
@@ -128,6 +141,10 @@ impl LdapAuthenticationManager {
                 Ok(credentials.user_id)
             }
         }
+    }
+
+    async fn reset(&mut self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -176,7 +193,7 @@ impl AuthenticationManager {
             "basic" => {
                 log::debug!("Authenticating with \"basic\"");
                 return match &self.basic {
-                    Some(auth) => auth.authenticate(&credentials),
+                    Some(auth) => auth.authenticate(&credentials).await,
                     None => Err(Error::new(ErrorKind::Other, "no basic auth")),
                 };
             }
@@ -194,9 +211,9 @@ impl AuthenticationManager {
         }
     }
 
-    pub fn reset(&mut self) -> Result<()> {
+    pub async fn reset(&mut self) -> Result<()> {
         return match self.basic {
-            Some(ref mut auth) => auth.reset(),
+            Some(ref mut auth) => auth.reset().await,
             None => Ok(()),
         };
     }

@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::net::{TcpListener, TcpStream};
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::mpsc::{self, Sender};
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::RwLock;
+use tokio::sync::mpsc::{self, Sender};
 use tokio::task::JoinSet;
 use tokio_rustls::TlsAcceptor;
 
@@ -18,7 +18,7 @@ mod authentication;
 use authentication::AuthenticationManager;
 
 mod authorization;
-use authorization::{load_authorizations, AuthorizationSpec};
+use authorization::{AuthorizationSpec, load_authorizations};
 
 mod clients;
 
@@ -177,7 +177,7 @@ async fn handle_config_reset(
             // Wait for SIGHUP.
             hangup_stream.recv().await.unwrap();
 
-            authentication_manager.write().await.reset().unwrap();
+            authentication_manager.write().await.reset().await.unwrap();
 
             log::info!("Reloading authorizations");
             let authorizations =
