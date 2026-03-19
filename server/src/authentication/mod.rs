@@ -1,7 +1,7 @@
-pub mod authentication;
-pub use authentication::AuthenticationManager;
+pub mod manager;
+pub use manager::AuthenticationManager;
 
-mod authenticatable;
-mod htpasswd_authenticator;
-mod ldap_authenticator;
-mod null_authenticator;
+mod htpasswd;
+mod ldap;
+mod null;
+mod traits;

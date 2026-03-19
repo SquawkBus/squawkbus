@@ -2,13 +2,13 @@ use std::io::Result;
 
 use async_trait::async_trait;
 
-use crate::authentication::authenticatable::Authenticatable;
+use crate::authentication::traits::Authenticator;
 
 #[derive(Clone)]
-pub struct NullAuthenticationManager {}
+pub struct NullAuthenticator {}
 
 #[async_trait]
-impl Authenticatable for NullAuthenticationManager {
+impl Authenticator for NullAuthenticator {
     fn name(&self) -> &str {
         "none"
     }

@@ -7,17 +7,17 @@ use async_trait::async_trait;
 use htpasswd_verify::Htpasswd;
 use http_auth_basic::Credentials;
 
-use crate::authentication::authenticatable::Authenticatable;
+use crate::authentication::traits::Authenticator;
 
 #[derive(Clone)]
-pub struct HtpasswdAuthenticationManager {
+pub struct HtpasswdAuthenticator {
     path: PathBuf,
     data: HashMap<String, String>,
 }
 
-impl HtpasswdAuthenticationManager {
+impl HtpasswdAuthenticator {
     pub fn new(path: &PathBuf) -> Result<Self> {
-        Ok(HtpasswdAuthenticationManager {
+        Ok(HtpasswdAuthenticator {
             path: path.clone(),
             data: load_htpasswd(path)?,
         })
@@ -48,7 +48,7 @@ fn load_htpasswd(path: &PathBuf) -> Result<HashMap<String, String>> {
 }
 
 #[async_trait]
-impl Authenticatable for HtpasswdAuthenticationManager {
+impl Authenticator for HtpasswdAuthenticator {
     fn name(&self) -> &str {
         "basic"
     }
