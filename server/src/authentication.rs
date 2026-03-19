@@ -2,11 +2,13 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{Error, ErrorKind, Result};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use htpasswd_verify::Htpasswd;
 use http_auth_basic::Credentials;
 use ldap3::{LdapConnAsync, LdapConnSettings};
+use tokio::sync::Mutex;
 
 use common::MessageStream;
 use common::messages::Message;
@@ -15,19 +17,38 @@ use crate::options::AuthenticationOption;
 
 #[async_trait]
 pub trait Authenticatable {
+    fn name(&self) -> &str;
     async fn authenticate(&self, credentials: &[u8]) -> Result<String>;
     async fn reset(&mut self) -> Result<()>;
 }
 
 #[derive(Clone)]
-pub struct BasicAuthenticationManager {
+pub struct NullAuthenticationManager {}
+
+#[async_trait]
+impl Authenticatable for NullAuthenticationManager {
+    fn name(&self) -> &str {
+        "none"
+    }
+
+    async fn authenticate(&self, _credentials: &[u8]) -> Result<String> {
+        Ok(String::from("nobody"))
+    }
+
+    async fn reset(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct HtpasswdAuthenticationManager {
     path: PathBuf,
     data: HashMap<String, String>,
 }
 
-impl BasicAuthenticationManager {
+impl HtpasswdAuthenticationManager {
     pub fn new(path: &PathBuf) -> Result<Self> {
-        Ok(BasicAuthenticationManager {
+        Ok(HtpasswdAuthenticationManager {
             path: path.clone(),
             data: load_htpasswd(path)?,
         })
@@ -58,7 +79,11 @@ fn load_htpasswd(path: &PathBuf) -> Result<HashMap<String, String>> {
 }
 
 #[async_trait]
-impl Authenticatable for BasicAuthenticationManager {
+impl Authenticatable for HtpasswdAuthenticationManager {
+    fn name(&self) -> &str {
+        "basic"
+    }
+
     async fn authenticate(&self, credentials: &[u8]) -> Result<String> {
         let credentials = String::from_utf8(credentials.into())
             .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
@@ -103,6 +128,10 @@ impl LdapAuthenticationManager {
 
 #[async_trait]
 impl Authenticatable for LdapAuthenticationManager {
+    fn name(&self) -> &str {
+        "ldap"
+    }
+
     async fn authenticate(&self, credentials: &[u8]) -> Result<String> {
         let credentials = String::from_utf8(credentials.into())
             .map_err(|e| Error::new(ErrorKind::Other, format!("invalid credentials: {}", e)))?;
@@ -150,24 +179,20 @@ impl Authenticatable for LdapAuthenticationManager {
 
 #[derive(Clone)]
 pub struct AuthenticationManager {
-    pub basic: Option<BasicAuthenticationManager>,
-    pub ldap: Option<LdapAuthenticationManager>,
+    pub auth: Arc<Mutex<dyn Authenticatable + Send>>,
 }
 
 impl AuthenticationManager {
     pub fn new(option: &AuthenticationOption) -> Result<Self> {
         Ok(match option {
             AuthenticationOption::None => AuthenticationManager {
-                basic: None,
-                ldap: None,
+                auth: Arc::new(Mutex::new(NullAuthenticationManager {})),
             },
             AuthenticationOption::Basic(path) => AuthenticationManager {
-                basic: Some(BasicAuthenticationManager::new(&path)?),
-                ldap: None,
+                auth: Arc::new(Mutex::new(HtpasswdAuthenticationManager::new(&path)?)),
             },
             AuthenticationOption::Ldap(url) => AuthenticationManager {
-                basic: None,
-                ldap: Some(LdapAuthenticationManager::new(url.clone())),
+                auth: Arc::new(Mutex::new(LdapAuthenticationManager::new(url.clone()))),
             },
         })
     }
@@ -185,36 +210,20 @@ impl AuthenticationManager {
             ));
         };
 
-        match method.as_str() {
-            "none" => {
-                log::debug!("Authenticating with \"none\"");
-                return Ok("nobody".into());
-            }
-            "basic" => {
-                log::debug!("Authenticating with \"basic\"");
-                return match &self.basic {
-                    Some(auth) => auth.authenticate(&credentials).await,
-                    None => Err(Error::new(ErrorKind::Other, "no basic auth")),
-                };
-            }
-            "ldap" => {
-                log::debug!("Authenticating with \"ldap\"");
-                return match &self.ldap {
-                    Some(auth) => auth.authenticate(&credentials).await,
-                    None => Err(Error::new(ErrorKind::Other, "no ldap auth")),
-                };
-            }
-            method => Err(Error::new(
-                ErrorKind::Other,
-                format!("invalid mode {method}"),
-            )),
+        let auth = self.auth.clone();
+        let auth = auth.lock().await;
+
+        if method.as_str() != auth.name() {
+            let msg = std::format!("invalid method {}", method.as_str());
+            return Err(Error::new(ErrorKind::Other, msg));
         }
+
+        auth.authenticate(&credentials).await
     }
 
     pub async fn reset(&mut self) -> Result<()> {
-        return match self.basic {
-            Some(ref mut auth) => auth.reset().await,
-            None => Ok(()),
-        };
+        let auth = self.auth.clone();
+        let mut auth = auth.lock().await;
+        auth.reset().await
     }
 }
