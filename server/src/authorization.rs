@@ -59,6 +59,57 @@ impl AuthorizationManager {
     }
 }
 
+fn load_authorizations_from_file<P>(
+    path: P,
+    mut specs: Vec<AuthorizationSpec>,
+) -> Result<Vec<AuthorizationSpec>>
+where
+    P: AsRef<Path>,
+{
+    let file = fs::File::open(path)?;
+    let authorizations: HashMap<String, HashMap<String, Authorization>> =
+        serde_yaml_ng::from_reader(file).map_err(|e| io::Error::new(ErrorKind::Other, e))?;
+    for (user, topic_authorization) in authorizations {
+        for (topic, authorization) in topic_authorization {
+            let user_pattern = WildMatch::new(user.as_str());
+            let topic_pattern = WildMatch::new(topic.as_str());
+            let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
+            let roles = authorization.roles;
+            specs.push(AuthorizationSpec {
+                user_pattern,
+                topic_pattern,
+                entitlements,
+                roles,
+            });
+        }
+    }
+
+    Ok(specs)
+}
+
+fn default_authorizations(mut specs: Vec<AuthorizationSpec>) -> Result<Vec<AuthorizationSpec>> {
+    if specs.is_empty() {
+        // Allow anyone to send anything
+        let user = "*";
+        let topic = "*";
+        let entitlements = HashSet::from([0]);
+        let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
+
+        let user_pattern = WildMatch::new(user);
+        let topic_pattern = WildMatch::new(topic);
+
+        let spec = AuthorizationSpec {
+            user_pattern,
+            topic_pattern,
+            entitlements,
+            roles,
+        };
+        specs.push(spec)
+    }
+
+    Ok(specs)
+}
+
 pub fn load_authorizations<P>(
     path: &Option<P>,
     specs: &[AuthorizationSpec],
@@ -66,53 +117,12 @@ pub fn load_authorizations<P>(
 where
     P: AsRef<Path>,
 {
-    let mut specs: Vec<AuthorizationSpec> = specs.to_vec(); // specs.iter().map(|x| *x.clone()).collect();
+    let specs: Vec<AuthorizationSpec> = specs.to_vec();
 
-    // Either load from a file, or provide useful defaults.
     match path {
-        Some(path) => {
-            let file = fs::File::open(path)?;
-            let authorizations: HashMap<String, HashMap<String, Authorization>> =
-                serde_yaml_ng::from_reader(file)
-                    .map_err(|e| io::Error::new(ErrorKind::Other, e))?;
-            for (user, topic_authorization) in authorizations {
-                for (topic, authorization) in topic_authorization {
-                    let user_pattern = WildMatch::new(user.as_str());
-                    let topic_pattern = WildMatch::new(topic.as_str());
-                    let entitlements: HashSet<i32> = HashSet::from_iter(authorization.entitlements);
-                    let roles = authorization.roles;
-                    specs.push(AuthorizationSpec {
-                        user_pattern,
-                        topic_pattern,
-                        entitlements,
-                        roles,
-                    });
-                }
-            }
-        }
-        None => {
-            if specs.is_empty() {
-                // Allow anyone to send anything
-                let user = "*";
-                let topic = "*";
-                let entitlements = HashSet::from([0]);
-                let roles = Role::Subscriber | Role::Notifier | Role::Publisher;
-
-                let user_pattern = WildMatch::new(user);
-                let topic_pattern = WildMatch::new(topic);
-
-                let spec = AuthorizationSpec {
-                    user_pattern,
-                    topic_pattern,
-                    entitlements,
-                    roles,
-                };
-                specs.push(spec)
-            }
-        }
-    };
-
-    Ok(specs)
+        Some(path) => load_authorizations_from_file(path, specs),
+        None => default_authorizations(specs),
+    }
 }
 
 #[cfg(test)]
