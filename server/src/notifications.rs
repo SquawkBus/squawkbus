@@ -72,6 +72,11 @@ impl NotificationManager {
             notification.listeners.insert(listener_id.into(), 1);
         }
 
+        let listener = client_manager.get(listener_id).ok_or(io::Error::new(
+            io::ErrorKind::Other,
+            format!("unknown client {listener_id}"),
+        ))?;
+
         for (topic, subscribers) in subscription_manager.find_subscriptions(&notification.pattern) {
             if notification.pattern.matches(topic.as_str()) {
                 for (subscriber_id, count) in subscribers {
@@ -87,7 +92,7 @@ impl NotificationManager {
                         count: *count,
                     };
                     let event = ServerEvent::OnMessage(message);
-                    client
+                    listener
                         .tx
                         .send(event)
                         .await
