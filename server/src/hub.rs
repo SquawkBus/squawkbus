@@ -1,8 +1,8 @@
 use std::io;
 use std::sync::Arc;
 
-use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use common::messages::Message;
 

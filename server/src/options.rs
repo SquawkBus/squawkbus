@@ -10,6 +10,7 @@ use crate::authorization::{AuthorizationSpec, Role};
 
 const DEFAULT_SOCKET_ENDPOINT: &str = "0.0.0.0:8558";
 const DEFAULT_WEB_SOCKET_ENDPOINT: &str = "0.0.0.0:8559";
+const DEFAULT_HEARTBEAT_SECONDS: &str = "30";
 
 /// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
 impl FromStr for AuthorizationSpec {
@@ -61,6 +62,7 @@ pub struct Options {
     pub authorizations_file: Option<PathBuf>,
     pub tls: Option<TLSOption>,
     pub authentication: AuthenticationOption,
+    pub heartbeat_seconds: u64,
 }
 
 fn fetch_arg(arg_name: &str, args: &[String], arg_index: &mut usize) -> io::Result<String> {
@@ -119,6 +121,7 @@ impl Options {
         let mut authorizations_file: Option<PathBuf> = None;
         let mut tls: Option<TLSOption> = None;
         let mut authentication: Option<AuthenticationOption> = None;
+        let mut heartbeat_seconds: Option<String> = None;
 
         let mut arg_index = 1;
         while arg_index < args.len() {
@@ -174,6 +177,11 @@ impl Options {
                         ))?,
                     });
                 }
+                "--heartbeat-seconds" => {
+                    let seconds =
+                        check_fetch_arg(arg_name, &heartbeat_seconds, &args, &mut arg_index)?;
+                    heartbeat_seconds = Some(seconds.into());
+                }
                 "--help" => Err(io::Error::new(
                     io::ErrorKind::Other,
                     Self::usage(args.get(0).unwrap()),
@@ -197,6 +205,11 @@ impl Options {
             .unwrap();
         // Default authentication to none
         let authentication = authentication.or(Some(AuthenticationOption::None)).unwrap();
+        let heartbeat_seconds = heartbeat_seconds
+            .or(Some(DEFAULT_HEARTBEAT_SECONDS.into()))
+            .unwrap()
+            .parse::<u64>()
+            .unwrap();
 
         return Ok(Self {
             socket_endpoint,
@@ -205,6 +218,7 @@ impl Options {
             authorizations_file,
             tls,
             authentication,
+            heartbeat_seconds,
         });
     }
 
@@ -222,6 +236,7 @@ impl Options {
             \t--authentication ldap <url>
             \t--authorizations-file <filename>
             \t--authorization <user:topic:entitlements:roles>
+            \t--heartbeat-seconds <seconds> # defaults to {DEFAULT_HEARTBEAT_SECONDS}
             "
         )
     }

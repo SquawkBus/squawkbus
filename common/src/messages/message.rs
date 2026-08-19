@@ -52,6 +52,9 @@ pub enum Message {
         topic: String,
         data_packets: Vec<DataPacket>,
     },
+    Heartbeat {
+        count: u64,
+    },
 }
 
 impl Message {
@@ -68,6 +71,7 @@ impl Message {
             Message::NotificationRequest { .. } => MessageType::NotificationRequest,
             Message::SubscriptionRequest { .. } => MessageType::SubscriptionRequest,
             Message::UnicastData { .. } => MessageType::UnicastData,
+            Message::Heartbeat { .. } => MessageType::Heartbeat,
         }
     }
 }
@@ -154,6 +158,10 @@ impl Serializable for Message {
                     topic,
                     data_packets,
                 })
+            }
+            Ok(MessageType::Heartbeat) => {
+                let count = u64::deserialize(reader)?;
+                Ok(Message::Heartbeat { count })
             }
             Err(error) => Err(error),
         }
@@ -242,6 +250,10 @@ impl Serializable for Message {
                 data_packets.serialize(writer)?;
                 Ok(())
             }
+            Message::Heartbeat { count } => {
+                count.serialize(writer)?;
+                Ok(())
+            }
         }
     }
 
@@ -290,6 +302,7 @@ impl Serializable for Message {
                     topic,
                     data_packets,
                 } => client_id.size() + topic.size() + data_packets.size(),
+                Message::Heartbeat { count } => count.size(),
             }
     }
 }
@@ -451,6 +464,18 @@ mod test_message {
                 data: "Hello, World!".into(),
             }],
         };
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        initial.serialize(&mut cursor).expect("should serialize");
+
+        cursor.rewind().expect("should rewind");
+        let round_trip = Message::deserialize(&mut cursor).unwrap();
+        assert_eq!(initial, round_trip);
+    }
+
+    #[test]
+    fn should_roundtrip_heartbeat() {
+        let initial = Message::Heartbeat { count: 42 };
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         initial.serialize(&mut cursor).expect("should serialize");

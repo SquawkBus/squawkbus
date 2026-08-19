@@ -1,14 +1,15 @@
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
-use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::RwLock;
+use tokio::sync::mpsc::{self, Sender};
 
 use uuid::Uuid;
 
-use common::messages::Message;
 use common::MessageStream;
+use common::messages::Message;
 
 use crate::authentication::AuthenticationManager;
 use crate::events::{ClientEvent, ServerEvent};
@@ -16,21 +17,24 @@ use crate::events::{ClientEvent, ServerEvent};
 #[derive(Debug)]
 pub struct Interactor {
     pub id: String,
+    heartbeat_count: u64,
 }
 
 impl Interactor {
     pub fn new() -> Interactor {
         Interactor {
             id: Uuid::new_v4().into(),
+            heartbeat_count: 0,
         }
     }
 
     pub async fn run<'a>(
-        &self,
+        &mut self,
         stream: &mut impl MessageStream,
         addr: SocketAddr,
         hub: Sender<ClientEvent>,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
+        heartbeat_seconds: u64,
     ) -> io::Result<()> {
         let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
 
@@ -46,6 +50,10 @@ impl Interactor {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
+        let now = tokio::time::Instant::now();
+        let interval = Duration::from_secs(heartbeat_seconds);
+        let mut deadline = now + interval;
+
         loop {
             tokio::select! {
                 // forward client to hub
@@ -55,6 +63,10 @@ impl Interactor {
                 // forward hub to client
                 result = rx.recv() => {
                     self.forward_hub_to_client(result, stream).await
+                }
+                _ = tokio::time::sleep_until(deadline) => {
+                    deadline += interval;
+                    self.send_heartbeat(stream).await
                 }
             }?
         }
@@ -120,5 +132,14 @@ impl Interactor {
         }
 
         Ok(())
+    }
+
+    async fn send_heartbeat(&mut self, stream: &mut impl MessageStream) -> io::Result<()> {
+        log::debug!("Sending heartbeat to {}", self.id);
+        let message = Message::Heartbeat {
+            count: self.heartbeat_count,
+        };
+        self.heartbeat_count += 1;
+        stream.write(&message).await
     }
 }
