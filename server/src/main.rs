@@ -244,7 +244,7 @@ async fn start_interactor(
             let stream = acceptor.accept(stream).await?;
             match is_web_socket {
                 true => {
-                    println!("accepting web socket connection on {} over TLS", addr);
+                    log::debug!("accepting web socket connection on {} over TLS", addr);
                     let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
                         io::Error::new(
                             io::ErrorKind::Other,
@@ -263,7 +263,7 @@ async fn start_interactor(
                         .await
                 }
                 false => {
-                    println!("accepting socket connection on {} over TLS", addr);
+                    log::debug!("accepting socket connection on {} over TLS", addr);
                     let mut stream = MessageSocket::new(stream);
                     interactor
                         .run(
@@ -279,7 +279,7 @@ async fn start_interactor(
         }
         None => match is_web_socket {
             true => {
-                println!("accepting web socket connection on {}", addr);
+                log::debug!("accepting web socket connection on {}", addr);
                 let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
                     io::Error::new(
                         io::ErrorKind::Other,
@@ -298,7 +298,7 @@ async fn start_interactor(
                     .await
             }
             false => {
-                println!("accepting socket connection on {}", addr);
+                log::debug!("accepting socket connection on {}", addr);
                 let mut stream = MessageSocket::new(stream);
                 interactor
                     .run(
