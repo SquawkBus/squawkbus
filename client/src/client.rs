@@ -24,6 +24,7 @@ pub trait ClientCallbacks {
         topic: String,
         count: u32,
     ) -> BoxFuture<'_, ()>;
+    fn on_heartbeat(&mut self, count: u64) -> BoxFuture<'_, ()>;
 }
 
 pub trait ClientProtocol {
@@ -150,6 +151,7 @@ where
                     .on_forwarded_subscription(client_id, topic, count)
                     .await
             }
+            Message::Heartbeat { count } => self.callbacks.on_heartbeat(count).await,
             _ => todo!(),
         };
     }

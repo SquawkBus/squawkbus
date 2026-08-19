@@ -94,6 +94,7 @@ async fn main() -> io::Result<()> {
         start_listener(
             false,
             socket_addr,
+            options.heartbeat_seconds,
             socket_tls_acceptor,
             socket_client_tx,
             socket_authentication_manager,
@@ -114,6 +115,7 @@ async fn main() -> io::Result<()> {
         start_listener(
             true,
             web_socket_addr,
+            options.heartbeat_seconds,
             web_socket_tls_acceptor,
             web_socket_client_tx,
             web_socket_authentication_manager,
@@ -129,6 +131,7 @@ async fn main() -> io::Result<()> {
 async fn start_listener(
     is_web_socket: bool,
     addr: SocketAddr,
+    heartbeat_seconds: u64,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -157,6 +160,7 @@ async fn start_listener(
             is_web_socket,
             stream,
             addr,
+            heartbeat_seconds,
             tls_acceptor.clone(),
             client_tx.clone(),
             authentication_manager.clone(),
@@ -194,6 +198,7 @@ async fn spawn_interactor(
     is_web_socket: bool,
     stream: TcpStream,
     addr: SocketAddr,
+    heartbeat_seconds: u64,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -203,6 +208,7 @@ async fn spawn_interactor(
             is_web_socket,
             stream,
             addr,
+            heartbeat_seconds,
             tls_acceptor,
             client_tx,
             authentication_manager,
@@ -226,11 +232,12 @@ async fn start_interactor(
     is_web_socket: bool,
     stream: TcpStream,
     addr: SocketAddr,
+    heartbeat_seconds: u64,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) -> io::Result<()> {
-    let interactor = Interactor::new();
+    let mut interactor = Interactor::new();
 
     match tls_acceptor {
         Some(acceptor) => {
@@ -246,14 +253,26 @@ async fn start_interactor(
                     })?;
                     let mut stream = MessageWebSocket::new(stream);
                     interactor
-                        .run(&mut stream, addr, client_tx, authentication_manager)
+                        .run(
+                            &mut stream,
+                            addr,
+                            client_tx,
+                            authentication_manager,
+                            heartbeat_seconds,
+                        )
                         .await
                 }
                 false => {
                     println!("accepting socket connection on {} over TLS", addr);
                     let mut stream = MessageSocket::new(stream);
                     interactor
-                        .run(&mut stream, addr, client_tx, authentication_manager)
+                        .run(
+                            &mut stream,
+                            addr,
+                            client_tx,
+                            authentication_manager,
+                            heartbeat_seconds,
+                        )
                         .await
                 }
             }
@@ -269,14 +288,26 @@ async fn start_interactor(
                 })?;
                 let mut stream = MessageWebSocket::new(stream);
                 interactor
-                    .run(&mut stream, addr, client_tx, authentication_manager)
+                    .run(
+                        &mut stream,
+                        addr,
+                        client_tx,
+                        authentication_manager,
+                        heartbeat_seconds,
+                    )
                     .await
             }
             false => {
                 println!("accepting socket connection on {}", addr);
                 let mut stream = MessageSocket::new(stream);
                 interactor
-                    .run(&mut stream, addr, client_tx, authentication_manager)
+                    .run(
+                        &mut stream,
+                        addr,
+                        client_tx,
+                        authentication_manager,
+                        heartbeat_seconds,
+                    )
                     .await
             }
         },

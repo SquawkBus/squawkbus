@@ -14,6 +14,7 @@ pub enum MessageType {
     SubscriptionRequest = 7,
     ForwardedMulticastData = 8,
     ForwardedUnicastData = 9,
+    Heartbeat = 10,
 }
 
 impl TryFrom<u8> for MessageType {
@@ -30,6 +31,7 @@ impl TryFrom<u8> for MessageType {
             7 => Ok(MessageType::SubscriptionRequest),
             8 => Ok(MessageType::ForwardedMulticastData),
             9 => Ok(MessageType::ForwardedUnicastData),
+            10 => Ok(MessageType::Heartbeat),
             _ => Err(()),
         }
     }
@@ -47,6 +49,7 @@ impl Into<u8> for MessageType {
             MessageType::SubscriptionRequest => 7,
             MessageType::ForwardedMulticastData => 8,
             MessageType::ForwardedUnicastData => 9,
+            MessageType::Heartbeat => 10,
         }
     }
 }

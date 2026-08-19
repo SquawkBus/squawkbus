@@ -84,6 +84,25 @@ impl Serializable for i32 {
     }
 }
 
+impl Serializable for u64 {
+    fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+        let buf = self.to_be_bytes();
+        writer.write_all(&buf)
+    }
+
+    fn deserialize(reader: &mut Cursor<Vec<u8>>) -> io::Result<Self> {
+        let mut buf = [0_u8; 8];
+        reader.read_exact(&mut buf)?;
+        let i = Self::from_be_bytes(buf);
+        Ok(i)
+    }
+
+    fn size(&self) -> usize {
+        let len = size_of::<u64>();
+        len
+    }
+}
+
 impl Serializable for String {
     fn serialize(&self, writer: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         (self.len() as u32).serialize(writer)?;
