@@ -46,7 +46,7 @@ impl HubManager {
     }
 
     fn handle_reset(&mut self, specs: Vec<AuthorizationSpec>) {
-        log::debug!("Resetting authorizations");
+        log::info!("Resetting authorizations.");
         self.authorization_manager.reset(specs);
     }
 
@@ -73,7 +73,7 @@ impl HubManager {
     }
 
     async fn handle_message(&mut self, client_id: &str, msg: Message) -> io::Result<()> {
-        log::debug!("Received message from {client_id}: \"{msg:?}\"");
+        log::trace!("Received message from client {client_id}: {msg:?}");
 
         match msg {
             Message::MulticastData {

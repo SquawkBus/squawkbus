@@ -137,7 +137,7 @@ async fn start_listener(
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
 ) -> io::Result<()> {
     log::info!(
-        "Listening on {} for {}{}",
+        "Listening on address {} for {}{}.",
         &addr,
         match is_web_socket {
             true => "web sockets",
@@ -183,7 +183,7 @@ async fn handle_config_reset(
 
             authentication_manager.write().await.reset().await.unwrap();
 
-            log::info!("Reloading authorizations");
+            log::info!("Reloading authorizations.");
             let authorizations =
                 load_authorizations(&authorizations_file, &authorizations).unwrap();
             client_tx
@@ -216,12 +216,12 @@ async fn spawn_interactor(
         .await;
 
         match result {
-            Ok(()) => log::debug!("Client exited normally"),
-            Err(e) => {
-                if e.kind() == io::ErrorKind::UnexpectedEof {
-                    log::debug!("Client closed connection")
+            Ok(()) => log::info!("Client exited normally."),
+            Err(error) => {
+                if error.kind() == io::ErrorKind::UnexpectedEof {
+                    log::info!("Client closed connection.")
                 } else {
-                    log::error!("Client exited with {}", e)
+                    log::info!("Client faulted with error: {error}")
                 }
             }
         }
@@ -244,7 +244,7 @@ async fn start_interactor(
             let stream = acceptor.accept(stream).await?;
             match is_web_socket {
                 true => {
-                    log::debug!("accepting web socket connection on {} over TLS", addr);
+                    log::info!("Accepting web socket connection on adress {addr} over TLS.");
                     let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
                         io::Error::new(
                             io::ErrorKind::Other,
@@ -263,7 +263,7 @@ async fn start_interactor(
                         .await
                 }
                 false => {
-                    log::debug!("accepting socket connection on {} over TLS", addr);
+                    log::info!("Accepting socket connection on address {addr} over TLS.");
                     let mut stream = MessageSocket::new(stream);
                     interactor
                         .run(
@@ -279,7 +279,7 @@ async fn start_interactor(
         }
         None => match is_web_socket {
             true => {
-                log::debug!("accepting web socket connection on {}", addr);
+                log::info!("Accepting web socket connection on address {addr}.");
                 let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
                     io::Error::new(
                         io::ErrorKind::Other,
@@ -298,7 +298,7 @@ async fn start_interactor(
                     .await
             }
             false => {
-                log::debug!("accepting socket connection on {}", addr);
+                log::info!("Accepting socket connection on address {addr}.");
                 let mut stream = MessageSocket::new(stream);
                 interactor
                     .run(

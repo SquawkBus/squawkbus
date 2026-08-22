@@ -32,7 +32,7 @@ impl ClientManager {
         user: String,
         tx: Sender<ServerEvent>,
     ) {
-        log::debug!("client {client_id} connected for {user}@{host}");
+        log::debug!("Connected to {user}@{host} as client {client_id}.");
         self.clients
             .insert(client_id.into(), Client { host, user, tx });
     }
@@ -44,7 +44,7 @@ impl ClientManager {
         notification_manager: &mut NotificationManager,
         publisher_manager: &mut PublisherManager,
     ) -> io::Result<()> {
-        log::debug!("ClientManager::handle_close: closing {client_id}");
+        log::debug!("Closing client {client_id}.");
 
         subscription_manager
             .handle_close(client_id, self, notification_manager)

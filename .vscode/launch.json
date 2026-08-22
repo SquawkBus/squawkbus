@@ -20,7 +20,7 @@
                 }
             },
             "env": {
-                "RUST_LOG": "debug"
+                "RUST_LOG": "trace"
             },
             "args": [
             ],
