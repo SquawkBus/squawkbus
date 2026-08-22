@@ -55,7 +55,7 @@ impl Interactor {
         let mut deadline = now + interval;
 
         loop {
-            tokio::select! {
+            let result = tokio::select! {
                 // forward client to hub
                 result = stream.read() => {
                     self.forward_client_to_hub(result, &hub).await
@@ -68,8 +68,15 @@ impl Interactor {
                     deadline += interval;
                     self.send_heartbeat(stream).await
                 }
-            }?
+            };
+
+            match result {
+                Ok(_) => result?,
+                Err(_) => break,
+            }
         }
+
+        Ok(())
     }
 
     async fn authenticate(
@@ -110,7 +117,8 @@ impl Interactor {
                 log::trace!("Client error: {error}");
                 hub.send(ClientEvent::OnClose(self.id.clone()))
                     .await
-                    .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))
+                    .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))?;
+                Err(error)
             }
         }
     }
