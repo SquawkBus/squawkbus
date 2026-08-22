@@ -17,7 +17,7 @@ mod tls;
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     env_logger::init();
 
-    log::info!("Starting client");
+    log::info!("Starting the client.");
 
     let options = Options::load();
 

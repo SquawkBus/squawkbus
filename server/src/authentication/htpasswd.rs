@@ -62,12 +62,12 @@ impl Authenticator for HtpasswdAuthenticator {
         let is_valid = self.check(credentials.user_id.as_str(), credentials.password.as_str());
         match is_valid {
             true => {
-                log::info!("Authenticated as \"{}\"", credentials.user_id.as_str());
+                log::info!("Authenticated as \"{}\".", credentials.user_id.as_str());
                 Ok(credentials.user_id)
             }
             false => {
                 log::info!(
-                    "Failed to authenticate as \"{}\"",
+                    "Failed to authenticate as \"{}\".",
                     credentials.user_id.as_str()
                 );
                 Err(Error::new(

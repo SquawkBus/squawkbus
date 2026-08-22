@@ -85,11 +85,13 @@ impl SubscriptionManager {
 
         // Keep a request count.
         let count = if let Some(count) = subscription.subscribers.get_mut(subscriber_id) {
-            log::debug!("add_subscription: incrementing count for {topic}");
+            log::debug!(
+                "Incrementing subscription for subscriber {subscriber_id} on topic \"{topic}\"."
+            );
             *count += 1;
             *count
         } else {
-            log::debug!("add_subscription: creating new {topic}");
+            log::debug!("Adding subscription for subscriber {subscriber_id} on topic \"{topic}\".");
             let count = 1;
             subscription.subscribers.insert(subscriber_id.into(), count);
             count
@@ -126,9 +128,9 @@ impl SubscriptionManager {
 
         if count == 0 {
             subscription.subscribers.remove(subscriber_id);
-            log::debug!("removed all subscriptions for {subscriber_id} on {topic}");
+            log::debug!("Removed all subscriptions for {subscriber_id} on topic \"{topic}\".");
         } else {
-            log::debug!("removed one subscription for {subscriber_id} on {topic}");
+            log::debug!("Removed a subscription for {subscriber_id} on topic \"{topic}\".");
         }
 
         if subscription.subscribers.is_empty() {

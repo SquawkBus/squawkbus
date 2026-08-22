@@ -48,7 +48,7 @@ impl Authenticator for LdapAuthenticator {
         match result.is_err() {
             true => {
                 log::info!(
-                    "Failed to authenticate as \"{}\"",
+                    "Failed to authenticate as \"{}\".",
                     credentials.user_id.as_str()
                 );
                 Err(Error::new(
@@ -57,7 +57,7 @@ impl Authenticator for LdapAuthenticator {
                 ))
             }
             false => {
-                log::info!("Authenticated as \"{}\"", credentials.user_id.as_str());
+                log::info!("Authenticated as \"{}\".", credentials.user_id.as_str());
                 Ok(credentials.user_id)
             }
         }

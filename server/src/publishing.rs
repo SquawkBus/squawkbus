@@ -50,12 +50,12 @@ impl PublisherManager {
         entitlements_manager: &AuthorizationManager,
     ) -> io::Result<()> {
         let Some(sender) = client_manager.get(&sender_id) else {
-            log::debug!("send_unicast_data: no sender client {sender_id} - skipping");
+            log::trace!("Sender {sender_id} is not known; skipping.");
             return Ok(());
         };
 
         let Some(receiver) = client_manager.get(&receiver_id) else {
-            log::debug!("send_unicast_data: no receiver client {receiver_id} - skipping");
+            log::trace!("Receiver {receiver_id} is not known; skipping.");
             return Ok(());
         };
 
@@ -71,10 +71,9 @@ impl PublisherManager {
 
         if !sender_entitlements.is_empty() && entitlements.is_empty() {
             // Entitlements only operate if the sender has entitlements.
-            log::debug!(
-                "send_unicast_data: no entitlements from {} to {} for {}",
+            log::trace!(
+                "Client {} is not authorized to send topic \"{}\".",
                 sender.user,
-                receiver.user,
                 topic
             );
             return Ok(());
@@ -83,8 +82,8 @@ impl PublisherManager {
         let auth_data_packets = self.get_authorized_data(data_packets, &entitlements);
 
         if auth_data_packets.is_empty() {
-            log::debug!(
-                "send_unicast_data: empty message from {} to {} for {} - skipping",
+            log::trace!(
+                "Message from {} to {} for topic \"{}\" contains no authorized packets; skipping.",
                 sender.user,
                 receiver.user,
                 topic
@@ -102,7 +101,7 @@ impl PublisherManager {
             data_packets: auth_data_packets,
         };
 
-        log::debug!("send_unicast_data: sending to client {receiver_id} message {message:?}");
+        log::trace!("Sending to client {receiver_id}: {message:?}");
 
         let event = ServerEvent::OnMessage(message);
 
@@ -112,7 +111,7 @@ impl PublisherManager {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        log::debug!("send_unicast_data: ...sent");
+        log::trace!("Sent to client {receiver_id}.");
 
         Ok(())
     }
@@ -129,12 +128,12 @@ impl PublisherManager {
     ) -> io::Result<()> {
         let subscribers = subscription_manager.subscribers_for_topic(topic);
         if subscribers.is_empty() {
-            log::debug!("send_multicast_data: no topic {topic}");
+            log::trace!("No subscribers for topic \"{topic}\"; skipping.");
             return Ok(());
         }
 
         let Some(publisher) = client_manager.get(publisher_id) else {
-            log::debug!("send_multicast_data: not publisher {publisher_id}");
+            log::trace!("Publisher {publisher_id} is not known; skipping.");
             return Ok(());
         };
 
@@ -145,7 +144,7 @@ impl PublisherManager {
 
         for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
-                log::debug!("send_multicast_data: ... {subscriber_id}");
+                log::trace!("Pubilshing topic \"{topic}\" to subscriber {subscriber_id}.");
 
                 let subscriber_entitlements = entitlements_manager.entitlements(
                     subscriber.user.as_str(),
@@ -159,11 +158,11 @@ impl PublisherManager {
 
                 if !publisher_entitlements.is_empty() && entitlements.is_empty() {
                     // Entitlements only operate if the publisher has entitlements.
-                    log::debug!(
-                        "send_multicast_data: no entitlements from {} to {} for {}",
+                    log::trace!(
+                        "Publisher {} is not authorized to send topic \"{}\" to subscriber {}; skipping.",
                         publisher.user,
+                        topic,
                         subscriber.user,
-                        topic
                     );
                     continue;
                 }
@@ -172,8 +171,8 @@ impl PublisherManager {
                     self.get_authorized_data(data_packets.clone(), &entitlements);
 
                 if auth_data_packets.is_empty() {
-                    log::debug!(
-                        "send_multicast_data: empty message from {} to {} for {}",
+                    log::trace!(
+                        "No authorized packets can be published from {} to {} for topic \"{}\"; skipping.",
                         publisher.user,
                         subscriber.user,
                         topic
@@ -188,8 +187,8 @@ impl PublisherManager {
                     data_packets: auth_data_packets,
                 };
 
-                log::debug!(
-                    "send_multicast_data: sending message {message:?} to client {subscriber_id}"
+                log::trace!(
+                    "Publishing to client {subscriber_id} on topic \"{topic}\" with message: {message:?}"
                 );
 
                 let event = ServerEvent::OnMessage(message);
@@ -202,7 +201,7 @@ impl PublisherManager {
             }
         }
 
-        log::debug!("send_multicast_data: ...sent");
+        log::trace!("Published topic \"{topic}\".");
 
         Ok(())
     }
@@ -284,7 +283,7 @@ async fn notify_subscribers_of_stale_topics(
     subscription_manager: &SubscriptionManager,
 ) -> io::Result<()> {
     let Some(publisher) = client_manager.get(closed_client_id) else {
-        log::debug!("handle_close: not publisher {closed_client_id}");
+        log::debug!("Failed to find closed publisher {closed_client_id}.");
         return Ok(());
     };
 
@@ -299,7 +298,7 @@ async fn notify_subscribers_of_stale_topics(
         let subscribers = subscription_manager.subscribers_for_topic(topic.as_str());
         for subscriber_id in &subscribers {
             if let Some(subscriber) = client_manager.get(subscriber_id) {
-                log::debug!("handle_close: sending stale to {subscriber_id}");
+                log::debug!("Sending stale to {subscriber_id} for topic \"{topic}\".");
 
                 let event = ServerEvent::OnMessage(stale_data_message.clone());
 

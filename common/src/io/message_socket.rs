@@ -5,7 +5,7 @@ use tokio::io::{
     self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf, WriteHalf,
 };
 
-use crate::{message_stream::MessageStream, messages::Message, Serializable};
+use crate::{Serializable, message_stream::MessageStream, messages::Message};
 
 pub struct MessageSocket<T> {
     reader: BufReader<ReadHalf<T>>,
@@ -33,7 +33,7 @@ where
         self.reader.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf);
 
-        log::debug!("MessageSocket::read: reading frame of {} bytes", len);
+        log::trace!("Reading a frame of {len} bytes.");
 
         let mut buf: Vec<u8> = vec![0; len as usize];
         self.reader.read_exact(&mut buf).await?;
@@ -48,7 +48,7 @@ where
         (len as u32).serialize(&mut cursor)?;
         message.serialize(&mut cursor)?;
 
-        log::debug!("MessageSocket::write: writing frame of {} bytes", len);
+        log::trace!("Writing a frame of {len} bytes.");
 
         self.writer.write_all(cursor.get_ref().as_slice()).await
     }

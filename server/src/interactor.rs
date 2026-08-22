@@ -102,17 +102,15 @@ impl Interactor {
         hub: &Sender<ClientEvent>,
     ) -> io::Result<()> {
         match result {
-            Ok(message) => {
-                hub.send(ClientEvent::OnMessage(self.id.clone(), message))
-                    .await
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-                Ok(())
-            }
-            Err(forward_error) => {
+            Ok(message) => hub
+                .send(ClientEvent::OnMessage(self.id.clone(), message))
+                .await
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
+            Err(error) => {
+                log::trace!("Client error: {error}");
                 hub.send(ClientEvent::OnClose(self.id.clone()))
                     .await
-                    .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))?;
-                Err(forward_error)
+                    .map_err(|send_error| io::Error::new(io::ErrorKind::Other, send_error))
             }
         }
     }
@@ -124,10 +122,9 @@ impl Interactor {
     ) -> io::Result<()> {
         let event = event.ok_or_else(|| io::Error::new(io::ErrorKind::Other, "missing event"))?;
         match event {
-            ServerEvent::OnMessage(message) => {
-                let client_id = self.id.as_str();
-                log::debug!("Sent message to {client_id}: \"{message:?}\"");
-                stream.write(&message).await?;
+            ServerEvent::OnMessage(msg) => {
+                log::trace!("Sending message to client {}: {:?}", self.id, msg);
+                stream.write(&msg).await?;
             }
         }
 
@@ -135,7 +132,7 @@ impl Interactor {
     }
 
     async fn send_heartbeat(&mut self, stream: &mut impl MessageStream) -> io::Result<()> {
-        log::debug!("Sending heartbeat to {}", self.id);
+        log::trace!("Sending heartbeat to client {}.", self.id);
         let message = Message::Heartbeat {
             count: self.heartbeat_count,
         };
