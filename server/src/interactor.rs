@@ -55,7 +55,7 @@ impl Interactor {
         let mut deadline = now + interval;
 
         loop {
-            let result = tokio::select! {
+            tokio::select! {
                 // forward client to hub
                 result = stream.read() => {
                     self.forward_client_to_hub(result, &hub).await
@@ -68,15 +68,8 @@ impl Interactor {
                     deadline += interval;
                     self.send_heartbeat(stream).await
                 }
-            };
-
-            match result {
-                Ok(_) => result?,
-                Err(_) => break,
-            }
+            }?
         }
-
-        Ok(())
     }
 
     async fn authenticate(
