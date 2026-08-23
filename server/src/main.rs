@@ -5,14 +5,16 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tokio::net::{TcpListener, TcpStream};
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use tokio::net::TcpListener;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::RwLock;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::task::JoinSet;
 use tokio_rustls::TlsAcceptor;
 
-use common::{MessageSocket, MessageWebSocket};
+mod socket_listeners;
+use socket_listeners::spawn_interactor;
 
 mod authentication;
 use authentication::AuthenticationManager;
@@ -29,7 +31,6 @@ mod hub;
 use hub::Hub;
 
 mod interactor;
-use interactor::Interactor;
 
 mod options;
 use options::Options;
@@ -38,10 +39,14 @@ mod notifications;
 
 mod publishing;
 
+mod rest;
+use rest::start_rest_server;
+
 mod subscriptions;
 
 mod tls;
-use tls::create_acceptor;
+
+use crate::tls::rustls_server_config;
 
 /// The server starts by creating a `hub` task to process messages. It then
 /// listens for client connections. When a client connects an interactor is
@@ -49,6 +54,8 @@ use tls::create_acceptor;
 #[tokio::main]
 async fn main() -> io::Result<()> {
     env_logger::init();
+
+    let prometheus = setup_metrics_recorder()?;
 
     // Command line options.
     let options = Options::load()?;
@@ -76,8 +83,16 @@ async fn main() -> io::Result<()> {
     )
     .await;
 
-    let tls_acceptor = match options.tls {
-        Some(option) => Some(create_acceptor(&option.certfile, &option.keyfile)?),
+    let rustls_config = match options.tls {
+        Some(tls_option) => Some(Arc::new(rustls_server_config(
+            &tls_option.certfile,
+            &tls_option.keyfile,
+        )?)),
+        None => None,
+    };
+
+    let tls_acceptor = match rustls_config.as_ref() {
+        Some(socket_rustls_config) => Some(TlsAcceptor::from(socket_rustls_config.clone())),
         None => None,
     };
 
@@ -123,12 +138,21 @@ async fn main() -> io::Result<()> {
         .await
     });
 
+    let rest_addr = options
+        .rest_endpoint
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
+    let rest_rustls_config = rustls_config.as_ref().map(|x| x.clone());
+    join_set
+        .spawn(async move { start_rest_server(rest_addr, rest_rustls_config, prometheus).await });
+
     join_set.join_all().await;
 
     Ok(())
 }
 
-async fn start_listener(
+pub async fn start_listener(
     is_web_socket: bool,
     addr: SocketAddr,
     heartbeat_seconds: u64,
@@ -194,122 +218,8 @@ async fn handle_config_reset(
     });
 }
 
-async fn spawn_interactor(
-    is_web_socket: bool,
-    stream: TcpStream,
-    addr: SocketAddr,
-    heartbeat_seconds: u64,
-    tls_acceptor: Option<TlsAcceptor>,
-    client_tx: Sender<ClientEvent>,
-    authentication_manager: Arc<RwLock<AuthenticationManager>>,
-) {
-    tokio::spawn(async move {
-        let result = start_interactor(
-            is_web_socket,
-            stream,
-            addr,
-            heartbeat_seconds,
-            tls_acceptor,
-            client_tx,
-            authentication_manager,
-        )
-        .await;
-
-        match result {
-            Ok(()) => log::info!("Client exited normally."),
-            Err(error) => {
-                if error.kind() == io::ErrorKind::UnexpectedEof {
-                    log::info!("Client closed connection.")
-                } else {
-                    log::info!("Client faulted with error: {error}")
-                }
-            }
-        }
-    });
-}
-
-async fn start_interactor(
-    is_web_socket: bool,
-    stream: TcpStream,
-    addr: SocketAddr,
-    heartbeat_seconds: u64,
-    tls_acceptor: Option<TlsAcceptor>,
-    client_tx: Sender<ClientEvent>,
-    authentication_manager: Arc<RwLock<AuthenticationManager>>,
-) -> io::Result<()> {
-    let mut interactor = Interactor::new();
-
-    match tls_acceptor {
-        Some(acceptor) => {
-            let stream = acceptor.accept(stream).await?;
-            match is_web_socket {
-                true => {
-                    log::info!("Accepting web socket connection on adress {addr} over TLS.");
-                    let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
-                        io::Error::new(
-                            io::ErrorKind::Other,
-                            format!("failed to accept websocket: {}", e),
-                        )
-                    })?;
-                    let mut stream = MessageWebSocket::new(stream);
-                    interactor
-                        .run(
-                            &mut stream,
-                            addr,
-                            client_tx,
-                            authentication_manager,
-                            heartbeat_seconds,
-                        )
-                        .await
-                }
-                false => {
-                    log::info!("Accepting socket connection on address {addr} over TLS.");
-                    let mut stream = MessageSocket::new(stream);
-                    interactor
-                        .run(
-                            &mut stream,
-                            addr,
-                            client_tx,
-                            authentication_manager,
-                            heartbeat_seconds,
-                        )
-                        .await
-                }
-            }
-        }
-        None => match is_web_socket {
-            true => {
-                log::info!("Accepting web socket connection on address {addr}.");
-                let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("failed to accept websocket: {}", e),
-                    )
-                })?;
-                let mut stream = MessageWebSocket::new(stream);
-                interactor
-                    .run(
-                        &mut stream,
-                        addr,
-                        client_tx,
-                        authentication_manager,
-                        heartbeat_seconds,
-                    )
-                    .await
-            }
-            false => {
-                log::info!("Accepting socket connection on address {addr}.");
-                let mut stream = MessageSocket::new(stream);
-                interactor
-                    .run(
-                        &mut stream,
-                        addr,
-                        client_tx,
-                        authentication_manager,
-                        heartbeat_seconds,
-                    )
-                    .await
-            }
-        },
-    }
+fn setup_metrics_recorder() -> io::Result<PrometheusHandle> {
+    PrometheusBuilder::new()
+        .install_recorder()
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))
 }
