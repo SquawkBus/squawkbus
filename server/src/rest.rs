@@ -32,11 +32,6 @@ pub async fn start_rest_server(
     }
 }
 
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
-}
-
 async fn health_check() -> &'static str {
     "OK"
 }
