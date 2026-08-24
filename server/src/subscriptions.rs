@@ -3,6 +3,7 @@ use std::{
     io,
 };
 
+use metrics::{counter, gauge};
 use wildmatch::WildMatch;
 
 use crate::{clients::ClientManager, notifications::NotificationManager};
@@ -76,6 +77,19 @@ impl SubscriptionManager {
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
     ) -> io::Result<()> {
+        counter!(
+            "squawkbus_subscription_total",
+            "topic" => topic.to_string(),
+            "subscriber_id" => subscriber_id.to_string()
+        )
+        .increment(1);
+        gauge!(
+            "squawkbus_subscriptions",
+            "topic" => topic.to_string(),
+            "subscriber_id" => subscriber_id.to_string()
+        )
+        .increment(1);
+
         // Add or get the subscription.
         if !self.subscriptions.contains_key(topic) {
             self.subscriptions
@@ -119,8 +133,20 @@ impl SubscriptionManager {
         };
 
         if is_subscriber_closed {
+            gauge!(
+                "squawkbus_subscriptions",
+                "topic" => topic.to_string(),
+                "subscriber_id" => subscriber_id.to_string()
+            )
+            .decrement(*count);
             *count = 0;
         } else {
+            gauge!(
+                "squawkbus_subscriptions",
+                "topic" => topic.to_string(),
+                "subscriber_id" => subscriber_id.to_string()
+            )
+            .decrement(1);
             *count -= 1;
         }
 

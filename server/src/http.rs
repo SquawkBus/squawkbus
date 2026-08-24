@@ -5,21 +5,22 @@ use std::{net::SocketAddr, sync::Arc};
 use axum::{Router, routing::get};
 use axum_server::tls_rustls::RustlsConfig;
 
+use log::info;
 use metrics_exporter_prometheus::PrometheusHandle;
 
 use tokio_rustls::rustls;
 
-pub async fn start_rest_server(
+pub async fn start_http_server(
     addr: SocketAddr,
     rustls_config: Option<Arc<rustls::ServerConfig>>,
     prometheus_handle: PrometheusHandle,
 ) -> io::Result<()> {
-    // initialize tracing
-    // tracing_subscriber::fmt::init();
+    info!("Serving http on address {addr}");
 
-    // build our application with a route
     let app = Router::new()
-        .route("/health", get(health_check))
+        .route("/health/readiness", get(readiness_check))
+        .route("/health/liveness", get(liveness_check))
+        .route("/health/startup", get(startup_check))
         .route("/metrics", get(move || ready(prometheus_handle.render())));
 
     match rustls_config {
@@ -32,6 +33,14 @@ pub async fn start_rest_server(
     }
 }
 
-async fn health_check() -> &'static str {
+async fn readiness_check() -> &'static str {
+    "OK"
+}
+
+async fn liveness_check() -> &'static str {
+    "OK"
+}
+
+async fn startup_check() -> &'static str {
     "OK"
 }
