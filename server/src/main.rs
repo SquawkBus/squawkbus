@@ -39,8 +39,8 @@ mod notifications;
 
 mod publishing;
 
-mod rest;
-use rest::start_rest_server;
+mod http;
+use http::start_http_server;
 
 mod subscriptions;
 
@@ -138,14 +138,14 @@ async fn main() -> io::Result<()> {
         .await
     });
 
-    let rest_addr = options
-        .rest_endpoint
+    let http_addr = options
+        .http_endpoint
         .to_socket_addrs()?
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
     let rest_rustls_config = rustls_config.as_ref().map(|x| x.clone());
     join_set
-        .spawn(async move { start_rest_server(rest_addr, rest_rustls_config, prometheus).await });
+        .spawn(async move { start_http_server(http_addr, rest_rustls_config, prometheus).await });
 
     join_set.join_all().await;
 

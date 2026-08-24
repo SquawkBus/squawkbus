@@ -8,7 +8,7 @@ use wildmatch::WildMatch;
 
 use crate::authorization::{AuthorizationSpec, Role};
 
-const DEFAULT_REST_ENDPOINT: &str = "0.0.0.0:8557";
+const DEFAULT_HTTP_ENDPOINT: &str = "0.0.0.0:8557";
 const DEFAULT_SOCKET_ENDPOINT: &str = "0.0.0.0:8558";
 const DEFAULT_WEB_SOCKET_ENDPOINT: &str = "0.0.0.0:8559";
 const DEFAULT_HEARTBEAT_SECONDS: &str = "30";
@@ -57,7 +57,7 @@ pub enum AuthenticationOption {
 }
 
 pub struct Options {
-    pub rest_endpoint: String,
+    pub http_endpoint: String,
     pub socket_endpoint: String,
     pub web_socket_endpoint: String,
     pub authorizations: Vec<AuthorizationSpec>,
@@ -117,7 +117,7 @@ fn check_fetch_two_args<T>(
 
 impl Options {
     pub fn parse(args: &[String]) -> io::Result<Self> {
-        let mut rest_endpoint: Option<String> = None;
+        let mut http_endpoint: Option<String> = None;
         let mut socket_endpoint: Option<String> = None;
         let mut websocket_endpoint: Option<String> = None;
         let mut authorizations: Vec<AuthorizationSpec> = Vec::new();
@@ -130,10 +130,10 @@ impl Options {
         while arg_index < args.len() {
             let arg_name = args.get(arg_index).unwrap().as_str();
             match arg_name {
-                "--rest-endpoint" => {
+                "--http-endpoint" => {
                     let endpoint =
-                        check_fetch_arg(arg_name, &rest_endpoint, &args, &mut arg_index)?;
-                    rest_endpoint = Some(endpoint);
+                        check_fetch_arg(arg_name, &http_endpoint, &args, &mut arg_index)?;
+                    http_endpoint = Some(endpoint);
                 }
                 "--socket-endpoint" => {
                     let endpoint =
@@ -203,9 +203,9 @@ impl Options {
             arg_index += 1
         }
 
-        // Default rest endpoint
-        let rest_endpoint = rest_endpoint
-            .or(Some(DEFAULT_REST_ENDPOINT.into()))
+        // Default http endpoint
+        let http_endpoint = http_endpoint
+            .or(Some(DEFAULT_HTTP_ENDPOINT.into()))
             .unwrap();
 
         // Default socket endpoint
@@ -225,7 +225,7 @@ impl Options {
             .unwrap();
 
         return Ok(Self {
-            rest_endpoint,
+            http_endpoint,
             socket_endpoint,
             web_socket_endpoint: websocket_endpoint,
             authorizations,
@@ -244,6 +244,7 @@ impl Options {
             options:
             \t--socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_SOCKET_ENDPOINT}
             \t--web-socket-endpoint <ip-address>:<port> # defaults to {DEFAULT_WEB_SOCKET_ENDPOINT}
+            \t--http-endpoint <ip-address>:<port> # defaults to {DEFAULT_HTTP_ENDPOINT}
             \t--tls <certfile> <keyfile>
             \t--authentication none # the default
             \t--authentication basic <passwd-file>

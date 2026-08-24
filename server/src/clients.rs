@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 
+use metrics::{counter, gauge};
 use tokio::sync::mpsc::Sender;
 
 use crate::events::ServerEvent;
@@ -33,6 +34,10 @@ impl ClientManager {
         tx: Sender<ServerEvent>,
     ) {
         log::debug!("Connected to {user}@{host} as client {client_id}.");
+
+        counter!("squawkbus_client_total").increment(1);
+        gauge!("squawkbus_clients").increment(1);
+
         self.clients
             .insert(client_id.into(), Client { host, user, tx });
     }
@@ -45,6 +50,8 @@ impl ClientManager {
         publisher_manager: &mut PublisherManager,
     ) -> io::Result<()> {
         log::debug!("Closing client {client_id}.");
+
+        gauge!("squawkbus_clients").decrement(1);
 
         subscription_manager
             .handle_close(client_id, self, notification_manager)
