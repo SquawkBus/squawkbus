@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io};
 
 use common::messages::Message;
+use metrics::{counter, gauge};
 use wildmatch::WildMatch;
 
 use crate::{clients::ClientManager, events::ServerEvent, subscriptions::SubscriptionManager};
@@ -59,6 +60,11 @@ impl NotificationManager {
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
     ) -> io::Result<()> {
+        log::debug!("Adding a notification for client {listener_id} on pattern \"{pattern}\".");
+
+        counter!("squawkbus_notification_total", "pattern" => pattern.to_string()).increment(1);
+        gauge!("squawkbus_notification_active", "pattern" => pattern.to_string()).increment(1);
+
         // Add or get the subscription.
         if !self.notifications.contains_key(pattern) {
             self.notifications
@@ -119,8 +125,11 @@ impl NotificationManager {
         };
 
         if is_listener_closed {
+            gauge!("squawkbus_notification_active", "pattern" => pattern.to_string())
+                .decrement(*count);
             *count = 0;
         } else {
+            gauge!("squawkbus_notification_active", "pattern" => pattern.to_string()).decrement(1);
             *count -= 1;
         }
 

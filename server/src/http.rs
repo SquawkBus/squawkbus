@@ -2,6 +2,7 @@ use std::future::ready;
 use std::io;
 use std::{net::SocketAddr, sync::Arc};
 
+use axum::http::StatusCode;
 use axum::{Router, routing::get};
 use axum_server::tls_rustls::RustlsConfig;
 
@@ -33,14 +34,14 @@ pub async fn start_http_server(
     }
 }
 
-async fn readiness_check() -> &'static str {
-    "OK"
+async fn readiness_check() -> (StatusCode, &'static str) {
+    (StatusCode::OK, "OK")
 }
 
-async fn liveness_check() -> &'static str {
-    "OK"
+async fn liveness_check() -> (StatusCode, &'static str) {
+    (StatusCode::OK, "OK")
 }
 
-async fn startup_check() -> &'static str {
-    "OK"
+async fn startup_check() -> (StatusCode, &'static str) {
+    (StatusCode::OK, "OK")
 }
