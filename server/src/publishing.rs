@@ -4,6 +4,7 @@ use std::{
 };
 
 use common::messages::{DataPacket, Message};
+use metrics::counter;
 
 use crate::{
     authorization::{AuthorizationManager, Role},
@@ -111,6 +112,7 @@ impl PublisherManager {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
+        counter!("squawkbus_unicast_sent", "topic" => topic.to_string()).increment(1);
         log::trace!("Sent to client {receiver_id}.");
 
         Ok(())
@@ -201,6 +203,7 @@ impl PublisherManager {
             }
         }
 
+        counter!("squawkbus_multicast_sent", "topic" => topic.to_string()).increment(1);
         log::trace!("Published topic \"{topic}\".");
 
         Ok(())
