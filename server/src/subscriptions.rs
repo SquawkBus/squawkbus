@@ -84,7 +84,7 @@ impl SubscriptionManager {
         )
         .increment(1);
         gauge!(
-            "squawkbus_subscriptions",
+            "squawkbus_subscriptions_active",
             "topic" => topic.to_string(),
             "subscriber_id" => subscriber_id.to_string()
         )
@@ -134,7 +134,7 @@ impl SubscriptionManager {
 
         if is_subscriber_closed {
             gauge!(
-                "squawkbus_subscriptions",
+                "squawkbus_subscriptions_active",
                 "topic" => topic.to_string(),
                 "subscriber_id" => subscriber_id.to_string()
             )
@@ -142,7 +142,7 @@ impl SubscriptionManager {
             *count = 0;
         } else {
             gauge!(
-                "squawkbus_subscriptions",
+                "squawkbus_subscriptions_active",
                 "topic" => topic.to_string(),
                 "subscriber_id" => subscriber_id.to_string()
             )

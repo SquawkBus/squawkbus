@@ -523,6 +523,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "log",
+ "metrics",
  "tokio",
  "tokio-tungstenite",
 ]

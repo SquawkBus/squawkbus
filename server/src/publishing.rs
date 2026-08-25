@@ -203,7 +203,7 @@ impl PublisherManager {
             }
         }
 
-        counter!("squawkbus_multicast_sent", "topic" => topic.to_string()).increment(1);
+        counter!("squawkbus_multicast_sent_total", "topic" => topic.to_string()).increment(1);
         log::trace!("Published topic \"{topic}\".");
 
         Ok(())

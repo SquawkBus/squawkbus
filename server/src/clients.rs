@@ -36,7 +36,7 @@ impl ClientManager {
         log::debug!("Connected to {user}@{host} as client {client_id}.");
 
         counter!("squawkbus_client_total").increment(1);
-        gauge!("squawkbus_clients").increment(1);
+        gauge!("squawkbus_client_active").increment(1);
 
         self.clients
             .insert(client_id.into(), Client { host, user, tx });
@@ -51,7 +51,7 @@ impl ClientManager {
     ) -> io::Result<()> {
         log::debug!("Closing client {client_id}.");
 
-        gauge!("squawkbus_clients").decrement(1);
+        gauge!("squawkbus_client_active").decrement(1);
 
         subscription_manager
             .handle_close(client_id, self, notification_manager)
