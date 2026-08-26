@@ -9,6 +9,23 @@ Common uses for this kind of message bus are:
 
 ## Features
 
+### Authentication
+
+The broker supports:
+
+* Anonymous (no authentication)
+* Password file
+* LDAP
+
+### Authorization
+
+If authentication is enabled clients can be authorized. A client can have roles:
+`Notifier`, `Publisher`, `Subscriber`, and *entitlements*. The entitlements are
+a list of integers. When a publisher sends data it includes the entitlements
+for the data. The broker will only pass on data where the consumer has matching
+entitlements. In this way the consumer will never see data they are not entitled
+to see.
+
 ### Publish / Subscribe
 
 The broker follows a standard pub-sub pattern. Clients subscribe to topic patterns.
@@ -51,20 +68,6 @@ Combining notification and sending enables the selectfeed pattern.
 The publisher requests notifications on the topic pattern for which it is publishing.
 When a client subscribes, an initial image is sent. This is followed by deltas
 which are published to all subscribers.
-
-### Authentication
-
-The broker supports:
-
-* Anonymous (no authentication)
-* Password file
-* LDAP
-
-### Authorization
-
-If authentication is enabled the feed can filter data sent to a client. For
-example if an authenticated user is entitled to see level 1 NYSE data, but not
-level 2, the broker will only send the level 1 data.
 
 ### Disconnection
 
@@ -189,3 +192,15 @@ squawkbus \
     --authentication ldap ldap::/ns1.example.com \
     --authorizations-file "authorizations.yaml"
 ```
+
+### HTTP Endpoints
+
+The server provides endpoints for health monitoring and metrics. This can be
+set with `--http-endpoint <ip-addr>:<port>`.
+
+The following endpoints exist.
+
+* /metrics - for prometheus metrics.
+* /health/startup - returns 200 if the server has started.
+* /health/readiness - returns 200 if the server is ready to receive data.
+* /health/liveness - returns 200 if the server is alive.
