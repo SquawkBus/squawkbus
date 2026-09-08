@@ -45,25 +45,36 @@ impl FromStr for AuthorizationSpec {
     }
 }
 
-pub struct TLSOption {
+pub struct TLSConfig {
     pub keyfile: PathBuf,
     pub certfile: PathBuf,
 }
 
-pub enum AuthenticationOption {
+impl TLSConfig {
+    pub fn new(keyfile: String, certfile: String) -> Self {
+        let keyfile = shellexpand::full(&keyfile).expect("Invalid key path");
+        let certfile = shellexpand::full(&certfile).expect("Invalid cert path");
+        TLSConfig {
+            keyfile: keyfile.to_string().into(),
+            certfile: certfile.to_string().into(),
+        }
+    }
+}
+
+pub enum AuthenticationConfig {
     None,
     Basic(PathBuf),
     Ldap(String),
 }
 
-pub struct Options {
+pub struct Config {
     pub http_endpoint: String,
     pub socket_endpoint: String,
     pub web_socket_endpoint: String,
     pub authorizations: Vec<AuthorizationSpec>,
     pub authorizations_file: Option<PathBuf>,
-    pub tls: Option<TLSOption>,
-    pub authentication: AuthenticationOption,
+    pub tls: Option<TLSConfig>,
+    pub authentication: AuthenticationConfig,
     pub heartbeat_seconds: u64,
 }
 
@@ -115,15 +126,15 @@ fn check_fetch_two_args<T>(
     Ok((arg1, arg2))
 }
 
-impl Options {
+impl Config {
     pub fn parse(args: &[String]) -> io::Result<Self> {
         let mut http_endpoint: Option<String> = None;
         let mut socket_endpoint: Option<String> = None;
         let mut websocket_endpoint: Option<String> = None;
         let mut authorizations: Vec<AuthorizationSpec> = Vec::new();
         let mut authorizations_file: Option<PathBuf> = None;
-        let mut tls: Option<TLSOption> = None;
-        let mut authentication: Option<AuthenticationOption> = None;
+        let mut tls: Option<TLSConfig> = None;
+        let mut authentication: Option<AuthenticationConfig> = None;
         let mut heartbeat_seconds: Option<String> = None;
 
         let mut arg_index = 1;
@@ -160,24 +171,21 @@ impl Options {
                 "--tls" => {
                     let (certfile, keyfile) =
                         check_fetch_two_args(arg_name, &tls, &args, &mut arg_index)?;
-                    tls = Some(TLSOption {
-                        certfile: certfile.into(),
-                        keyfile: keyfile.into(),
-                    });
+                    tls = Some(TLSConfig::new(keyfile, certfile));
                 }
                 "--authentication" => {
                     let method = check_fetch_arg(arg_name, &authentication, &args, &mut arg_index)?;
                     authentication = Some(match method.as_str() {
-                        "none" => AuthenticationOption::None,
+                        "none" => AuthenticationConfig::None,
                         "basic" => {
                             let filename =
                                 check_fetch_arg(arg_name, &authentication, &args, &mut arg_index)?;
-                            AuthenticationOption::Basic(filename.into())
+                            AuthenticationConfig::Basic(filename.into())
                         }
                         "ldap" => {
                             let url =
                                 check_fetch_arg(arg_name, &authentication, &args, &mut arg_index)?;
-                            AuthenticationOption::Ldap(url)
+                            AuthenticationConfig::Ldap(url)
                         }
                         _ => Err(io::Error::new(
                             io::ErrorKind::Other,
@@ -217,7 +225,7 @@ impl Options {
             .or(Some(DEFAULT_WEB_SOCKET_ENDPOINT.into()))
             .unwrap();
         // Default authentication to none
-        let authentication = authentication.or(Some(AuthenticationOption::None)).unwrap();
+        let authentication = authentication.or(Some(AuthenticationConfig::None)).unwrap();
         let heartbeat_seconds = heartbeat_seconds
             .or(Some(DEFAULT_HEARTBEAT_SECONDS.into()))
             .unwrap()

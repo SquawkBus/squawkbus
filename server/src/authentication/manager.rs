@@ -10,7 +10,7 @@ use crate::authentication::htpasswd::HtpasswdAuthenticator;
 use crate::authentication::ldap::LdapAuthenticator;
 use crate::authentication::null::NullAuthenticator;
 use crate::authentication::traits::Authenticator;
-use crate::options::AuthenticationOption;
+use crate::config::AuthenticationConfig;
 
 #[derive(Clone)]
 pub struct AuthenticationManager {
@@ -18,15 +18,15 @@ pub struct AuthenticationManager {
 }
 
 impl AuthenticationManager {
-    pub fn new(option: &AuthenticationOption) -> Result<Self> {
+    pub fn new(option: &AuthenticationConfig) -> Result<Self> {
         Ok(match option {
-            AuthenticationOption::None => AuthenticationManager {
+            AuthenticationConfig::None => AuthenticationManager {
                 authenticator: Arc::new(Mutex::new(NullAuthenticator {})),
             },
-            AuthenticationOption::Basic(path) => AuthenticationManager {
+            AuthenticationConfig::Basic(path) => AuthenticationManager {
                 authenticator: Arc::new(Mutex::new(HtpasswdAuthenticator::new(&path)?)),
             },
-            AuthenticationOption::Ldap(url) => AuthenticationManager {
+            AuthenticationConfig::Ldap(url) => AuthenticationManager {
                 authenticator: Arc::new(Mutex::new(LdapAuthenticator::new(url.clone()))),
             },
         })

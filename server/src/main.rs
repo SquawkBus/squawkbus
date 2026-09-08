@@ -32,8 +32,8 @@ use hub::Hub;
 
 mod interactor;
 
-mod options;
-use options::Options;
+mod config;
+use config::Config;
 
 mod notifications;
 
@@ -58,7 +58,7 @@ async fn main() -> io::Result<()> {
     let prometheus = setup_metrics_recorder()?;
 
     // Command line options.
-    let options = Options::load()?;
+    let options = Config::load()?;
 
     let authorizations =
         load_authorizations(&options.authorizations_file, &options.authorizations)?;
