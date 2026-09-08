@@ -45,19 +45,27 @@ impl FromStr for AuthorizationSpec {
     }
 }
 
+fn expand_filename(filename: &str, name: &str) -> io::Result<PathBuf> {
+    let filename = shellexpand::full(filename).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!("Invalid {} \"{}\": {}", name, filename, e),
+        )
+    })?;
+    Ok(filename.to_string().into())
+}
+
 pub struct TLSConfig {
     pub keyfile: PathBuf,
     pub certfile: PathBuf,
 }
 
 impl TLSConfig {
-    pub fn new(keyfile: String, certfile: String) -> Self {
-        let keyfile = shellexpand::full(&keyfile).expect("Invalid key path");
-        let certfile = shellexpand::full(&certfile).expect("Invalid cert path");
-        TLSConfig {
-            keyfile: keyfile.to_string().into(),
-            certfile: certfile.to_string().into(),
-        }
+    pub fn new(keyfile: &str, certfile: &str) -> io::Result<Self> {
+        Ok(TLSConfig {
+            keyfile: expand_filename(&keyfile, "keyfile")?,
+            certfile: expand_filename(&certfile, "certfile")?,
+        })
     }
 }
 
@@ -166,12 +174,13 @@ impl Config {
                 "--authorizations-file" => {
                     let filename =
                         check_fetch_arg(arg_name, &authorizations_file, &args, &mut arg_index)?;
-                    authorizations_file = Some(filename.into());
+                    let filename = expand_filename(&filename, "authorizations file")?;
+                    authorizations_file = Some(filename);
                 }
                 "--tls" => {
                     let (certfile, keyfile) =
                         check_fetch_two_args(arg_name, &tls, &args, &mut arg_index)?;
-                    tls = Some(TLSConfig::new(keyfile, certfile));
+                    tls = Some(TLSConfig::new(&keyfile, &certfile)?);
                 }
                 "--authentication" => {
                     let method = check_fetch_arg(arg_name, &authentication, &args, &mut arg_index)?;
