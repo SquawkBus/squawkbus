@@ -176,6 +176,8 @@ Use the `RUST_LOG` environment variable to enable logging.
 RUST_LOG=debug squawkbus
 ```
 
+Logging levels include: trace, debug, info, warn and error.
+
 ### TLS
 
 The data can be encrypted with TLS. An authenticated feed is typically encrypted
