@@ -308,4 +308,4 @@ consequence for the server is called "back pressure". Back pressure an cause
 the server to run out of memory.
 
 The server imposes a constraint of the maximum number of messages. This can
-be configured with `max-queued-messages <count>`
+be configured with `max-queued-messages <count>`. The default is 32.
