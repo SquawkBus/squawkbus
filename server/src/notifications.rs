@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 
 use common::messages::Message;
 use metrics::{counter, gauge};
@@ -38,7 +41,7 @@ impl NotificationManager {
         is_add: bool,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
         if is_add {
             self.add_notification(
                 client_id,
@@ -49,7 +52,8 @@ impl NotificationManager {
             .await
         } else {
             self.remove_notification(client_id, pattern.as_str(), false)
-                .await
+                .await?;
+            Ok(HashSet::new())
         }
     }
 
@@ -59,7 +63,9 @@ impl NotificationManager {
         pattern: &str,
         client_manager: &ClientManager,
         subscription_manager: &SubscriptionManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
+        let mut faulted_client_ids = HashSet::new();
+
         log::debug!("Adding a notification for client {listener_id} on pattern \"{pattern}\".");
 
         counter!("squawkbus_notification_total", "pattern" => pattern.to_string()).increment(1);
@@ -98,16 +104,14 @@ impl NotificationManager {
                         count: *count,
                     };
                     let event = ServerEvent::OnMessage(message);
-                    listener
-                        .tx
-                        .send(event)
-                        .await
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+                    if listener.tx.try_send(event).is_err() {
+                        faulted_client_ids.insert(listener_id.into());
+                    }
                 }
             }
         }
 
-        Ok(())
+        Ok(faulted_client_ids)
     }
 
     pub async fn remove_notification(
@@ -158,13 +162,15 @@ impl NotificationManager {
         is_add: bool,
         count: u32,
         client_manager: &ClientManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
         log::debug!(
             "Client {} has {} a subscription for topic \"{}\".",
             subscriber_id,
             if is_add { "added" } else { "removed" },
             topic
         );
+
+        let mut faulted_client_ids = HashSet::new();
 
         for (_pattern, notification) in &self.notifications {
             if notification.pattern.matches(topic) {
@@ -185,17 +191,15 @@ impl NotificationManager {
                     if let Some(listener) = client_manager.get(listener_id) {
                         let event = ServerEvent::OnMessage(message.clone());
 
-                        listener
-                            .tx
-                            .send(event)
-                            .await
-                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                        if listener.tx.try_send(event).is_err() {
+                            faulted_client_ids.insert(listener_id.into());
+                        }
                     }
                 }
             }
         }
 
-        Ok(())
+        Ok(faulted_client_ids)
     }
 
     pub async fn handle_close(&mut self, listener_id: &str) -> io::Result<()> {

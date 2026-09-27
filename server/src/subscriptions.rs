@@ -54,7 +54,7 @@ impl SubscriptionManager {
         is_add: bool,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
         if is_add {
             self.add_subscription(id, topic.as_str(), client_manager, notification_manager)
                 .await
@@ -76,7 +76,7 @@ impl SubscriptionManager {
         topic: &str,
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
         counter!(
             "squawkbus_subscription_total",
             "topic" => topic.to_string(),
@@ -123,13 +123,13 @@ impl SubscriptionManager {
         client_manager: &ClientManager,
         notification_manager: &NotificationManager,
         is_subscriber_closed: bool,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
         let Some(subscription) = self.subscriptions.get_mut(topic) else {
-            return Ok(());
+            return Ok(HashSet::new());
         };
 
         let Some(count) = subscription.subscribers.get_mut(subscriber_id) else {
-            return Ok(());
+            return Ok(HashSet::new());
         };
 
         if is_subscriber_closed {
