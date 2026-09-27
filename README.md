@@ -1,6 +1,7 @@
 # squawkbus
 
-A broker based pub-sub message bus supporting authentication and authorization written in Rust.
+A broker based pub-sub message bus supporting authentication,  authorization,
+and a novel feature of notification; written in Rust.
 
 Common uses for this message bus are:
 
