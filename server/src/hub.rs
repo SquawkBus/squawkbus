@@ -75,7 +75,7 @@ impl HubManager {
     async fn handle_message(&mut self, client_id: &str, msg: Message) -> io::Result<()> {
         log::trace!("Received message from client {client_id}: {msg:?}");
 
-        match msg {
+        let faulted_client_ids = match msg {
             Message::MulticastData {
                 topic,
                 data_packets,
@@ -130,7 +130,13 @@ impl HubManager {
                     .await
             }
             _ => Err(io::Error::new(io::ErrorKind::Other, "unhandled message")),
+        }?;
+
+        for client_id in faulted_client_ids {
+            self.handle_close(&client_id).await?;
         }
+
+        Ok(())
     }
 }
 

@@ -49,15 +49,17 @@ impl PublisherManager {
         data_packets: Vec<DataPacket>,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
+        let mut faulted_client_ids = HashSet::new();
+
         let Some(sender) = client_manager.get(&sender_id) else {
             log::trace!("Sender {sender_id} is not known; skipping.");
-            return Ok(());
+            return Ok(faulted_client_ids);
         };
 
         let Some(receiver) = client_manager.get(&receiver_id) else {
             log::trace!("Receiver {receiver_id} is not known; skipping.");
-            return Ok(());
+            return Ok(faulted_client_ids);
         };
 
         // Get the entitlements.
@@ -77,7 +79,7 @@ impl PublisherManager {
                 sender.user,
                 topic
             );
-            return Ok(());
+            return Ok(faulted_client_ids);
         }
 
         let auth_data_packets = self.get_authorized_data(data_packets, &entitlements);
@@ -89,7 +91,7 @@ impl PublisherManager {
                 receiver.user,
                 topic
             );
-            return Ok(());
+            return Ok(faulted_client_ids);
         }
 
         self.add_as_topic_publisher(sender_id, topic);
@@ -106,16 +108,14 @@ impl PublisherManager {
 
         let event = ServerEvent::OnMessage(message);
 
-        receiver
-            .tx
-            .send(event)
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        if receiver.tx.try_send(event).is_err() {
+            faulted_client_ids.insert(receiver_id.into());
+        }
 
         counter!("squawkbus_unicast_sent", "topic" => topic.to_string()).increment(1);
         log::trace!("Sent to client {receiver_id}.");
 
-        Ok(())
+        Ok(faulted_client_ids)
     }
 
     /// Send data to clients that subscribe to a topic.
@@ -127,16 +127,18 @@ impl PublisherManager {
         subscription_manager: &SubscriptionManager,
         client_manager: &ClientManager,
         entitlements_manager: &AuthorizationManager,
-    ) -> io::Result<()> {
+    ) -> io::Result<HashSet<String>> {
+        let mut faulted_client_ids = HashSet::new();
+
         let subscribers = subscription_manager.subscribers_for_topic(topic);
         if subscribers.is_empty() {
             log::trace!("No subscribers for topic \"{topic}\"; skipping.");
-            return Ok(());
+            return Ok(faulted_client_ids);
         }
 
         let Some(publisher) = client_manager.get(publisher_id) else {
             log::trace!("Publisher {publisher_id} is not known; skipping.");
-            return Ok(());
+            return Ok(faulted_client_ids);
         };
 
         let publisher_entitlements =
@@ -195,18 +197,16 @@ impl PublisherManager {
 
                 let event = ServerEvent::OnMessage(message);
 
-                subscriber
-                    .tx
-                    .send(event)
-                    .await
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                if subscriber.tx.try_send(event).is_err() {
+                    faulted_client_ids.insert(subscriber_id.into());
+                }
             }
         }
 
         counter!("squawkbus_multicast_sent_total", "topic" => topic.to_string()).increment(1);
         log::trace!("Published topic \"{topic}\".");
 
-        Ok(())
+        Ok(faulted_client_ids)
     }
 
     fn add_as_topic_publisher(&mut self, publisher_id: &str, topic: &str) {
