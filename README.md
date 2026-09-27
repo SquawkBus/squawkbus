@@ -265,6 +265,9 @@ dick:
     roles: Subscriber
 ```
 
+Sending the `HUP` signal to the process forces a re-read of the authorizations
+file.
+
 
 ```bash
 squawkbus \
