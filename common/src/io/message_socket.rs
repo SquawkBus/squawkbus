@@ -11,16 +11,21 @@ use crate::{Serializable, message_stream::MessageStream, messages::Message};
 pub struct MessageSocket<T> {
     reader: BufReader<ReadHalf<T>>,
     writer: WriteHalf<T>,
+    max_message_size: usize,
 }
 
 impl<T> MessageSocket<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(stream: T) -> MessageSocket<T> {
+    pub fn new(stream: T, max_message_size: usize) -> MessageSocket<T> {
         let (read_half, writer) = tokio::io::split(stream);
         let reader = BufReader::new(read_half);
-        MessageSocket { reader, writer }
+        MessageSocket {
+            reader,
+            writer,
+            max_message_size,
+        }
     }
 }
 
@@ -35,7 +40,11 @@ where
         // Read the frame length.
         let mut len_buf = [0_u8; 4];
         self.reader.read_exact(&mut len_buf).await?;
-        let len = u32::from_be_bytes(len_buf);
+        let len = u32::from_be_bytes(len_buf) as usize;
+
+        if len > self.max_message_size {
+            return Err(io::Error::new(io::ErrorKind::Other, "Message too large"));
+        }
 
         log::trace!("Reading a frame of {len} bytes.");
 

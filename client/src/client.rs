@@ -66,7 +66,7 @@ where
         username: &Option<String>,
         password: &Option<String>,
     ) -> io::Result<Self> {
-        let mut stream = MessageSocket::new(stream);
+        let mut stream = MessageSocket::new(stream, 2 << 31);
 
         //let mut skt_reader = BufReader::new(skt_read_half);
         let (tx, rx) = mpsc::channel::<Message>(32);

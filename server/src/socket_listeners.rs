@@ -10,6 +10,7 @@ use tokio::sync::mpsc::Sender;
 use tokio_rustls::TlsAcceptor;
 
 use common::{MessageSocket, MessageWebSocket};
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 
 use crate::{authentication::AuthenticationManager, events::ClientEvent, interactor::Interactor};
 
@@ -18,6 +19,8 @@ pub async fn spawn_interactor(
     stream: TcpStream,
     addr: SocketAddr,
     heartbeat_seconds: u64,
+    max_message_size: usize,
+    max_queued_messages: usize,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -28,6 +31,8 @@ pub async fn spawn_interactor(
             stream,
             addr,
             heartbeat_seconds,
+            max_message_size,
+            max_queued_messages,
             tls_acceptor,
             client_tx,
             authentication_manager,
@@ -52,6 +57,8 @@ async fn start_interactor(
     stream: TcpStream,
     addr: SocketAddr,
     heartbeat_seconds: u64,
+    max_message_size: usize,
+    max_queued_messages: usize,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -64,7 +71,12 @@ async fn start_interactor(
             match is_web_socket {
                 true => {
                     log::info!("Accepting web socket connection on adress {addr} over TLS.");
-                    let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
+                    let stream = tokio_tungstenite::accept_async_with_config(
+                        stream,
+                        Some(WebSocketConfig::default().max_message_size(Some(max_message_size))),
+                    )
+                    .await
+                    .map_err(|e| {
                         io::Error::new(
                             io::ErrorKind::Other,
                             format!("failed to accept websocket: {}", e),
@@ -78,12 +90,13 @@ async fn start_interactor(
                             client_tx,
                             authentication_manager,
                             heartbeat_seconds,
+                            max_queued_messages,
                         )
                         .await
                 }
                 false => {
                     log::info!("Accepting socket connection on address {addr} over TLS.");
-                    let mut stream = MessageSocket::new(stream);
+                    let mut stream = MessageSocket::new(stream, max_message_size);
                     interactor
                         .run(
                             &mut stream,
@@ -91,6 +104,7 @@ async fn start_interactor(
                             client_tx,
                             authentication_manager,
                             heartbeat_seconds,
+                            max_queued_messages,
                         )
                         .await
                 }
@@ -99,7 +113,12 @@ async fn start_interactor(
         None => match is_web_socket {
             true => {
                 log::info!("Accepting web socket connection on address {addr}.");
-                let stream = tokio_tungstenite::accept_async(stream).await.map_err(|e| {
+                let stream = tokio_tungstenite::accept_async_with_config(
+                    stream,
+                    Some(WebSocketConfig::default().max_message_size(Some(max_message_size))),
+                )
+                .await
+                .map_err(|e| {
                     io::Error::new(
                         io::ErrorKind::Other,
                         format!("failed to accept websocket: {}", e),
@@ -113,12 +132,13 @@ async fn start_interactor(
                         client_tx,
                         authentication_manager,
                         heartbeat_seconds,
+                        max_queued_messages,
                     )
                     .await
             }
             false => {
                 log::info!("Accepting socket connection on address {addr}.");
-                let mut stream = MessageSocket::new(stream);
+                let mut stream = MessageSocket::new(stream, max_message_size);
                 interactor
                     .run(
                         &mut stream,
@@ -126,6 +146,7 @@ async fn start_interactor(
                         client_tx,
                         authentication_manager,
                         heartbeat_seconds,
+                        max_queued_messages,
                     )
                     .await
             }

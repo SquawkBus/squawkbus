@@ -67,7 +67,7 @@ async fn main() -> io::Result<()> {
     )?));
 
     // Make the channel for the client-to-server communication.
-    let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(32);
+    let (client_tx, server_rx) = mpsc::channel::<ClientEvent>(options.max_queued_messages);
 
     let mut join_set = JoinSet::new();
 
@@ -110,6 +110,8 @@ async fn main() -> io::Result<()> {
             false,
             socket_addr,
             options.heartbeat_seconds,
+            options.max_message_size,
+            options.max_queued_messages,
             socket_tls_acceptor,
             socket_client_tx,
             socket_authentication_manager,
@@ -131,6 +133,8 @@ async fn main() -> io::Result<()> {
             true,
             web_socket_addr,
             options.heartbeat_seconds,
+            options.max_message_size,
+            options.max_queued_messages,
             web_socket_tls_acceptor,
             web_socket_client_tx,
             web_socket_authentication_manager,
@@ -156,6 +160,8 @@ pub async fn start_listener(
     is_web_socket: bool,
     addr: SocketAddr,
     heartbeat_seconds: u64,
+    max_message_size: usize,
+    max_queued_messages: usize,
     tls_acceptor: Option<TlsAcceptor>,
     client_tx: Sender<ClientEvent>,
     authentication_manager: Arc<RwLock<AuthenticationManager>>,
@@ -185,6 +191,8 @@ pub async fn start_listener(
             stream,
             addr,
             heartbeat_seconds,
+            max_message_size,
+            max_queued_messages,
             tls_acceptor.clone(),
             client_tx.clone(),
             authentication_manager.clone(),

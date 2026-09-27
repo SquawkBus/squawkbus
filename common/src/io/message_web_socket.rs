@@ -3,9 +3,9 @@ use std::io::Cursor;
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::io::{self, AsyncRead, AsyncWrite};
-use tokio_tungstenite::{tungstenite, WebSocketStream};
+use tokio_tungstenite::{WebSocketStream, tungstenite};
 
-use crate::{message_stream::MessageStream, messages::Message, Serializable};
+use crate::{Serializable, message_stream::MessageStream, messages::Message};
 
 pub struct MessageWebSocket<T> {
     stream: WebSocketStream<T>,
