@@ -23,6 +23,7 @@
         "repr",
         "roundtrip",
         "rustls",
+        "Selecteed",
         "selectfeed",
         "serde",
         "shellexpand",

@@ -7,6 +7,7 @@ Common uses for this message bus are:
 
 * Real time distribution of permissioned data
 * Distributed event driven calculation
+* Selecteed message distribution
 
 ## Features
 
@@ -135,14 +136,24 @@ publishers to mark data as stale.
 
 ### Selectfeed
 
-The *selectfeed* pattern is common in market data distribution systems. When a
-client subscribes to a ticker, it receives an initial *image*. Subsequently this
-client (and other subscribers) receive *deltas* (updates).
+The *selectfeed* pattern is common in market data distribution systems.
 
-Combining notification and sending enables the selectfeed pattern.
+An exchange will typically publish every event. This is called a *broadcast"
+feed.
+
+With a *select* feed, data is only sent to subscribing clients.
+When a client subscribes to a ticker, it receives an initial *image*. Subsequently this client (and other subscribers) receive *deltas* (updates).
+
+Combining notification and sending images enables the selectfeed pattern.
 The publisher requests notifications on the topic pattern for which it is publishing.
 When a client subscribes, an initial image is sent. This is followed by deltas
 which are published to all subscribers.
+
+### Distributed Calculation Servers
+
+While the majority of the examples have centered round market data, the
+architecture lends itself to general event driven calculation of streaming
+data.
 
 ### WebSockets
 
