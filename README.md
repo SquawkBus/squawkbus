@@ -265,9 +265,7 @@ dick:
     roles: Subscriber
 ```
 
-Sending the `HUP` signal to the process forces a re-read of the authorizations
-file.
-
+The file can be used as follows.
 
 ```bash
 squawkbus \
@@ -275,6 +273,9 @@ squawkbus \
     --authentication ldap ldap::/ns1.example.com \
     --authorizations-file "authorizations.yaml"
 ```
+
+Sending the `HUP` signal to the process forces a re-read of the authorizations
+file.
 
 ### HTTP Endpoints
 
