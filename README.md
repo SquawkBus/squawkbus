@@ -151,7 +151,7 @@ which are published to all subscribers.
 
 ### Distributed Calculation Servers
 
-While the majority of the examples have centered round market data, the
+While the majority of the examples have centered around market data, the
 architecture lends itself to general event driven calculation of streaming
 data.
 
