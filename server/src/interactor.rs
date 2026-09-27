@@ -35,8 +35,9 @@ impl Interactor {
         hub: Sender<ClientEvent>,
         authentication_manager: Arc<RwLock<AuthenticationManager>>,
         heartbeat_seconds: u64,
+        channel_capacity: usize,
     ) -> io::Result<()> {
-        let (tx, mut rx) = mpsc::channel::<ServerEvent>(32);
+        let (tx, mut rx) = mpsc::channel::<ServerEvent>(channel_capacity);
 
         let user = self.authenticate(stream, authentication_manager).await?;
 

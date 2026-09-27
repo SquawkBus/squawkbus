@@ -19,7 +19,7 @@ pub async fn communicate<S>(
 {
     println!("connected");
 
-    let mut stream = MessageSocket::new(stream);
+    let mut stream = MessageSocket::new(stream, 2 << 31);
 
     let stdin = tokio::io::stdin();
     let mut stdin_reader = BufReader::new(stdin);

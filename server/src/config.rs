@@ -12,6 +12,8 @@ const DEFAULT_HTTP_ENDPOINT: &str = "0.0.0.0:8557";
 const DEFAULT_SOCKET_ENDPOINT: &str = "0.0.0.0:8558";
 const DEFAULT_WEB_SOCKET_ENDPOINT: &str = "0.0.0.0:8559";
 const DEFAULT_HEARTBEAT_SECONDS: &str = "30";
+const DEFAULT_MAX_MESSAGE_SIZE: &str = "4294967295";
+const DEFAULT_MAX_QUEUED_MESSAGES: &str = "32";
 
 /// Parses the string <user-pattern>:<topic-pattern>:<entitlements>:<roles>
 impl FromStr for AuthorizationSpec {
@@ -84,6 +86,8 @@ pub struct Config {
     pub tls: Option<TLSConfig>,
     pub authentication: AuthenticationConfig,
     pub heartbeat_seconds: u64,
+    pub max_message_size: usize,
+    pub max_queued_messages: usize,
 }
 
 fn fetch_arg(arg_name: &str, args: &[String], arg_index: &mut usize) -> io::Result<String> {
@@ -144,6 +148,8 @@ impl Config {
         let mut tls: Option<TLSConfig> = None;
         let mut authentication: Option<AuthenticationConfig> = None;
         let mut heartbeat_seconds: Option<String> = None;
+        let mut max_message_size: Option<String> = None;
+        let mut max_queued_messages: Option<String> = None;
 
         let mut arg_index = 1;
         while arg_index < args.len() {
@@ -207,6 +213,16 @@ impl Config {
                         check_fetch_arg(arg_name, &heartbeat_seconds, &args, &mut arg_index)?;
                     heartbeat_seconds = Some(seconds.into());
                 }
+                "--max-message-size" => {
+                    let size =
+                        check_fetch_arg(arg_name, &heartbeat_seconds, &args, &mut arg_index)?;
+                    max_message_size = Some(size.into());
+                }
+                "--max-queued-messages" => {
+                    let size =
+                        check_fetch_arg(arg_name, &max_queued_messages, &args, &mut arg_index)?;
+                    max_queued_messages = Some(size.into());
+                }
                 "--help" => Err(io::Error::new(
                     io::ErrorKind::Other,
                     Self::usage(args.get(0).unwrap()),
@@ -240,6 +256,16 @@ impl Config {
             .unwrap()
             .parse::<u64>()
             .unwrap();
+        let max_message_size = max_message_size
+            .or(Some(DEFAULT_MAX_MESSAGE_SIZE.into()))
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+        let max_queued_messages = max_queued_messages
+            .or(Some(DEFAULT_MAX_QUEUED_MESSAGES.into()))
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
 
         return Ok(Self {
             http_endpoint,
@@ -250,6 +276,8 @@ impl Config {
             tls,
             authentication,
             heartbeat_seconds,
+            max_message_size,
+            max_queued_messages,
         });
     }
 
@@ -269,6 +297,8 @@ impl Config {
             \t--authorizations-file <filename>
             \t--authorization <user:topic:entitlements:roles>
             \t--heartbeat-seconds <seconds> # defaults to {DEFAULT_HEARTBEAT_SECONDS}
+            \t--max-message-size <bytes> # defaults to {DEFAULT_MAX_MESSAGE_SIZE}
+            \t--max-queued-messages <count> # defaults to {DEFAULT_MAX_QUEUED_MESSAGES}
             "
         )
     }
