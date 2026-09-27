@@ -1,30 +1,13 @@
 # squawkbus
 
-A broker based pub-sub message bus supporting authentication and authorization.
+A broker based pub-sub message bus supporting authentication and authorization written in Rust.
 
-Common uses for this kind of message bus are:
+Common uses for this message bus are:
 
-* Event driven calculation servers
-* Real time distribution of "permissioned" data
+* Real time distribution of permissioned data
+* Distributed event driven calculation
 
 ## Features
-
-### Authentication
-
-The broker supports:
-
-* Anonymous (no authentication)
-* Password file
-* LDAP
-
-### Authorization
-
-If authentication is enabled clients can be authorized. A client can have roles:
-`Notifier`, `Publisher`, `Subscriber`, and *entitlements*. The entitlements are
-a list of integers. When a publisher sends data it includes the entitlements
-for the data. The broker will only pass on data where the consumer has matching
-entitlements. In this way the consumer will never see data they are not entitled
-to see.
 
 ### Publish / Subscribe
 
@@ -32,31 +15,116 @@ The broker follows a standard pub-sub pattern. Clients subscribe to topic patter
 Other clients publish to topics, which gets routed to the subscribers. The data
 is sent as *packets* of bytes, so any kind of message can be sent.
 
-### Data Packets
+The topic patterns use glob style where:
 
-Data is sent and received as a number of "packets". Each packets has:
+- `?` matches exactly one occurrence of any character.
+- `*` matches arbitrary many (including zero) occurrences of any character.
 
-* Entitlements - a list of integers
-* Headers - key-value pairs
-* Data - an array of bytes
+An example pattern might be "*:NASDAQ" which would match "AAPL:NASDAQ".
 
-When the data is received by the broker it will only forward packets which
-match the entitlements of the receiving client. This means that as long as the
-publisher tags each packet with it's entitlements, clients will only receive
-data to which they're entitled.
-
-The headers can hold meta data. This is often the content type (e.g. JSON),
-timestamps, etc.
+Globbing was chosen over regex because it is up to two orders of magnitude
+faster than regex, and is simpler for clients to understand.
 
 ### Notification
 
-Clients may request *notification* of subscriptions to a topic pattern. For example,
-if the pattern was "NASDAQ.*", and a second client subscribed to "NASDAQ.AMZN",
-the first client would be notified of this subscription.
+A novel feature of this message bus is *notification*.
 
-### Send (Peer to Peer)
+A client can ask to be notified if any client subscribes to a topic.
+For example, with the pattern "*:NASDAQ", a notification would be sent
+if a client subscribed to "AAPL:NASDAQ".
 
-One client may send data directly to another.
+The notification includes the *client-id* of the client that requested the subscription.
+
+### Send
+
+Instead of publishing to all subscribers a client can send data directly to another client. This happens as a result of a notification.
+
+If a publisher has requested notifications on "*:NASDAQ", and a client
+subscribes to "AAPL:NASDAQ", the publisher is notified of the subscription
+and given the id of the subscribing client. The publisher can then send an
+initial message directly to the client with all of the fields. After this it
+can just publish updates.
+
+### Authentication
+
+The broker supports the following authentication methods:
+
+* Anonymous (no authentication)
+* Password file
+* LDAP
+
+### Authorization
+
+If a client is authenticated it can be *authorized*.
+Authorization describes the *roles* and *entitlements* it has.
+
+Roles include: `Notifier`, `Publisher`, `Subscriber`
+
+Entitlements are represented as a list of integers. An entitlement might allow viewing of level 2 data from a particular exchange, or access to see the P&L of a book.
+
+Entitlements are used by the message broker to filter the messages sent to
+subscribers. The message broker will only forward data that a client is
+authorized to receive.
+
+## How it works
+
+Messages have the following properties:
+
+* Headers - string key-value pairs
+* Data - an array of bytes
+* Entitlements - a list of integers
+
+In addition to this data is sent as *packets*.
+
+### Headers & Data
+
+Data is published as bytes. This makes the protocol agnostic to the message
+format. It could be protobuf, or JSON, or anything.
+
+Headers are optional string key-value pairs which add meta-data to the
+message. For example they might include:
+
+* `content-type: application/json`
+* `content-encoding: zstd`
+
+Or if the messages were of a known format it might be omitted.
+
+### Entitlements
+
+The message broker will only forward data to a client to which it is
+entitled.
+Those entitlements are included in the message it receives.
+This allows the message to maintain a chain of entitlements.
+
+
+For example if the client was a P&L server it might not be entitled to see
+level 2 data, which it would not receive. When the P&L server received only
+its entitled level 1 data it would attach those price entitlements to its
+own P&L entitlements (constraining who is allowed to see the P&L). The server
+would only forward data to clients that were entitled to see the prices *and*
+the P&L.
+
+### Packets
+
+A message may contain data with different entitlements. For example a price
+message may contain level 1 and level 2 data. To support this a message is
+sent as packets.
+
+Each packet contains the data, headers and entitlements. This allows a
+publisher to send all the data and let the message broker handle the
+filtering of data sent to the clients.
+
+As well as splitting the data by entitlements, the packet structure also
+allows sending data with different encoding. One packet could be JSON, with
+another as an IPC arrow table.
+
+### Disconnection
+
+When a client disconnects, other "interested" clients are informed.
+
+For example a client receiving notifications will be informed when a subscriber has
+disconnected (as well as when they unsubscribe). A client that has subscribed to
+a topic will be informed when all publishers to the topic have disconnected.
 
 ### Selectfeed
 
@@ -68,14 +136,6 @@ Combining notification and sending enables the selectfeed pattern.
 The publisher requests notifications on the topic pattern for which it is publishing.
 When a client subscribes, an initial image is sent. This is followed by deltas
 which are published to all subscribers.
-
-### Disconnection
-
-When a client disconnects, other "interested" clients are informed.
-
-For example a client receiving notifications will be informed when a subscriber has
-disconnected (as well as when they unsubscribe). A client that has subscribed to
-a topic will be informed when all publishers to the topic have disconnected.
 
 ### WebSockets
 
@@ -204,3 +264,24 @@ The following endpoints exist.
 * /health/startup - returns 200 if the server has started.
 * /health/readiness - returns 200 if the server is ready to receive data.
 * /health/liveness - returns 200 if the server is alive.
+
+### Heartbeat
+
+Periods of no network activity can lead to routers dropping connections.
+To keep connections alive a heartbeat message is sent every 30 seconds.
+The interval this is sent can be configured with `--heartbeat-seconds <seconds>`.
+
+### Message Size
+
+The default maximum message size is 4,294,967,295. This can be constrained
+with `--max-message-size <bytes>`.
+
+### Back Pressure
+
+If a client is unable to handle messages promptly it can lead to them being
+queued up on the server. Such a client would be termed a "slow consumer". The
+consequence for the server is called "back pressure". Back pressure an cause
+the server to run out of memory.
+
+The server imposes a constraint of the maximum number of messages. This can
+be configured with `max-queued-messages <count>`

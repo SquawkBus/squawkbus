@@ -17,6 +17,7 @@
         "keyfile",
         "outbuf",
         "pemfile",
+        "permissioned",
         "pwfile",
         "pwhash",
         "repr",
