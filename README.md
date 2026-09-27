@@ -122,9 +122,15 @@ another as an IPC arrow table.
 
 When a client disconnects, other "interested" clients are informed.
 
-For example a client receiving notifications will be informed when a subscriber has
-disconnected (as well as when they unsubscribe). A client that has subscribed to
-a topic will be informed when all publishers to the topic have disconnected.
+For example a client receiving notifications will be informed when a
+subscriber has disconnected (as well as when they unsubscribe). A client
+that has subscribed to a topic will be informed when all publishers to the
+topic have disconnected.
+
+The disconnection messages offer some useful information. They allow a
+publisher to stop sending data when it is informed that there are no
+subscriptions. A subscriber can use the information that there are no
+publishers to mark data as stale.
 
 ### Selectfeed
 
