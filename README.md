@@ -90,22 +90,27 @@ message. For example they might include:
 * `content-type: application/json`
 * `content-encoding: zstd`
 
-Or if the messages were of a known format it might be omitted.
+Or if the messages were always in a known format it might be omitted entirely.
 
 ### Entitlements
 
-The message broker will only forward data to a client to which it is
-entitled.
+The message broker will only forward data to a client to which it is entitled.
 Those entitlements are included in the message it receives.
 This allows the message to maintain a chain of entitlements.
 
+If we take a P&L server in a trading bank as an example.
+It maintains the P&L for a number of trading teams. The members of each team
+can see their team's P&L, but the other team's. The boss can see everything.
+When a price is received the P&L for the relevant positions is recalculated and published.
 
-For example if the client was a P&L server it might not be entitled to see
-level 2 data, which it would not receive. When the P&L server received only
-its entitled level 1 data it would attach those price entitlements to its
-own P&L entitlements (constraining who is allowed to see the P&L). The server
-would only forward data to clients that were entitled to see the prices *and*
-the P&L.
+The price message also includes the entitlements required to receive the price.
+The P&L server attaches the price entitlements to it's own entitlements making
+a chain. Because the message can have many packets (each with it's own entitlements)
+the updates can be sent as a single message.
+
+The server will filter out the data that is subscriber is not entitled to see.
+This means that only user's with entitlements for the price *and* for the trading
+team would receive the data.
 
 ### Packets
 
