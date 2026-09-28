@@ -319,7 +319,7 @@ The interval this is sent can be configured with `--heartbeat-seconds <seconds>`
 
 ### Message Size
 
-The default maximum message size is 4,294,967,295. This can be constrained
+The maximum message size is 4,294,967,295. This can be constrained further
 with `--max-message-size <bytes>`.
 
 ### Back Pressure
@@ -330,4 +330,4 @@ consequence for the server is called "back pressure". Back pressure an cause
 the server to run out of memory.
 
 The server imposes a constraint of the maximum number of messages. This can
-be configured with `max-queued-messages <count>`. The default is 32.
+be configured with `--max-queued-messages <count>`. The default is 32.
