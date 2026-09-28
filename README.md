@@ -157,9 +157,14 @@ which are published to all subscribers.
 
 ### Distributed Calculation Servers
 
-While the majority of the examples have centered around market data, the
-architecture lends itself to general event driven calculation of streaming
-data.
+The notification mechanism allows a service to interpret the subscription topic.
+Using the previous P&L example, if the oil team wanted to know their positions
+at the start of february they might subscribe to "P&L.OIL.*.EOD.20260201".
+The server would parse the date and send the end of day positions for that date.
+
+Another example could be a scenario. The team might subscribe to "P&L.OIL.*.SCENARIO.SUEZ-BLOCKED".
+The server could apply a 10% shock to oil prices and the team would receive ticking
+P&L based on that scenario.
 
 ### WebSockets
 
