@@ -100,7 +100,7 @@ This allows messages to maintain a chain of entitlements.
 
 If we take a P&L server in a trading bank as an example.
 It maintains the P&L for a number of trading teams. The members of each team
-can see their team's P&L, but the others.
+can see their team's P&L, but not the others.
 When a price is received the P&L for the relevant positions is recalculated and published.
 
 The price message also includes the entitlements required to receive the price.
