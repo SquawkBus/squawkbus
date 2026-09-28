@@ -155,7 +155,7 @@ The publisher requests notifications on the topic pattern for which it is publis
 When a client subscribes, an initial image is sent. This is followed by deltas
 which are published to all subscribers.
 
-### Topic Interpretation
+### Dynamic Topics
 
 The notification mechanism allows a service to interpret the subscription topic.
 Using the previous P&L example, if the oil team wanted to know their positions
@@ -172,6 +172,10 @@ P&L based on that scenario.
 More generally one might imaging a series of services subscribing to the output
 of other services. This would provide a highly distributed, highly scalable
 calculation service.
+
+For example one server might provide prices for interest rate products, while
+a second would subscribe to those prices and publish yield curves. A third might
+use the yield curves to price bonds, and so on.
 
 ### WebSockets
 
