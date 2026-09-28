@@ -46,7 +46,7 @@ If a publisher has requested notifications on "*:NASDAQ", and a client
 subscribes to "AAPL:NASDAQ", the publisher is notified of the subscription
 and given the id of the subscribing client. The publisher can then send an
 initial message directly to the client with all of the fields. After this it
-can just publish updates.
+can just publish updates on the fields that have changed.
 
 ### Authentication
 
