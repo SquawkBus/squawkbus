@@ -96,11 +96,11 @@ Or if the messages were always in a known format it might be omitted entirely.
 
 The message broker will only forward data to a client for which it is entitled.
 Those entitlements are included in the message it receives.
-This allows the message to maintain a chain of entitlements.
+This allows messages to maintain a chain of entitlements.
 
 If we take a P&L server in a trading bank as an example.
 It maintains the P&L for a number of trading teams. The members of each team
-can see their team's P&L, but the other team's. The boss can see everything.
+can see their team's P&L, but the others.
 When a price is received the P&L for the relevant positions is recalculated and published.
 
 The price message also includes the entitlements required to receive the price.
