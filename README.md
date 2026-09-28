@@ -94,7 +94,7 @@ Or if the messages were always in a known format it might be omitted entirely.
 
 ### Entitlements
 
-The message broker will only forward data to a client to which it is entitled.
+The message broker will only forward data to a client for which it is entitled.
 Those entitlements are included in the message it receives.
 This allows the message to maintain a chain of entitlements.
 
