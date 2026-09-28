@@ -92,6 +92,20 @@ message. For example they might include:
 
 Or if the messages were always in a known format it might be omitted entirely.
 
+### Packets
+
+A message may contain data with different entitlements. For example a price
+message may contain level 1 and level 2 data. To support this a message is
+sent as packets.
+
+Each packet contains the data, headers and entitlements. This allows a
+publisher to send all the data and let the message broker handle the
+filtering of data sent to the clients.
+
+As well as splitting the data by entitlements, the packet structure also
+allows sending data with different encoding. One packet could be JSON, with
+another as an IPC arrow table.
+
 ### Entitlements
 
 The message broker will only forward data to a client for which it is entitled.
@@ -111,20 +125,6 @@ the updates can be sent as a single message.
 The server will filter out the data that is subscriber is not entitled to see.
 This means that only user's with entitlements for the price *and* for the trading
 team would receive the data.
-
-### Packets
-
-A message may contain data with different entitlements. For example a price
-message may contain level 1 and level 2 data. To support this a message is
-sent as packets.
-
-Each packet contains the data, headers and entitlements. This allows a
-publisher to send all the data and let the message broker handle the
-filtering of data sent to the clients.
-
-As well as splitting the data by entitlements, the packet structure also
-allows sending data with different encoding. One packet could be JSON, with
-another as an IPC arrow table.
 
 ### Disconnection
 
