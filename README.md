@@ -39,7 +39,7 @@ The notification includes the *client-id* of the client that requested the subsc
 
 ### Send
 
-Instead of publishing to all subscribers a client can send data directly to
+As well as publishing to subscribers a client can send data directly to
 another client. A client id is discovered through a notification.
 
 If a publisher has requested notifications on "*:NASDAQ", and a client
